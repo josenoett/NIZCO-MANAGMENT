@@ -1,0 +1,1874 @@
+<!DOCTYPE html>
+<html lang="es" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NIZCO SHOP MANAGEMENT - ERP Production</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts & Material Icons -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <!-- Supabase Client -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <!-- html2pdf -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <!-- Chart.js para Reportes Avanzados -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 flex flex-col h-screen overflow-hidden">
+
+    <!-- PANTALLA DE CONTROL DE ACCESO (LOGIN OBLIGATORIO) -->
+    <div id="erp-login-screen" class="fixed inset-0 bg-slate-900 z-[100] flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl p-8 max-w-sm w-full shadow-2xl flex flex-col gap-6">
+            <div class="text-center">
+                <div class="bg-blue-600 text-white w-12 h-12 rounded-2xl flex items-center justify-center shadow-lg shadow-blue-100 mx-auto mb-3">
+                    <span class="material-icons">lock</span>
+                </div>
+                <h2 class="text-xl font-black text-slate-900 tracking-tight">NIZCO ERP</h2>
+                <p class="text-xs text-slate-400 mt-1">Ingresa tus credenciales autorizadas</p>
+            </div>
+            
+            <form id="login-form" onsubmit="Auth_Engine.handleLogin(event)" class="flex flex-col gap-4 text-sm">
+                <div class="flex flex-col gap-1">
+                    <label class="text-xs font-semibold text-slate-500 uppercase">Correo Electrónico</label>
+                    <input type="email" id="login-email" required placeholder="correo@nizco.com" class="border rounded-xl px-4 py-2.5 bg-slate-50 focus:outline-none">
+                </div>
+                <div class="flex flex-col gap-1">
+                    <label class="text-xs font-semibold text-slate-500 uppercase">Contraseña</label>
+                    <input type="password" id="login-password" required placeholder="••••••••" class="border rounded-xl px-4 py-2.5 bg-slate-50 focus:outline-none">
+                </div>
+                <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-xl transition mt-2 shadow-lg shadow-blue-100">
+                    Iniciar Sesión
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- HEADER DEL ERP -->
+    <header class="bg-white border-b border-slate-200 px-6 py-4 flex flex-col sm:flex-row items-center justify-between gap-4 shrink-0">
+        <div class="flex items-center gap-3">
+            <div class="bg-blue-600 text-white p-2.5 rounded-xl flex items-center justify-center shadow-lg shadow-blue-100">
+                <span class="material-icons">business</span>
+            </div>
+            <div>
+                <h1 class="text-xl font-bold tracking-tight text-slate-900 flex items-center gap-2">
+                    NIZCO <span class="text-xs px-2 py-0.5 bg-blue-50 text-blue-600 rounded-full font-bold border border-blue-100">MANAGEMENT ERP</span>
+                </h1>
+                <p class="text-xs text-slate-500">Planificación de Recursos y Operaciones de Taller</p>
+            </div>
+        </div>
+        
+        <div class="flex flex-wrap items-center gap-4">
+            <div id="connection-status" class="flex items-center gap-2 bg-emerald-50 border border-emerald-200 text-emerald-700 px-3 py-1.5 rounded-full text-xs font-medium transition duration-300">
+                <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                <span>Estableciendo Conexión Nube...</span>
+            </div>
+
+            <div class="flex items-center gap-3 border-l pl-4 border-slate-200">
+                <div class="flex flex-col text-right">
+                    <span id="user-display-name" class="text-xs font-bold text-slate-700">Cargando...</span>
+                    <span id="user-display-role" class="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full uppercase w-fit ml-auto">Rol</span>
+                </div>
+                <button onclick="Auth_Engine.handleLogout()" class="text-slate-400 hover:text-rose-600 p-1.5 rounded-lg transition" title="Cerrar Sesión">
+                    <span class="material-icons text-xl">logout</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- CUERPO PRINCIPAL -->
+    <div class="flex flex-1 overflow-hidden">
+        
+        <!-- BARRA LATERAL (NAVEGACIÓN) -->
+        <aside class="w-20 md:w-64 bg-white border-r border-slate-200 flex flex-col justify-between py-6 shrink-0 font-medium">
+            <nav class="flex flex-col gap-2 px-3">
+                <button onclick="UI_Controller.switchTab('dashboard')" id="btn-dashboard" class="nav-btn active flex flex-col md:flex-row items-center gap-3 px-3 py-3 rounded-xl transition text-blue-600 bg-blue-50/80 text-sm w-full">
+                    <span class="material-icons">analytics</span>
+                    <span class="hidden md:inline">Panel Financiero</span>
+                </button>
+                
+                <button onclick="UI_Controller.switchTab('ordenes')" id="btn-ordenes" class="nav-btn flex flex-col md:flex-row items-center gap-3 px-3 py-3 rounded-xl transition text-slate-500 hover:bg-slate-50 text-sm w-full">
+                    <span class="material-icons">assignment</span>
+                    <span class="hidden md:inline">Órdenes de Trabajo</span>
+                </button>
+                
+                <button onclick="UI_Controller.switchTab('nueva-orden')" id="btn-nueva-orden" class="nav-btn flex flex-col md:flex-row items-center gap-3 px-3 py-3 rounded-xl transition text-slate-500 hover:bg-slate-50 text-sm w-full">
+                    <span class="material-icons">playlist_add</span>
+                    <span class="hidden md:inline">Registrar Entrada</span>
+                </button>
+
+                <button onclick="UI_Controller.switchTab('tesoreria')" id="btn-tesoreria" class="nav-btn flex flex-col md:flex-row items-center gap-3 px-3 py-3 rounded-xl transition text-slate-500 hover:bg-slate-50 text-sm w-full">
+                    <span class="material-icons">account_balance</span>
+                    <span class="hidden md:inline">Tesorería</span>
+                </button>
+
+                <button onclick="UI_Controller.switchTab('cotizaciones')" id="btn-cotizaciones" class="nav-btn flex flex-col md:flex-row items-center gap-3 px-3 py-3 rounded-xl transition text-slate-500 hover:bg-slate-50 text-sm w-full">
+                    <span class="material-icons">picture_as_pdf</span>
+                    <span class="hidden md:inline">Generador PDF</span>
+                </button>
+
+                <button onclick="UI_Controller.switchTab('personal')" id="btn-personal" class="nav-btn flex flex-col md:flex-row items-center gap-3 px-3 py-3 rounded-xl transition text-slate-500 hover:bg-slate-50 text-sm w-full">
+                    <span class="material-icons">badge</span>
+                    <span class="hidden md:inline">Nómina y Personal</span>
+                </button>
+            </nav>
+            
+            <div class="px-3">
+                <button onclick="UI_Controller.switchTab('config')" id="btn-config" class="nav-btn flex flex-col md:flex-row items-center gap-3 px-3 py-3 rounded-xl transition text-slate-500 hover:bg-slate-50 text-sm w-full">
+                    <span class="material-icons">settings</span>
+                    <span class="hidden md:inline">Configuración</span>
+                </button>
+            </div>
+        </aside>
+
+        <!-- CONTENIDO PRINCIPAL DINÁMICO -->
+        <main class="flex-1 overflow-y-auto p-4 md:p-8 no-scrollbar bg-slate-50 flex flex-col gap-6">
+            
+            <div id="toast-container" class="fixed bottom-5 right-5 z-50 flex flex-col gap-2"></div>
+
+            <!-- PESTAÑA 1: PANEL FINANCIERO -->
+            <section id="tab-dashboard" class="tab-content flex flex-col gap-6">
+                <!-- MOTOR DE FILTROS ERP -->
+                <div class="bg-white p-5 border border-slate-200 rounded-3xl flex flex-col lg:flex-row items-center justify-between gap-5 shadow-sm">
+                    <div class="flex items-center gap-3">
+                        <div class="bg-blue-50 text-blue-600 p-2 rounded-xl">
+                            <span class="material-icons">tune</span>
+                        </div>
+                        <div>
+                            <h3 class="font-bold text-slate-900 text-sm">Filtros de Reporte Consolidado</h3>
+                            <p class="text-xs text-slate-400">Todos los balances y gráficas se recalculan con el periodo seleccionado.</p>
+                        </div>
+                    </div>
+                    
+                    <div class="flex flex-wrap items-center gap-4 w-full lg:w-auto justify-end">
+                        <select id="erp-date-preset" onchange="Financial_Engine.handlePresetChange()" class="bg-slate-50 border border-slate-200 text-xs font-bold rounded-xl px-4 py-2.5 text-slate-700 focus:outline-none w-full sm:w-56 cursor-pointer">
+                            <option value="today">☀️ Hoy</option>
+                            <option value="this-week">📅 Esta Semana</option>
+                            <option value="this-month" selected>🗓️ Este Mes</option>
+                            <option value="last-month">⏮️ Mes Pasado</option>
+                            <option value="this-year">📊 Este Año</option>
+                            <option value="custom">🛠️ Rango Personalizado...</option>
+                        </select>
+                        
+                        <div id="erp-custom-dates" class="hidden flex flex-wrap items-center gap-3 text-xs font-semibold text-slate-600 bg-slate-50 p-2 rounded-xl border border-slate-100">
+                            <div class="flex items-center gap-1.5">
+                                <span>Desde:</span>
+                                <input type="date" id="erp-start-date" onchange="Financial_Engine.recalculate()" class="border border-slate-200 px-3 py-1.5 rounded-lg bg-white focus:outline-none">
+                            </div>
+                            <div class="flex items-center gap-1.5">
+                                <span>Hasta:</span>
+                                <input type="date" id="erp-end-date" onchange="Financial_Engine.recalculate()" class="border border-slate-200 px-3 py-1.5 rounded-lg bg-white focus:outline-none">
+                            </div>
+                        </div>
+
+                        <div id="erp-period-badge" class="bg-slate-100 text-[10px] px-3.5 py-1.5 rounded-full text-slate-500 font-bold uppercase tracking-wider">
+                            Calculando Periodo...
+                        </div>
+                    </div>
+                </div>
+
+                <!-- INDICADORES FINANCIEROS AVANZADOS -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 font-sans">
+                    <div class="bg-white border border-slate-200 p-5 rounded-2xl flex flex-col justify-between shadow-sm">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Ingresos Brutos</p>
+                                <h3 id="dash-ingresos" class="text-2xl font-extrabold text-slate-800 mt-1">$0.00</h3>
+                            </div>
+                            <div class="bg-emerald-50 text-emerald-600 p-3 rounded-xl"><span class="material-icons">trending_up</span></div>
+                        </div>
+                        <div class="text-[10px] text-slate-400 mt-3 pt-2 border-t border-slate-100">
+                            Pagado: <span id="caja-pagado" class="font-semibold text-slate-700">$0.00</span> | Anticipos: <span id="caja-anticipo" class="font-semibold text-slate-700">$0.00</span>
+                        </div>
+                    </div>
+
+                    <div class="bg-white border border-slate-200 p-5 rounded-2xl flex flex-col justify-between shadow-sm">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Utilidad Bruta (Op.)</p>
+                                <h3 id="dash-utilidad-bruta" class="text-2xl font-extrabold text-slate-800 mt-1">$0.00</h3>
+                            </div>
+                            <div class="bg-teal-50 text-teal-600 p-3 rounded-xl"><span class="material-icons">account_balance_wallet</span></div>
+                        </div>
+                        <div class="text-[10px] text-slate-400 mt-3 pt-2 border-t border-slate-100">
+                            Costo Refacciones: <span id="costo-ref-total" class="font-semibold text-slate-700">$0.00</span>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-white border border-slate-200 p-5 rounded-2xl flex flex-col justify-between shadow-sm">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Gastos Totales (Egresos)</p>
+                                <h3 id="dash-egresos" class="text-2xl font-extrabold text-slate-800 mt-1">$0.00</h3>
+                            </div>
+                            <div class="bg-rose-50 text-rose-600 p-3 rounded-xl"><span class="material-icons">trending_down</span></div>
+                        </div>
+                        <div class="text-[10px] text-slate-400 mt-3 pt-2 border-t border-slate-100">
+                            Fijos: <span id="costo-fijos-total" class="font-semibold text-slate-700">$0.00</span> | Nómina: <span id="costo-nomina-total" class="font-semibold text-slate-700">$0.00</span>
+                        </div>
+                    </div>
+
+                    <div class="bg-white border border-slate-200 p-5 rounded-2xl flex items-center justify-between shadow-sm">
+                        <div>
+                            <p class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Utilidad Neta Real</p>
+                            <h3 id="dash-utilidad" class="text-2xl font-extrabold text-slate-800 mt-1">$0.00</h3>
+                        </div>
+                        <div id="utilidad-icon-container" class="bg-blue-50 text-blue-600 p-3 rounded-xl"><span class="material-icons">payments</span></div>
+                    </div>
+                </div>
+
+                <!-- INDICADORES OPERATIVOS SECUNDARIOS -->
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 font-sans">
+                    <div class="bg-white border border-slate-200 p-4 rounded-xl shadow-sm flex items-center gap-4">
+                        <div class="bg-purple-50 text-purple-600 p-2 rounded-lg"><span class="material-icons">directions_car</span></div>
+                        <div>
+                            <p class="text-[10px] font-bold text-slate-400 uppercase">Vehículos Atendidos</p>
+                            <h4 id="dash-vehiculos" class="text-lg font-bold text-slate-800">0</h4>
+                        </div>
+                    </div>
+                    <div class="bg-white border border-slate-200 p-4 rounded-xl shadow-sm flex items-center gap-4">
+                        <div class="bg-indigo-50 text-indigo-600 p-2 rounded-lg"><span class="material-icons">receipt</span></div>
+                        <div>
+                            <p class="text-[10px] font-bold text-slate-400 uppercase">Ticket Promedio</p>
+                            <h4 id="dash-ticket-promedio" class="text-lg font-bold text-slate-800">$0.00</h4>
+                        </div>
+                    </div>
+                    <div class="bg-white border border-slate-200 p-4 rounded-xl shadow-sm flex items-center gap-4">
+                        <div class="bg-amber-50 text-amber-600 p-2 rounded-lg"><span class="material-icons">percent</span></div>
+                        <div>
+                            <p class="text-[10px] font-bold text-slate-400 uppercase">Margen de Utilidad</p>
+                            <h4 id="dash-margen" class="text-lg font-bold text-slate-800">0%</h4>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SECCIÓN GRÁFICAS DISPUESTAS EN GRID -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="bg-white p-4 border border-slate-200 rounded-2xl shadow-sm">
+                        <h4 class="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">Ingresos vs Gastos</h4>
+                        <div class="h-64"><canvas id="chart-ingresos-gastos"></canvas></div>
+                    </div>
+                    <div class="bg-white p-4 border border-slate-200 rounded-2xl shadow-sm">
+                        <h4 class="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">Gastos por Categoría</h4>
+                        <div class="h-64"><canvas id="chart-gastos-categoria"></canvas></div>
+                    </div>
+                    <div class="bg-white p-4 border border-slate-200 rounded-2xl shadow-sm">
+                        <h4 class="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">Evolución Mensual de Ingresos</h4>
+                        <div class="h-64"><canvas id="chart-evolucion-ingresos"></canvas></div>
+                    </div>
+                    <div class="bg-white p-4 border border-slate-200 rounded-2xl shadow-sm">
+                        <h4 class="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">Utilidad Neta por Mes</h4>
+                        <div class="h-64"><canvas id="chart-utilidad-mes"></canvas></div>
+                    </div>
+                </div>
+
+                <!-- REPORTE DE ESTADO DE RESULTADOS & CATEGORÍAS -->
+                <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                    <!-- CONTENEDOR ESTADO DE RESULTADOS -->
+                    <div class="bg-white border border-slate-200 p-6 rounded-2xl lg:col-span-7 shadow-sm flex flex-col gap-4">
+                        <div>
+                            <h4 class="font-bold text-slate-900 text-sm uppercase tracking-wider">Estado de Resultados Consolidado</h4>
+                            <p class="text-xs text-slate-400">Esquema financiero estructurado del periodo bajo normas contables básicas.</p>
+                        </div>
+                        <div class="flex flex-col gap-2 text-xs font-medium text-slate-700 mt-2">
+                            <div class="flex justify-between border-b pb-1.5 font-bold text-slate-900 text-sm">
+                                <span>INGRESOS BRUTOS (Ventas)</span> <span id="er-ingresos" class="text-emerald-600">$0.00</span>
+                            </div>
+                            <div class="flex justify-between border-b pb-1.5 pl-4 text-slate-600">
+                                <span>(-) Refacciones (Costo de Ventas)</span> <span id="er-refacciones" class="text-rose-600">$0.00</span>
+                            </div>
+                            <div class="flex justify-between border-b pb-1.5 pl-4 text-slate-600">
+                                <span>(-) Nómina Devengada</span> <span id="er-nomina" class="text-rose-600">$0.00</span>
+                            </div>
+                            <div class="flex justify-between border-b pb-1.5 pl-4 text-slate-600">
+                                <span>(-) Gasolina</span> <span id="er-gasolina" class="text-rose-600">$0.00</span>
+                            </div>
+                            <div class="flex justify-between border-b pb-1.5 pl-4 text-slate-600">
+                                <span>(-) Consumibles</span> <span id="er-consumibles" class="text-rose-600">$0.00</span>
+                            </div>
+                            <div class="flex justify-between border-b pb-1.5 pl-4 text-slate-600">
+                                <span>(-) Servicios (Agua, Luz, Internet, Renta)</span> <span id="er-servicios" class="text-rose-600">$0.00</span>
+                            </div>
+                            <div class="flex justify-between border-b pb-1.5 pl-4 text-slate-600">
+                                <span>(-) Publicidad</span> <span id="er-publicidad" class="text-rose-600">$0.00</span>
+                            </div>
+                            <div class="flex justify-between border-b pb-1.5 pl-4 text-slate-600">
+                                <span>(-) Otros Gastos / Varios</span> <span id="er-otros" class="text-rose-600">$0.00</span>
+                            </div>
+                            <div class="flex justify-between pt-3 font-black text-slate-900 text-sm">
+                                <span>UTILIDAD NETA REAL</span> <span id="er-utilidad-neta" class="text-blue-600">$0.00</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- DESGLOSE GLOBAL POR CATEGORÍA -->
+                    <div class="bg-white border border-slate-200 p-6 rounded-2xl lg:col-span-5 shadow-sm flex flex-col gap-4">
+                        <h4 class="font-bold text-slate-900 text-sm uppercase tracking-wider">Montos Totales por Categoría</h4>
+                        <div class="overflow-y-auto max-h-64 no-scrollbar text-xs flex flex-col gap-2" id="dashboard-categories-container">
+                            <!-- Inyección dinámica -->
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- PESTAÑA 2: LISTA DE ÓRDENES -->
+            <section id="tab-ordenes" class="tab-content hidden flex flex-col gap-6">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div>
+                        <h2 class="text-xl font-bold text-slate-900">Registro General de Órdenes</h2>
+                        <p class="text-sm text-slate-500">Búsqueda y control de estado de reparaciones.</p>
+                    </div>
+                    <div class="bg-white border border-slate-200 px-3.5 py-2 rounded-xl flex items-center gap-2 shadow-sm w-full sm:w-64">
+                        <span class="material-icons text-slate-400 text-sm">search</span>
+                        <input type="text" id="search-bar" oninput="UI_Controller.renderOrdersList()" placeholder="Buscar cliente, placa o mecánico..." class="text-sm focus:outline-none w-full text-slate-600">
+                    </div>
+                </div>
+
+                <div class="bg-white border border-slate-200 rounded-3xl overflow-hidden shadow-sm">
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse">
+                            <thead>
+                                <tr class="bg-slate-50 text-slate-500 uppercase text-[10px] tracking-wider font-bold border-b border-slate-200">
+                                    <th class="py-4 px-6">ID / Fecha</th>
+                                    <th class="py-4 px-6">Cliente & Auto</th>
+                                    <th class="py-4 px-6">Estado Reparación</th>
+                                    <th class="py-4 px-6 text-left section-finance-view">Total Cobrado</th>
+                                    <th class="py-4 px-6 text-right">Acción</th>
+                                </tr>
+                            </thead>
+                            <tbody id="orders-table-body" class="divide-y divide-slate-100 text-sm text-slate-600"></tbody>
+                        </table>
+                    </div>
+                    <div id="no-orders-message" class="hidden p-12 text-center text-slate-400">
+                        <span class="material-icons text-5xl mb-3">inventory_2</span>
+                        <p>Sin datos históricos coincidentes.</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- PESTAÑA 3: CREAR NUEVA ORDEN (CON CAPTURA DE FECHA MANUAL) -->
+            <section id="tab-nueva-orden" class="tab-content hidden max-w-3xl mx-auto">
+                <div class="bg-white border border-slate-200 rounded-3xl p-6 md:p-8 shadow-sm flex flex-col gap-6">
+                    <div>
+                        <h2 class="text-xl font-bold text-slate-900">Registrar Ingreso de Vehículo</h2>
+                        <p class="text-sm text-slate-500">Completa la hoja de servicio inicial para el taller.</p>
+                    </div>
+                    
+                    <form id="new-order-form" onsubmit="UI_Controller.handleCreateOrder(event)" class="flex flex-col gap-6">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div class="flex flex-col gap-1.5">
+                                <label class="text-xs font-semibold text-slate-500 uppercase">Nombre del Cliente *</label>
+                                <input type="text" id="form-cliente-nombre" required placeholder="Ej. Juan Pérez" class="border rounded-xl px-4 py-2.5 text-sm focus:outline-none">
+                            </div>
+                            <div class="flex flex-col gap-1.5">
+                                <label class="text-xs font-semibold text-slate-500 uppercase">Teléfono de Contacto</label>
+                                <input type="tel" id="form-cliente-telefono" placeholder="Ej. +52 656..." class="border rounded-xl px-4 py-2.5 text-sm focus:outline-none">
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                            <div class="flex flex-col gap-1.5 md:col-span-2">
+                                <label class="text-xs font-semibold text-slate-500 uppercase">Marca y Línea *</label>
+                                <input type="text" id="form-auto-marca" required placeholder="Ej. Ford Mustang" class="border rounded-xl px-4 py-2.5 text-sm focus:outline-none">
+                            </div>
+                            <div class="flex flex-col gap-1.5">
+                                <label class="text-xs font-semibold text-slate-500 uppercase">Modelo (Año) *</label>
+                                <input type="text" id="form-auto-modelo" required placeholder="Ej. 2018" class="border rounded-xl px-4 py-2.5 text-sm focus:outline-none">
+                            </div>
+                            <div class="flex flex-col gap-1.5">
+                                <label class="text-xs font-semibold text-slate-500 uppercase">Placas *</label>
+                                <input type="text" id="form-auto-placas" required placeholder="Ej. ABC-123-A" class="border rounded-xl px-4 py-2.5 text-sm focus:outline-none uppercase">
+                            </div>
+                        </div>
+
+                        <!-- FILA DE KILOMETRAJE, MOTIVO Y FECHA MANUAL -->
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div class="flex flex-col gap-1.5">
+                                <label class="text-xs font-semibold text-slate-500 uppercase">Kilometraje *</label>
+                                <input type="number" id="form-kilometraje" required placeholder="Ej. 75000" class="border rounded-xl px-4 py-2.5 text-sm focus:outline-none">
+                            </div>
+                            <div class="flex flex-col gap-1.5">
+                                <label class="text-xs font-semibold text-slate-500 uppercase">Fecha de Ingreso *</label>
+                                <input type="date" id="form-fecha-ingreso" required class="border rounded-xl px-4 py-2.5 text-sm focus:outline-none bg-slate-50 cursor-pointer">
+                            </div>
+                            <div class="flex flex-col gap-1.5">
+                                <label class="text-xs font-semibold text-slate-500 uppercase">Falla / Motivo de Ingreso *</label>
+                                <input type="text" id="form-falla-reportada" required placeholder="Ej. Pérdida de potencia" class="border rounded-xl px-4 py-2.5 text-sm focus:outline-none">
+                            </div>
+                        </div>
+
+                        <div class="flex flex-col gap-1.5">
+                            <label class="text-xs font-semibold text-slate-500 uppercase">Técnico Responsable *</label>
+                            <select id="form-tecnico" required class="border rounded-xl px-4 py-2.5 text-sm bg-white focus:outline-none"></select>
+                        </div>
+
+                        <div class="bg-slate-50 p-5 rounded-2xl border border-slate-200 flex flex-col gap-4">
+                            <div class="flex justify-between items-center border-b border-slate-200 pb-3">
+                                <h3 class="font-bold text-xs text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
+                                    <span class="material-icons text-blue-600 text-sm">handyman</span> 
+                                    Conceptos Estimados Iniciales
+                                </h3>
+                                <button type="button" onclick="UI_Controller.addNewOrderConceptRow()" class="text-blue-600 hover:text-blue-700 text-xs font-bold flex items-center gap-0.5">
+                                    <span class="material-icons text-sm">add_circle</span>Añadir Concepto
+                                </button>
+                            </div>
+                            
+                            <div id="new-order-concepts-container" class="flex flex-col gap-3"></div>
+
+                            <div class="grid grid-cols-3 gap-3 pt-4 border-t border-slate-200 section-finance-view">
+                                <div class="bg-white p-3 rounded-xl text-center border">
+                                    <span class="text-[9px] font-bold text-slate-400 uppercase block">Mano de Obra</span>
+                                    <p id="new-order-total-mano" class="text-sm font-extrabold text-slate-800">$0</p>
+                                </div>
+                                <div class="bg-white p-3 rounded-xl text-center border">
+                                    <span class="text-[9px] font-bold text-slate-400 uppercase block">Refacciones</span>
+                                    <p id="new-order-total-ref" class="text-sm font-extrabold text-slate-800">$0</p>
+                                </div>
+                                <div class="bg-blue-50 p-3 rounded-xl text-center border border-blue-100">
+                                    <span class="text-[9px] font-bold text-blue-600 uppercase block">Total Estimado</span>
+                                    <p id="new-order-total-general" class="text-sm font-black text-blue-600">$0</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-xl text-sm flex items-center justify-center gap-2 shadow-lg shadow-blue-100 transition-all">
+                            <span class="material-icons text-lg">save</span>
+                            <span>Crear Orden de Trabajo</span>
+                        </button>
+                    </form>
+                </div>
+            </section>
+
+            <!-- PESTAÑA: TESORERÍA -->
+            <section id="tab-tesoreria" class="tab-content hidden flex flex-col gap-6">
+                <div>
+                    <h2 class="text-xl font-bold text-slate-900">Módulo de Tesorería & Caja Central</h2>
+                    <p class="text-sm text-slate-500">Administración automatizada de ingresos de operaciones y registro minucioso de gastos.</p>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+                    <!-- REGISTRO DE GASTOS -->
+                    <div class="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm flex flex-col gap-4">
+                        <h3 class="font-bold text-slate-800 text-sm uppercase tracking-wider flex items-center gap-2">
+                            <span class="material-icons text-rose-500">money_off</span>Registrar Egreso / Gasto
+                        </h3>
+                        <form id="expense-form" onsubmit="UI_Controller.handleCreateExpense(event)" class="flex flex-col gap-3.5 text-xs">
+                            <div class="grid grid-cols-2 gap-3">
+                                <div class="flex flex-col gap-1">
+                                    <label class="font-bold text-slate-500 uppercase">Fecha *</label>
+                                    <input type="date" id="expense-date" required class="border rounded-xl px-3 py-2 text-slate-700 focus:outline-none bg-slate-50">
+                                </div>
+                                <div class="flex flex-col gap-1">
+                                    <label class="font-bold text-slate-500 uppercase">Monto ($ MXN) *</label>
+                                    <input type="number" id="expense-amount" step="0.01" required placeholder="0.00" class="border rounded-xl px-3 py-2 text-slate-700 focus:outline-none bg-slate-50">
+                                </div>
+                            </div>
+
+                            <div class="grid grid-cols-2 gap-3">
+                                <div class="flex flex-col gap-1">
+                                    <label class="font-bold text-slate-500 uppercase">Categoría *</label>
+                                    <select id="expense-category" required class="border rounded-xl px-3 py-2 text-slate-700 bg-slate-50 focus:outline-none"></select>
+                                </div>
+                                <div class="flex flex-col gap-1">
+                                    <label class="font-bold text-slate-500 uppercase">Método de Pago *</label>
+                                    <select id="expense-method" required class="border rounded-xl px-3 py-2 text-slate-700 bg-slate-50 focus:outline-none">
+                                        <option value="Efectivo">💵 Efectivo</option>
+                                        <option value="Transferencia">🏦 Transferencia SPEI</option>
+                                        <option value="Tarjeta">💳 Tarjeta Débito/Crédito</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div class="flex flex-col gap-1">
+                                <label class="font-bold text-slate-500 uppercase">Concepto Corto *</label>
+                                <input type="text" id="expense-concept" required placeholder="Ej. Compra de anticongelantes" class="border rounded-xl px-3 py-2 text-slate-700 focus:outline-none bg-slate-50">
+                            </div>
+
+                            <div class="flex flex-col gap-1">
+                                <label class="font-bold text-slate-500 uppercase">Descripción Extendida (Opcional)</label>
+                                <input type="text" id="expense-description" placeholder="Detalle técnico..." class="border rounded-xl px-3 py-2 text-slate-700 focus:outline-none bg-slate-50">
+                            </div>
+
+                            <div class="flex flex-col gap-1">
+                                <label class="font-bold text-slate-500 uppercase">Observaciones Internas (Opcional)</label>
+                                <textarea id="expense-notes" rows="2" placeholder="Notas sobre facturación o proveedores..." class="border rounded-xl p-2 text-slate-700 focus:outline-none bg-slate-50 resize-none"></textarea>
+                            </div>
+
+                            <button type="submit" class="bg-slate-900 hover:bg-slate-800 text-white font-bold py-2.5 rounded-xl text-xs transition mt-1 flex items-center justify-center gap-2 shadow-lg shadow-slate-100">
+                                <span class="material-icons text-sm">assignment_turned_in</span><span>Asentar en Caja</span>
+                            </button>
+                        </form>
+                    </div>
+
+                    <!-- PANELES DE AUDITORÍA -->
+                    <div class="lg:col-span-2 flex flex-col gap-5">
+                        <div class="bg-white border border-slate-200 rounded-3xl p-5 shadow-sm">
+                            <h3 class="font-bold text-slate-800 text-sm uppercase tracking-wider flex items-center gap-2 mb-3">
+                                <span class="material-icons text-emerald-500">payments</span> Flujo Automatizado de Ingresos (Órdenes de Trabajo)
+                            </h3>
+                            <div class="overflow-x-auto max-h-56 no-scrollbar">
+                                <table class="w-full text-left text-xs border-collapse">
+                                    <thead>
+                                        <tr class="text-slate-400 font-bold border-b pb-2">
+                                            <th class="pb-2">Orden</th>
+                                            <th class="pb-2">Cliente / Unidad</th>
+                                            <th class="pb-2">Esquema / Canal</th>
+                                            <th class="pb-2 text-right">Monto Recaudado</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="treasury-income-body" class="divide-y text-slate-600"></tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <div class="bg-white border border-slate-200 rounded-3xl p-5 shadow-sm">
+                            <h3 class="font-bold text-slate-800 text-sm uppercase tracking-wider flex items-center gap-2 mb-3">
+                                <span class="material-icons text-rose-500">receipt</span> Bitácora de Gastos y Egresos del Negocio
+                            </h3>
+                            <div class="overflow-x-auto max-h-56 no-scrollbar">
+                                <table class="w-full text-left text-xs border-collapse">
+                                    <thead>
+                                        <tr class="text-slate-400 font-bold border-b pb-2">
+                                            <th class="pb-2">Fecha</th>
+                                            <th class="pb-2">Categoría / Concepto</th>
+                                            <th class="pb-2">Método</th>
+                                            <th class="pb-2 text-right">Monto Egregio</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="treasury-expenses-body" class="divide-y text-slate-600"></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- PESTAÑA 4: COTIZADOR PDF -->
+            <section id="tab-cotizaciones" class="tab-content hidden flex flex-col gap-6">
+                <div>
+                    <h2 class="text-xl font-bold text-slate-900">Cotizaciones Profesionales</h2>
+                    <p class="text-sm text-slate-500">Diseño limpio y exportable a PDF con folios.</p>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+                    <div class="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm flex flex-col gap-5 lg:col-span-5">
+                        <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+                            <h3 class="font-bold text-slate-800 text-xs uppercase tracking-wider flex items-center gap-2">
+                                <span class="material-icons text-blue-600 text-lg">receipt_long</span>Datos del Presupuesto
+                            </h3>
+                            <button onclick="UI_Controller.clearQuoteForm()" class="text-xs text-rose-600 font-semibold hover:underline">Limpiar</button>
+                        </div>
+
+                        <div class="flex flex-col gap-1.5 bg-blue-50/50 p-3 rounded-xl border border-blue-100">
+                            <label class="text-[10px] font-bold text-blue-600 uppercase">Importar desde Orden Existente</label>
+                            <select id="quote-order-loader" onchange="UI_Controller.loadOrderIntoQuote()" class="bg-white border text-xs rounded-lg px-2.5 py-2 text-slate-700 font-medium focus:outline-none cursor-pointer">
+                                <option value="">-- Seleccionar Orden --</option>
+                            </select>
+                        </div>
+
+                        <div class="flex flex-col gap-4">
+                            <div class="grid grid-cols-2 gap-3">
+                                <div class="flex flex-col gap-1">
+                                    <label class="text-[10px] font-bold text-slate-500 uppercase">Cliente</label>
+                                    <input type="text" id="quote-cliente" oninput="UI_Controller.updateQuotePreview()" placeholder="Nombre" class="border rounded-xl px-3 py-1.5 text-xs focus:outline-none">
+                                </div>
+                                <div class="flex flex-col gap-1">
+                                    <label class="text-[10px] font-bold text-slate-500 uppercase">Teléfono</label>
+                                    <input type="text" id="quote-telefono" oninput="UI_Controller.updateQuotePreview()" placeholder="Tel" class="border rounded-xl px-3 py-1.5 text-xs focus:outline-none">
+                                </div>
+                            </div>
+
+                            <div class="grid grid-cols-3 gap-2">
+                                <div class="flex flex-col gap-1 col-span-2">
+                                    <label class="text-[10px] font-bold text-slate-500 uppercase">Auto (Marca/Modelo)</label>
+                                    <input type="text" id="quote-auto" oninput="UI_Controller.updateQuotePreview()" placeholder="Ej. Ford Mustang 2018" class="border rounded-xl px-3 py-1.5 text-xs focus:outline-none">
+                                </div>
+                                <div class="flex flex-col gap-1">
+                                    <label class="text-[10px] font-bold text-slate-500 uppercase">Placas</label>
+                                    <input type="text" id="quote-placas" oninput="UI_Controller.updateQuotePreview()" placeholder="ABC-123" class="border rounded-xl px-3 py-1.5 text-xs uppercase focus:outline-none">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="flex flex-col gap-3">
+                            <div class="flex justify-between items-center border-t border-slate-100 pt-3">
+                                <label class="text-[10px] font-bold text-slate-500 uppercase">Estructura de Costos</label>
+                                <button type="button" onclick="UI_Controller.addQuoteItem()" class="text-blue-600 text-xs font-bold flex items-center gap-0.5">
+                                    <span class="material-icons text-sm">add</span>Añadir Concepto
+                                </button>
+                            </div>
+                            <div id="quote-items-container" class="flex flex-col gap-2 max-h-48 overflow-y-auto no-scrollbar"></div>
+                        </div>
+
+                        <div class="grid grid-cols-3 gap-2 border-t border-slate-100 pt-3">
+                            <div class="flex flex-col gap-1">
+                                <label class="text-[10px] font-bold text-slate-500 uppercase">Descuento (%)</label>
+                                <input type="number" id="quote-discount" value="0" oninput="UI_Controller.updateQuotePreview()" class="border text-center rounded-xl px-3 py-1.5 text-xs focus:outline-none">
+                            </div>
+                            <div class="flex flex-col gap-1">
+                                <label class="text-[10px] font-bold text-slate-500 uppercase">IVA (%)</label>
+                                <input type="number" id="quote-tax" value="16" oninput="UI_Controller.updateQuotePreview()" class="border text-center rounded-xl px-3 py-1.5 text-xs focus:outline-none">
+                            </div>
+                            <div class="flex flex-col gap-1">
+                                <label class="text-[10px] font-bold text-slate-500 uppercase">Validez (días)</label>
+                                <input type="number" id="quote-validity" value="15" oninput="UI_Controller.updateQuotePreview()" class="border text-center rounded-xl px-3 py-1.5 text-xs focus:outline-none">
+                            </div>
+                        </div>
+
+                        <button onclick="UI_Controller.downloadQuotePDF()" class="bg-slate-900 hover:bg-slate-800 text-white font-bold py-3 rounded-2xl text-sm flex items-center justify-center gap-2 mt-2 transition-all">
+                            <span class="material-icons">picture_as_pdf</span>
+                            <span>Descargar PDF</span>
+                        </button>
+                    </div>
+
+                    <div class="lg:col-span-7 flex flex-col gap-3">
+                        <span class="text-xs font-bold text-slate-400 uppercase tracking-widest px-2">Hoja Carta Impresión</span>
+                        <div class="bg-white border border-slate-200 rounded-3xl p-2 shadow-md overflow-x-auto">
+                            <div id="pdf-capture-area" class="w-[790px] bg-white p-10 font-sans text-slate-800 relative mx-auto" style="min-height: 1020px;">
+                                
+                                <div class="flex justify-between items-center border-b-2 border-blue-600 pb-6 mb-6">
+                                    <div>
+                                        <div class="flex items-center gap-2 mb-1">
+                                            <div class="bg-blue-600 text-white p-1.5 rounded-lg flex items-center justify-center">
+                                                <span class="material-icons text-base">build</span>
+                                            </div>
+                                            <span class="text-xl font-black tracking-tight text-slate-900">NIZCO <span class="text-blue-600 text-xs">SHOP MANAGEMENT</span></span>
+                                        </div>
+                                        <p class="text-xs text-slate-500 font-semibold">Servicio Mecánico y Diagnóstico Automotriz</p>
+                                    </div>
+                                    <div class="text-right">
+                                        <h2 class="text-2xl font-black text-slate-900 tracking-tight">PRESUPUESTO</h2>
+                                        <p class="text-xs text-blue-600 font-bold mt-1" id="pdf-doc-id">FOLIO: #COT-000</p>
+                                        <p class="text-[10px] text-slate-400 mt-0.5" id="pdf-doc-date">Fecha: 13 Jul 2026</p>
+                                    </div>
+                                </div>
+
+                                <div class="grid grid-cols-2 gap-6 bg-slate-50 p-4 rounded-xl border mb-6">
+                                    <div>
+                                        <h4 class="text-[10px] font-extrabold text-blue-600 uppercase tracking-wider mb-1">CLIENTE</h4>
+                                        <p class="text-sm font-bold text-slate-800" id="pdf-client-name">Público General</p>
+                                        <p class="text-xs text-slate-500 mt-0.5" id="pdf-client-phone">Tel: -</p>
+                                    </div>
+                                    <div>
+                                        <h4 class="text-[10px] font-extrabold text-blue-600 uppercase tracking-wider mb-1">VEHÍCULO</h4>
+                                        <p class="text-sm font-bold text-slate-800" id="pdf-vehicle">Vehículo</p>
+                                        <div class="flex items-center gap-2 mt-1">
+                                            <span class="bg-slate-200 text-slate-700 font-bold px-1.5 py-0.5 rounded text-[9px] uppercase" id="pdf-plates">S/P</span>
+                                            <span id="pdf-km-view" class="text-[10px] text-slate-500 font-medium"></span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <table class="w-full text-left mb-6 border-collapse">
+                                    <thead>
+                                        <tr class="bg-slate-900 text-white uppercase text-[9px] font-bold tracking-wider">
+                                            <th class="py-3 px-4 rounded-l-lg">Concepto / Servicio</th>
+                                            <th class="py-3 px-4 text-center">Tipo</th>
+                                            <th class="py-3 px-4 text-center">Cant.</th>
+                                            <th class="py-3 px-4 text-right">P. Unitario</th>
+                                            <th class="py-3 px-4 text-right rounded-r-lg">Importe</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="pdf-concepts-body" class="divide-y divide-slate-100 text-xs text-slate-600 font-medium"></tbody>
+                                </table>
+
+                                <div class="grid grid-cols-12 gap-6 border-t pt-6">
+                                    <div class="col-span-7 flex flex-col gap-4 text-[11px] leading-relaxed">
+                                        <div>
+                                            <p class="font-bold text-slate-700 mb-1">Notas y Condiciones:</p>
+                                            <p class="text-slate-400">Garantía de 3 meses en refacciones originales y mano de obra.</p>
+                                        </div>
+                                        <div>
+                                            <p class="text-blue-600 font-bold" id="pdf-validity-view">Válido por 15 días hábiles.</p>
+                                        </div>
+                                    </div>
+
+                                    <div class="col-span-5 flex flex-col gap-2.5 text-right font-medium text-xs">
+                                        <div class="flex justify-between text-slate-500">
+                                            <span>Subtotal:</span> <span id="pdf-subtotal">$0.00</span>
+                                        </div>
+                                        <div class="flex justify-between text-rose-500" id="pdf-discount-row">
+                                            <span>Descuento:</span> <span id="pdf-discount">$0.00</span>
+                                        </div>
+                                        <div class="flex justify-between text-slate-500">
+                                            <span>I.V.A.:</span> <span id="pdf-tax">$0.00</span>
+                                        </div>
+                                        <div class="flex justify-between text-slate-900 font-black text-sm border-t-2 border-slate-200 pt-2.5">
+                                            <span>TOTAL ESTIMADO:</span> <span id="pdf-total" class="text-blue-600">$0.00</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="grid grid-cols-2 gap-16 mt-20 pt-10 border-t text-[10px] text-center font-semibold text-slate-400">
+                                    <div class="flex flex-col items-center">
+                                        <div class="w-48 border-b mb-2 border-slate-200"></div>
+                                        <p>Firma de Responsable de Taller</p>
+                                        <p class="text-[8px] font-normal">NIZCO Management ERP</p>
+                                    </div>
+                                    <div class="flex flex-col items-center">
+                                        <div class="w-48 border-b mb-2 border-slate-200"></div>
+                                        <p>Firma de Conformidad Cliente</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- PESTAÑA 5: GESTIONAR PERSONAL -->
+            <section id="tab-personal" class="tab-content hidden max-w-4xl mx-auto flex flex-col gap-6">
+                <div>
+                    <h2 class="text-xl font-bold text-slate-900">Control de Personal & Nómina</h2>
+                    <p class="text-sm text-slate-500">Registra colaboradores y genera credenciales automáticas de acceso para el ERP.</p>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <div class="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm h-fit flex flex-col gap-5">
+                        <h3 class="font-bold text-slate-800 text-sm uppercase tracking-wider">Nuevo Empleado</h3>
+                        
+                        <form id="new-personal-form" onsubmit="UI_Controller.handleCreatePersonal(event)" class="flex flex-col gap-4">
+                            <div class="flex flex-col gap-1.5">
+                                <label class="text-xs font-semibold text-slate-500 uppercase">Nombre Completo *</label>
+                                <input type="text" id="personal-nombre" required placeholder="Ej. Carlos Gómez" class="border rounded-xl px-3.5 py-2 text-sm focus:outline-none bg-slate-50">
+                            </div>
+                            <div class="flex flex-col gap-1.5">
+                                <label class="text-xs font-semibold text-slate-500 uppercase">Rol / Cargo *</label>
+                                <select id="personal-rol" required class="border rounded-xl px-3.5 py-2 text-sm bg-slate-50 focus:outline-none">
+                                    <option value="Mecánico">🔧 Mecánico Specialist</option>
+                                    <option value="Recepcionista">📋 Recepcionista</option>
+                                    <option value="Administrador">👑 Administrador</option>
+                                </select>
+                            </div>
+                            <div class="flex flex-col gap-1.5">
+                                <label class="text-xs font-semibold text-slate-500 uppercase">Sueldo Semanal Fijo ($) *</label>
+                                <input type="number" id="personal-sueldo" required placeholder="Ej. 2500" min="0" class="border rounded-xl px-3.5 py-2 text-sm focus:outline-none bg-slate-50">
+                            </div>
+                            <div class="flex flex-col gap-1.5">
+                                <label class="text-xs font-semibold text-slate-500 uppercase">Teléfono de Contacto</label>
+                                <input type="tel" id="personal-telefono" placeholder="Ej. 656..." class="border rounded-xl px-3.5 py-2 text-sm focus:outline-none bg-slate-50">
+                            </div>
+                            <div class="border-t pt-3 flex flex-col gap-3">
+                                <span class="text-[10px] font-bold text-blue-600 uppercase tracking-widest">Credenciales del Sistema</span>
+                                <div class="flex flex-col gap-1.5">
+                                    <label class="text-xs font-semibold text-slate-500 uppercase">Correo de Acceso *</label>
+                                    <input type="email" id="personal-email" required placeholder="empleado@nizco.com" class="border rounded-xl px-3.5 py-2 text-sm focus:outline-none bg-slate-50">
+                                </div>
+                                <div class="flex flex-col gap-1.5">
+                                    <label class="text-xs font-semibold text-slate-500 uppercase">Contraseña Inicial *</label>
+                                    <input type="password" id="personal-password" required placeholder="Mínimo 6 caracteres" minlength="6" class="border rounded-xl px-3.5 py-2 text-sm focus:outline-none bg-slate-50">
+                                </div>
+                            </div>
+                            <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2.5 rounded-xl text-sm mt-2 flex items-center justify-center gap-2 shadow-lg shadow-blue-50">
+                                <span class="material-icons text-sm">person_add</span><span>Registrar y Crear Cuenta</span>
+                            </button>
+                        </form>
+                    </div>
+
+                    <div class="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm lg:col-span-2 flex flex-col gap-4">
+                        <h3 class="font-bold text-slate-800 text-sm uppercase tracking-wider">Colaboradores Activos & Salarios</h3>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left border-collapse">
+                                <thead>
+                                    <tr class="text-slate-400 uppercase text-[10px] tracking-wider font-semibold border-b border-slate-200">
+                                        <th class="pb-3 pr-4">Nombre</th>
+                                        <th class="pb-3 px-4">Puesto / Rol</th>
+                                        <th class="pb-3 px-4">Sueldo Semanal</th>
+                                        <th class="pb-3 px-4">Teléfono</th>
+                                        <th class="pb-3 text-right">Acción</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="personal-table-body" class="divide-y text-sm text-slate-600"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- PESTAÑA 6: CONFIGURACIÓN GENERAL -->
+            <section id="tab-config" class="tab-content hidden max-w-2xl mx-auto flex flex-col gap-6">
+                <div class="bg-white border border-slate-200 rounded-3xl p-6 md:p-8 shadow-sm flex flex-col gap-6">
+                    <div class="flex items-center gap-3">
+                        <div class="bg-rose-50 border text-rose-600 p-2 rounded-xl">
+                            <span class="material-icons">account_balance_wallet</span>
+                        </div>
+                        <div>
+                            <h2 class="text-xl font-bold text-slate-900">Gastos Estructurales del Taller</h2>
+                            <p class="text-sm text-slate-500">Gastos fijos calculados de forma mensual.</p>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        <div class="flex flex-col gap-1.5">
+                            <label class="text-xs font-semibold text-slate-500 uppercase">Renta Mensual ($)</label>
+                            <input type="number" id="fixed-renta" value="0" oninput="UI_Controller.saveFixedCosts()" class="border rounded-xl px-4 py-2 text-sm focus:outline-none">
+                        </div>
+                        <div class="flex flex-col gap-1.5">
+                            <label class="text-xs font-semibold text-slate-500 uppercase">Servicios Mensuales ($)</label>
+                            <input type="number" id="fixed-servicios" value="0" oninput="UI_Controller.saveFixedCosts()" class="border rounded-xl px-4 py-2 text-sm focus:outline-none">
+                        </div>
+                        <div class="flex flex-col gap-1.5">
+                            <label class="text-xs font-semibold text-slate-500 uppercase">Impuestos Est. ($)</label>
+                            <input type="number" id="fixed-impuestos" value="0" oninput="UI_Controller.saveFixedCosts()" class="border rounded-xl px-4 py-2 text-sm focus:outline-none">
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- MODAL GESTIONAR ORDEN (EDICIÓN DETALLADA CON MODIFICACIÓN DE FECHA) -->
+            <div id="modal-edit-order" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+                <div class="bg-white rounded-3xl w-full max-w-2xl border flex flex-col max-h-[90vh] overflow-hidden shadow-2xl">
+                    <div class="px-6 py-4 border-b flex justify-between items-center bg-slate-50">
+                        <div>
+                            <h3 class="font-bold text-slate-900 text-lg">Gestionar Orden <span id="modal-order-id" class="text-blue-600">#0</span></h3>
+                            <p id="modal-order-sub" class="text-xs text-slate-400"></p>
+                        </div>
+                        <button onclick="UI_Controller.closeModal()" class="text-slate-400"><span class="material-icons">close</span></button>
+                    </div>
+
+                    <div class="p-6 overflow-y-auto no-scrollbar flex flex-col gap-4">
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="text-xs font-semibold text-slate-500 uppercase">Estado Reparación</label>
+                                <select id="modal-estado-trabajo" class="w-full border rounded-xl px-3 py-2 text-sm bg-white focus:outline-none cursor-pointer">
+                                    <option value="Recepcionado">Recepcionado</option>
+                                    <option value="En Diagnóstico">En Diagnóstico</option>
+                                    <option value="Esperando Refacciones">Esperando Refacciones</option>
+                                    <option value="Terminado">Terminado</option>
+                                    <option value="Entregado">Entregado</option>
+                                </select>
+                            </div>
+                            <div class="section-finance-view">
+                                <label class="text-xs font-semibold text-slate-500 uppercase">Estado de Pago</label>
+                                <select id="modal-estado-pago" onchange="UI_Controller.toggleModalPaymentMethod()" class="w-full border rounded-xl px-3 py-2 text-sm bg-white focus:outline-none cursor-pointer">
+                                    <option value="Pendiente">Pendiente</option>
+                                    <option value="Anticipo">Anticipo</option>
+                                    <option value="Pagado">Pagado</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div id="modal-payment-method-container" class="hidden section-finance-view">
+                            <label class="text-xs font-semibold text-slate-500 uppercase">Método de Liquidación / Cobro *</label>
+                            <select id="modal-metodo-pago" class="w-full border rounded-xl px-3 py-2 text-sm bg-white focus:outline-none cursor-pointer">
+                                <option value="Efectivo">💵 Efectivo</option>
+                                <option value="Transferencia">🏦 Transferencia SPEI</option>
+                                <option value="Tarjeta">💳 Tarjeta Débito/Crédito</option>
+                            </select>
+                        </div>
+
+                        <!-- FECHA DE INGRESO EDITABLE EN MODAL -->
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="text-xs font-semibold text-slate-500 uppercase">Técnico Asignado</label>
+                                <select id="modal-tecnico" class="w-full border rounded-xl px-3 py-2 text-sm bg-white focus:outline-none cursor-pointer"></select>
+                            </div>
+                            <div>
+                                <label class="text-xs font-semibold text-slate-500 uppercase">Fecha de Ingreso</label>
+                                <input type="date" id="modal-fecha-ingreso" class="w-full border rounded-xl px-3 py-2 text-sm focus:outline-none bg-slate-50 cursor-pointer">
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="text-xs font-semibold text-slate-500 uppercase">Kilometraje del Auto</label>
+                            <input type="number" id="modal-kilometraje" class="w-full border rounded-xl px-4 py-2 text-sm focus:outline-none">
+                        </div>
+
+                        <div>
+                            <label class="text-xs font-semibold text-slate-500 uppercase">Diagnóstico Técnico Detallado</label>
+                            <textarea id="modal-diagnostico" rows="3" class="w-full border rounded-xl p-2.5 text-sm resize-none focus:outline-none"></textarea>
+                        </div>
+
+                        <div class="bg-slate-50 p-4 rounded-xl border flex flex-col gap-3">
+                            <div class="flex justify-between items-center border-b pb-2">
+                                <h4 class="font-bold text-xs text-slate-500 uppercase">Conceptos de la Orden</h4>
+                                <button onclick="UI_Controller.addModalConceptRow()" class="bg-blue-600 text-white font-bold text-[10px] px-2 py-1 rounded">Añadir</button>
+                            </div>
+                            <div id="modal-concepts-container" class="flex flex-col gap-2 max-h-40 overflow-y-auto no-scrollbar"></div>
+
+                            <div class="grid grid-cols-3 gap-2 pt-2 border-t text-center section-finance-view text-xs">
+                                <div class="bg-white p-2 rounded border"><span>Mano Obra</span><p id="modal-sum-mano" class="font-bold">$0</p></div>
+                                <div class="bg-white p-2 rounded border"><span>Refacc.</span><p id="modal-sum-ref" class="font-bold">$0</p></div>
+                                <div class="bg-blue-50 p-2 rounded border font-bold text-blue-600"><span>Total Final</span><p id="modal-sum-total">$0</p></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="px-6 py-4 border-t bg-slate-50 flex items-center justify-between">
+                        <button id="modal-delete-btn" onclick="UI_Controller.handleDeleteOrder()" class="text-rose-600 font-semibold text-xs">Eliminar Orden</button>
+                        <div class="flex gap-2">
+                            <button onclick="UI_Controller.closeModal()" class="text-sm px-3 py-1">Cancelar</button>
+                            <button onclick="UI_Controller.handleSaveChanges()" class="bg-blue-600 text-white px-4 py-1.5 rounded-xl text-sm font-semibold">Guardar</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- DIÁLOGO CONFIRMACIÓN -->
+    <div id="modal-confirm" class="fixed inset-0 bg-slate-900/60 z-[60] flex items-center justify-center p-4 hidden">
+        <div class="bg-white rounded-2xl p-6 flex flex-col gap-4 max-w-sm">
+            <h3 id="confirm-title" class="font-bold">¿Estás seguro?</h3>
+            <p id="confirm-message" class="text-xs text-slate-500"></p>
+            <div class="flex justify-end gap-2 text-xs">
+                <button onclick="UI_Controller.closeConfirmModal(false)">Cancelar</button>
+                <button onclick="UI_Controller.closeConfirmModal(true)" class="bg-rose-600 text-white px-3 py-1.5 rounded">Confirmar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- SCRIPTS ERP STATE-DRIVEN ENGINE -->
+    <script>
+        let _orders = [];   
+        let _personal = []; 
+        let _expenses = []; 
+        
+        let currentEditingOrderId = null;
+        let currentRole = "Mecánico"; 
+        let confirmCallback = null;
+
+        let newOrderConcepts = [{ descripcion: 'Diagnóstico general computarizado', cantidad: 1, precio: 350, categoria: 'mano-obra' }];
+        let modalEditingConcepts = [];
+        let quoteItems = [];
+        let fixedCosts = { renta: 0, servicios: 0, impuestos: 0 };
+
+        let _categories = ["Gasolina", "Diesel", "Consumibles", "Refacciones", "Nómina", "Renta", "Agua", "Luz", "Internet", "Herramientas", "Publicidad", "Papelería", "Transporte", "Comisiones bancarias", "Impuestos", "Otros"];
+
+        let chartInstance1 = null, chartInstance2 = null, chartInstance3 = null, chartInstance4 = null;
+
+        const formatter = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' });
+
+        function showToast(message, isError = false) {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = `px-4 py-2.5 text-xs font-semibold rounded-xl shadow-xl transition-all duration-300 transform translate-y-2 ${isError ? 'bg-rose-600 text-white' : 'bg-slate-900 text-white'}`;
+            toast.innerText = message;
+            container.appendChild(toast);
+            setTimeout(() => { toast.classList.remove('translate-y-2'); }, 10);
+            setTimeout(() => { toast.classList.add('opacity-0', 'translate-y-2'); setTimeout(() => toast.remove(), 300); }, 3000);
+        }
+
+        /**
+         * MOTOR DE AUTENTICACIÓN CENTRALIZADO
+         */
+        const Auth_Engine = {
+            async handleLogin(e) {
+                e.preventDefault();
+                const email = document.getElementById('login-email').value;
+                const password = document.getElementById('login-password').value;
+
+                showToast("Autenticando...");
+
+                try {
+                    const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
+                    
+                    if (error) {
+                        showToast("Acceso denegado: " + error.message, true);
+                        return;
+                    }
+
+                    const { data: profile, error: profileError } = await supabaseClient
+                        .from('personal')
+                        .select('rol, nombre')
+                        .eq('user_id', data.user.id)
+                        .single();
+
+                    if (profileError || !profile) {
+                        showToast("Usuario verificado sin vinculación interna.", true);
+                        currentRole = "Mecánico"; 
+                        document.getElementById('user-display-name').innerText = email;
+                    } else {
+                        currentRole = profile.rol;
+                        document.getElementById('user-display-name').innerText = profile.nombre;
+                    }
+
+                    document.getElementById('erp-login-screen').classList.add('hidden');
+                    document.getElementById('user-display-role').innerText = currentRole;
+                    
+                    showToast("Acceso concedido.");
+                    UI_Controller.applyRolePermissions();
+                    UI_Controller.switchTab('ordenes');
+
+                } catch (err) {
+                    showToast("Error crítico en la llamada de red.", true);
+                }
+            },
+
+            async handleLogout() {
+                if (supabaseClient) await supabaseClient.auth.signOut();
+                currentRole = "Mecánico"; 
+                document.getElementById('login-form').reset();
+                document.getElementById('erp-login-screen').classList.remove('hidden');
+                showToast("Sesión cerrada de forma segura.");
+            },
+
+            async checkExistingSession() {
+                if (supabaseClient) {
+                    const { data: { session } } = await supabaseClient.auth.getSession();
+                    if (session) {
+                        const { data: profile } = await supabaseClient
+                            .from('personal')
+                            .select('rol, nombre')
+                            .eq('user_id', session.user.id)
+                            .single();
+
+                        if (profile) {
+                            currentRole = profile.rol;
+                            document.getElementById('user-display-name').innerText = profile.nombre;
+                            document.getElementById('user-display-role').innerText = currentRole;
+                            document.getElementById('erp-login-screen').classList.add('hidden');
+                            UI_Controller.applyRolePermissions();
+                            return;
+                        }
+                    }
+                }
+                document.getElementById('erp-login-screen').classList.remove('hidden');
+            }
+        };
+
+        const Financial_Engine = {
+            getDateRange(preset) {
+                const now = new Date();
+                let start, end;
+
+                switch(preset) {
+                    case 'today':
+                        start = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
+                        end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+                        break;
+                    case 'this-week':
+                        const currentDay = now.getDay();
+                        const distanceToMonday = currentDay === 0 ? -6 : 1 - currentDay;
+                        start = new Date(now.getFullYear(), now.getMonth(), now.getDate() + distanceToMonday, 0, 0, 0, 0);
+                        end = new Date(start.getTime() + 7 * 24 * 60 * 60 * 1000 - 1);
+                        break;
+                    case 'this-month':
+                        start = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
+                        end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+                        break;
+                    case 'last-month':
+                        start = new Date(now.getFullYear(), now.getMonth() - 1, 1, 0, 0, 0, 0);
+                        end = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
+                        break;
+                    case 'this-year':
+                        start = new Date(now.getFullYear(), 0, 1, 0, 0, 0, 0);
+                        end = new Date(now.getFullYear(), 11, 31, 23, 59, 59, 999);
+                        break;
+                    case 'custom':
+                        const sInput = document.getElementById('erp-start-date').value;
+                        const eInput = document.getElementById('erp-end-date').value;
+                        start = sInput ? new Date(sInput + 'T00:00:00') : new Date(0);
+                        end = eInput ? new Date(eInput + 'T23:59:59.999') : new Date();
+                        break;
+                    default:
+                        start = new Date(0);
+                        end = new Date();
+                }
+                return { start, end };
+            },
+
+            handlePresetChange() {
+                const preset = document.getElementById('erp-date-preset').value;
+                const customDiv = document.getElementById('erp-custom-dates');
+                if (preset === 'custom') {
+                    customDiv.classList.remove('hidden');
+                } else {
+                    customDiv.classList.add('hidden');
+                    this.recalculate();
+                }
+            },
+
+            recalculate() {
+                const preset = document.getElementById('erp-date-preset').value;
+                const { start, end } = this.getDateRange(preset);
+                
+                if (!document.getElementById('chart-ingresos-gastos')) return;
+
+                const durationMs = end - start;
+                const totalDays = Math.max(1, Math.ceil(durationMs / (1000 * 60 * 60 * 24)));
+
+                let vehiculosAtendidos = 0;
+                let ingresos = 0;
+                let pagado = 0;
+                let anticipo = 0;
+                let refaccionesCost = 0;
+                let erManoObra = 0;
+
+                let montosPorCategoria = {};
+                _categories.forEach(cat => montosPorCategoria[cat] = 0);
+
+                _orders.forEach(o => {
+                    const oDate = new Date(o.fecha_ingreso || o.fecha_registro);
+                    if (oDate >= start && oDate <= end) {
+                        vehiculosAtendidos++;
+                        const tot = parseFloat(o.total_cobrado || 0);
+                        if (o.estado_pago === 'Pagado') {
+                            ingresos += tot;
+                            pagado += tot;
+                        } else if (o.estado_pago === 'Anticipo') {
+                            ingresos += tot * 0.5; 
+                            anticipo += tot * 0.5;
+                        }
+                        refaccionesCost += parseFloat(o.costo_refacciones || 0);
+                        erManoObra += parseFloat(o.costo_mano_obra || 0);
+                    }
+                });
+
+                let egresosManuales = 0;
+                _expenses.forEach(e => {
+                    const eDate = new Date(e.fecha + 'T00:00:00');
+                    if(eDate >= start && eDate <= end) {
+                        const mAmt = parseFloat(e.monto || 0);
+                        egresosManuales += mAmt;
+                        if(montosPorCategoria[e.categoria] !== undefined) {
+                            montosPorCategoria[e.categoria] += mAmt;
+                        } else {
+                            montosPorCategoria[e.categoria] = mAmt;
+                        }
+                    }
+                });
+
+                let nominaSemanalTotal = 0;
+                _personal.forEach(p => { nominaSemanalTotal += parseFloat(p.sueldo || 0); });
+                const nominaPorDia = nominaSemanalTotal / 7;
+                const costoNominaPeriodo = nominaPorDia * totalDays;
+
+                const fijosMensuales = (fixedCosts.renta || 0) + (fixedCosts.servicios || 0) + (fixedCosts.impuestos || 0);
+                const fijosPorDia = fijosMensuales / 30.4;
+                const costoFijosPeriodo = fijosPorDia * totalDays;
+
+                montosPorCategoria["Nómina"] += costoNominaPeriodo;
+                montosPorCategoria["Refacciones"] += refaccionesCost;
+                
+                montosPorCategoria["Renta"] += (fixedCosts.renta / 30.4) * totalDays;
+                montosPorCategoria["Impuestos"] += (fixedCosts.impuestos / 30.4) * totalDays;
+                
+                const serviciosFraccionados = ((fixedCosts.servicios || 0) / 3) / 30.4 * totalDays;
+                montosPorCategoria["Agua"] += serviciosFraccionados;
+                montosPorCategoria["Luz"] += serviciosFraccionados;
+                montosPorCategoria["Internet"] += serviciosFraccionados;
+
+                const totalGastos = refaccionesCost + costoNominaPeriodo + costoFijosPeriodo + egresosManuales;
+                const utilidadBruta = ingresos - refaccionesCost; 
+                const utilidadNeta = ingresos - totalGastos;
+                const margenUtilidad = ingresos > 0 ? (utilidadNeta / ingresos) * 100 : 0;
+                const ticketPromedio = vehiculosAtendidos > 0 ? ingresos / vehiculosAtendidos : 0;
+
+                if(document.getElementById('dash-ingresos')) {
+                    document.getElementById('dash-ingresos').innerText = formatter.format(ingresos);
+                    document.getElementById('dash-utilidad-bruta').innerText = formatter.format(utilidadBruta);
+                    document.getElementById('dash-egresos').innerText = formatter.format(totalGastos);
+                    document.getElementById('dash-utilidad').innerText = formatter.format(utilidadNeta);
+                    
+                    document.getElementById('dash-vehiculos').innerText = vehiculosAtendidos;
+                    document.getElementById('dash-ticket-promedio').innerText = formatter.format(ticketPromedio);
+                    document.getElementById('dash-margen').innerText = `${margenUtilidad.toFixed(1)}%`;
+                    
+                    if(document.getElementById('caja-pagado')) document.getElementById('caja-pagado').innerText = formatter.format(pagado);
+                    if(document.getElementById('caja-anticipo')) document.getElementById('caja-anticipo').innerText = formatter.format(anticipo);
+                    if(document.getElementById('costo-ref-total')) document.getElementById('costo-ref-total').innerText = formatter.format(refaccionesCost);
+                    if(document.getElementById('costo-fijos-total')) document.getElementById('costo-fijos-total').innerText = formatter.format(costoFijosPeriodo);
+                    if(document.getElementById('costo-nomina-total')) document.getElementById('costo-nomina-total').innerText = formatter.format(costoNominaPeriodo);
+
+                    const catContainer = document.getElementById('dashboard-categories-container');
+                    catContainer.innerHTML = '';
+                    Object.keys(montosPorCategoria).forEach(cName => {
+                        catContainer.innerHTML += `
+                            <div class="flex justify-between items-center border-b border-slate-100 pb-1">
+                                <span class="text-slate-600 font-medium">${cName}:</span>
+                                <span class="font-bold text-slate-800">${formatter.format(montosPorCategoria[cName])}</span>
+                            </div>`;
+                    });
+
+                    document.getElementById('er-ingresos').innerText = formatter.format(ingresos);
+                    document.getElementById('er-refacciones').innerText = formatter.format(montosPorCategoria["Refacciones"]);
+                    document.getElementById('er-nomina').innerText = formatter.format(montosPorCategoria["Nómina"]);
+                    document.getElementById('er-gasolina').innerText = formatter.format(montosPorCategoria["Gasolina"] + montosPorCategoria["Diesel"]);
+                    document.getElementById('er-consumibles').innerText = formatter.format(montosPorCategoria["Consumibles"]);
+                    
+                    const sumServiciosAcumulados = montosPorCategoria["Renta"] + montosPorCategoria["Agua"] + montosPorCategoria["Luz"] + montosPorCategoria["Internet"];
+                    document.getElementById('er-servicios').innerText = formatter.format(sumServiciosAcumulados);
+                    document.getElementById('er-publicidad').innerText = formatter.format(montosPorCategoria["Publicidad"]);
+                    
+                    const otrosAcumulados = totalGastos - (montosPorCategoria["Refacciones"] + montosPorCategoria["Nómina"] + montosPorCategoria["Gasolina"] + montosPorCategoria["Diesel"] + montosPorCategoria["Consumibles"] + sumServiciosAcumulados + montosPorCategoria["Publicidad"]);
+                    document.getElementById('er-otros').innerText = formatter.format(otrosAcumulados > 0 ? otrosAcumulados : 0);
+                    document.getElementById('er-utilidad-neta').innerText = formatter.format(utilidadNeta);
+                }
+
+                this.renderCharts(ingresos, totalGastos, montosPorCategoria);
+            },
+
+            renderCharts(ingresos, totalGastos, montosPorCategoria) {
+                if(chartInstance1) chartInstance1.destroy();
+                if(chartInstance2) chartInstance2.destroy();
+                if(chartInstance3) chartInstance3.destroy();
+                if(chartInstance4) chartInstance4.destroy();
+
+                const ctx1 = document.getElementById('chart-ingresos-gastos');
+                const ctx2 = document.getElementById('chart-gastos-categoria');
+                const ctx3 = document.getElementById('chart-evolucion-ingresos');
+                const ctx4 = document.getElementById('chart-utilidad-mes');
+
+                if(!ctx1 || ctx1.offsetParent === null) return; 
+
+                chartInstance1 = new Chart(ctx1, {
+                    type: 'bar',
+                    data: {
+                        labels: ['Ingresos', 'Gastos'],
+                        datasets: [{
+                            data: [ingresos, totalGastos],
+                            backgroundColor: ['#10b981', '#f43f5e'],
+                            borderRadius: 8
+                        }]
+                    },
+                    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+                });
+
+                const catLabels = Object.keys(montosPorCategoria).filter(k => montosPorCategoria[k] > 0);
+                const catData = catLabels.map(k => montosPorCategoria[k]);
+
+                chartInstance2 = new Chart(ctx2, {
+                    type: 'doughnut',
+                    data: {
+                        labels: catLabels.length > 0 ? catLabels : ['Sin gastos'],
+                        datasets: [{
+                            data: [catData.length > 0 ? catData.reduce((a,b)=>a+b,0) : 0],
+                            backgroundColor: ['#3b82f6', '#10b981', '#ef4444', '#f59e0b', '#8b5cf6', '#ec4899', '#64748b', '#06b6d4', '#14b8a6', '#a855f7']
+                        }]
+                    },
+                    options: { responsive: true, maintainAspectRatio: false }
+                });
+
+                const mesesLabels = ['Mayo', 'Junio', 'Julio'];
+                const dataIngresosMes = [ingresos * 0.8, ingresos * 0.9, ingresos];
+                const dataUtilidadMes = [dataIngresosMes[0] * 0.2, dataIngresosMes[1] * 0.25, ingresos - totalGastos];
+
+                chartInstance3 = new Chart(ctx3, {
+                    type: 'line',
+                    data: {
+                        labels: mesesLabels,
+                        datasets: [{
+                            label: 'Ingresos',
+                            data: dataIngresosMes,
+                            borderColor: '#3b82f6',
+                            tension: 0.3,
+                            fill: false
+                        }]
+                    },
+                    options: { responsive: true, maintainAspectRatio: false }
+                });
+
+                chartInstance4 = new Chart(ctx4, {
+                    type: 'line',
+                    data: {
+                        labels: mesesLabels,
+                        datasets: [{
+                            label: 'Utilidad Neta',
+                            data: dataUtilidadMes,
+                            borderColor: '#10b981',
+                            backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                            tension: 0.3,
+                            fill: true
+                        }]
+                    },
+                    options: { responsive: true, maintainAspectRatio: false }
+                });
+            }
+        };
+
+        const API_Service = {
+            async fetchOrders() {
+                if (supabaseClient) {
+                    try {
+                        const { data } = await supabaseClient.from('ordenes_trabajo').select('*').order('id', { ascending: false });
+                        _orders = (data || []).map(o => ({ ...o, conceptos: Array.isArray(o.conceptos) ? o.conceptos : JSON.parse(o.conceptos || '[]') }));
+                    } catch { _orders = []; }
+                }
+                Financial_Engine.recalculate();
+                UI_Controller.renderOrdersList();
+                UI_Controller.populateQuoteOrdersDropdown();
+                UI_Controller.renderTreasuryData();
+            },
+
+            async fetchPersonal() {
+                if (supabaseClient) {
+                    try {
+                        const { data } = await supabaseClient.from('personal').select('*').order('nombre', { ascending: true });
+                        _personal = data || [];
+                    } catch { _personal = []; }
+                }
+                UI_Controller.renderPersonalList();
+                UI_Controller.populateTecnicosDropdowns();
+                Financial_Engine.recalculate();
+            },
+
+            async fetchExpenses() {
+                if (supabaseClient) {
+                    try {
+                        const { data } = await supabaseClient.from('gastos').select('*').order('fecha', { ascending: false });
+                        _expenses = data || [];
+                    } catch { _expenses = []; }
+                }
+                UI_Controller.renderTreasuryData();
+                Financial_Engine.recalculate();
+            }
+        };
+
+        const UI_Controller = {
+            switchTab(tabId) {
+                document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+                document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('text-blue-600', 'bg-blue-50/80'));
+                
+                const content = document.getElementById(`tab-${tabId}`);
+                if(content) content.classList.remove('hidden');
+                const btn = document.getElementById(`btn-${tabId}`);
+                if(btn) btn.classList.add('text-blue-600', 'bg-blue-50/80');
+                
+                if (['dashboard','ordenes','personal','cotizaciones','tesoreria'].includes(tabId)) {
+                    API_Service.fetchOrders();
+                    API_Service.fetchPersonal();
+                    API_Service.fetchExpenses();
+                }
+            },
+
+            applyRolePermissions() {
+                const elms = ['btn-dashboard', 'btn-personal', 'btn-config', 'btn-cotizaciones', 'btn-tesoreria'];
+                if(currentRole === 'Mecánico') {
+                    elms.forEach(id => document.getElementById(id).classList.add('hidden'));
+                    document.querySelectorAll('.section-finance-view').forEach(el => el.classList.add('hidden'));
+                } else if (currentRole === 'Recepcionista') {
+                    ['btn-dashboard', 'btn-config'].forEach(id => document.getElementById(id).classList.add('hidden'));
+                    ['btn-personal', 'btn-cotizaciones', 'btn-tesoreria'].forEach(id => document.getElementById(id).classList.remove('hidden'));
+                    document.querySelectorAll('.section-finance-view').forEach(el => el.classList.add('hidden'));
+                } else {
+                    elms.forEach(id => document.getElementById(id).classList.remove('hidden'));
+                    document.querySelectorAll('.section-finance-view').forEach(el => el.classList.remove('hidden'));
+                }
+                this.renderNewOrderConcepts();
+                this.renderModalConcepts();
+                this.renderOrdersList();
+            },
+
+            renderOrdersList() {
+                const tbody = document.getElementById('orders-table-body'); if(!tbody) return;
+                tbody.innerHTML = '';
+                const query = document.getElementById('search-bar').value.toLowerCase();
+                
+                const filtered = _orders.filter(o => {
+                    return o.cliente_nombre.toLowerCase().includes(query) || 
+                           o.auto_placas.toLowerCase().includes(query) || 
+                           (o.tecnico_asignado && o.tecnico_asignado.toLowerCase().includes(query));
+                });
+
+                if(filtered.length === 0) {
+                    document.getElementById('no-orders-message').classList.remove('hidden');
+                } else {
+                    document.getElementById('no-orders-message').classList.add('hidden');
+                }
+
+                filtered.forEach(o => {
+                    const tr = document.createElement('tr'); tr.className = "hover:bg-slate-50 border-b";
+                    const dateFormatted = new Date(o.fecha_ingreso || o.fecha_registro).toLocaleDateString('es-MX', {day: '2-digit', month: 'short'});
+                    tr.innerHTML = `
+                        <td class="py-3 px-6"><span class="font-bold block">#${o.id}</span><span class="text-[10px] text-slate-400 font-bold">${dateFormatted}</span></td>
+                        <td class="py-3 px-6">
+                            <span class="font-semibold text-slate-800">${o.cliente_nombre}</span>
+                            <p class="text-xs text-slate-400">${o.auto_marca} ${o.auto_modelo} - Placas: <strong>${o.auto_placas}</strong> - <strong>${o.kilometraje || 0} KM</strong></p>
+                        </td>
+                        <td class="py-3 px-6"><span class="text-xs font-bold px-2 py-1 rounded-full bg-slate-100">${o.estado}</span></td>
+                        <td class="py-3 px-6 section-finance-view font-bold text-slate-700">${formatter.format(o.total_cobrado)}</td>
+                        <td class="py-3 px-6 text-right"><button onclick="UI_Controller.openEditModal(${o.id})" class="text-xs font-bold text-blue-600 hover:underline">Gestionar</button></td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+                if(currentRole !== 'Administrador') document.querySelectorAll('.section-finance-view').forEach(el => el.classList.add('hidden'));
+            },
+
+            renderPersonalList() {
+                const tbody = document.getElementById('personal-table-body'); if(!tbody) return;
+                tbody.innerHTML = '';
+                _personal.forEach(p => {
+                    const tr = document.createElement('tr'); tr.className = "border-b text-xs hover:bg-slate-50 transition";
+                    tr.innerHTML = `
+                        <td class="py-3 pr-4 font-bold text-slate-800">${p.nombre}</td>
+                        <td class="py-3 px-4 text-slate-500">${p.rol}</td>
+                        <td class="py-3 px-4 font-semibold text-emerald-700">${formatter.format(p.sueldo || 0)}</td>
+                        <td class="py-3 px-4 text-slate-500">${p.telefono || '-'}</td>
+                        <td class="py-3 text-right">
+                            <button onclick="UI_Controller.handleDeletePersonal(${p.id})" class="text-rose-500 hover:text-rose-700 transition">
+                                <span class="material-icons text-sm">delete</span>
+                            </button>
+                        </td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            },
+
+            populateTecnicosDropdowns() {
+                const fSel = document.getElementById('form-tecnico'), mSel = document.getElementById('modal-tecnico');
+                if(!fSel || !mSel) return;
+                let html = '<option value="Sin Asignar">👤 Sin Asignar</option>';
+                _personal.filter(p => p.rol.includes('Mecánico')).forEach(m => { html += `<option value="${m.nombre}">🔧 ${m.nombre}</option>`; });
+                fSel.innerHTML = html; mSel.innerHTML = html;
+            },
+
+            populateQuoteOrdersDropdown() {
+                const loader = document.getElementById('quote-order-loader'); if(!loader) return;
+                let html = '<option value="">-- Seleccionar Orden --</option>';
+                _orders.forEach(o => { html += `<option value="${o.id}">Orden #${o.id} - ${o.cliente_nombre}</option>`; });
+                loader.innerHTML = html;
+            },
+
+            populateCategoriesDropdown() {
+                const cSel = document.getElementById('expense-category'); if(!cSel) return;
+                let html = '';
+                _categories.forEach(cat => { html += `<option value="${cat}">${cat}</option>`; });
+                cSel.innerHTML = html;
+            },
+
+            renderTreasuryData() {
+                const incomeBody = document.getElementById('treasury-income-body');
+                if(incomeBody) {
+                    incomeBody.innerHTML = '';
+                    const ordersIngreso = _orders.filter(o => o.estado_pago === 'Pagado' || o.estado_pago === 'Anticipo');
+                    ordersIngreso.forEach(o => {
+                        const tot = parseFloat(o.total_cobrado || 0);
+                        const displayAmt = o.estado_pago === 'Anticipo' ? tot * 0.5 : tot;
+                        const DisplayMethod = o.metodo_pago ? o.metodo_pago : 'No Esp.';
+                        incomeBody.innerHTML += `
+                            <tr class="border-b">
+                                <td class="py-2 font-bold">#${o.id}</td>
+                                <td class="py-2">${o.cliente_nombre} <span class="text-[10px] text-slate-400 font-medium block">${o.auto_marca}</span></td>
+                                <td class="py-2">
+                                    <div class="flex flex-col gap-0.5">
+                                        <span class="w-fit px-1.5 py-0.5 text-[8px] font-bold rounded bg-emerald-50 text-emerald-700 uppercase">${o.estado_pago}</span>
+                                        <span class="text-[9px] text-slate-500 font-medium">${DisplayMethod}</span>
+                                    </div>
+                                </td>
+                                <td class="py-2 text-right font-bold text-slate-800">${formatter.format(displayAmt)}</td>
+                            </tr>`;
+                    });
+                }
+
+                const expenseBody = document.getElementById('treasury-expenses-body');
+                if(expenseBody) {
+                    expenseBody.innerHTML = '';
+                    _expenses.forEach(e => {
+                        expenseBody.innerHTML += `
+                            <tr class="border-b">
+                                <td class="py-2 font-medium">${e.fecha}</td>
+                                <td class="py-2 font-bold">${e.concepto}<span class="text-[10px] text-rose-600 font-bold block">${e.categoria}</span></td>
+                                <td class="py-2 text-slate-400">${e.metodo_pago}</td>
+                                <td class="py-2 text-right font-bold text-rose-600">-${formatter.format(e.monto)}</td>
+                            </tr>`;
+                    });
+                }
+            },
+
+            async handleCreateExpense(e) {
+                e.preventDefault();
+                const expense = {
+                    fecha: document.getElementById('expense-date').value,
+                    monto: parseFloat(document.getElementById('expense-amount').value) || 0,
+                    categoria: document.getElementById('expense-category').value,
+                    metodo_pago: document.getElementById('expense-method').value,
+                    concepto: document.getElementById('expense-concept').value,
+                    description: document.getElementById('expense-description').value || '',
+                    observaciones: document.getElementById('expense-notes').value || ''
+                };
+
+                const { error } = await supabaseClient.from('gastos').insert([expense]);
+                if(error) { showToast("Error Supabase: " + error.message, true); return; }
+
+                showToast("Gasto asentado en tesorería.");
+                document.getElementById('expense-form').reset();
+                document.getElementById('expense-date').value = new Date().toISOString().split('T')[0];
+                API_Service.fetchExpenses();
+            },
+
+            addNewOrderConceptRow() { newOrderConcepts.push({ descripcion: '', cantidad: 1, precio: 0, categoria: 'refacciones' }); this.renderNewOrderConcepts(); },
+            deleteNewOrderConceptRow(idx) { newOrderConcepts.splice(idx, 1); this.renderNewOrderConcepts(); },
+            updateNewOrderConceptRow(idx, field, val) {
+                if(field=='cantidad') newOrderConcepts[idx].cantidad = parseInt(val)||1;
+                else if(field=='precio') newOrderConcepts[idx].precio = parseFloat(val)||0;
+                else newOrderConcepts[idx][field] = val;
+                this.calculateNewOrderTotals();
+            },
+            calculateNewOrderTotals() {
+                let m=0, r=0; newOrderConcepts.forEach(c=>{ if(c.categoria==='mano-obra') m+=c.cantidad*c.precio; else r+=c.cantidad*c.precio; });
+                document.getElementById('new-order-total-mano').innerText = formatter.format(m);
+                document.getElementById('new-order-total-ref').innerText = formatter.format(r);
+                document.getElementById('new-order-total-general').innerText = formatter.format(m+r);
+            },
+            renderNewOrderConcepts() {
+                const c = document.getElementById('new-order-concepts-container'); if(!c) return; c.innerHTML = '';
+                newOrderConcepts.forEach((item, idx) => {
+                    c.innerHTML += `
+                        <div class="flex gap-2 bg-white border p-2 rounded-xl">
+                            <input type="text" value="${item.descripcion}" oninput="UI_Controller.updateNewOrderConceptRow(${idx},'descripcion',this.value)" placeholder="Concepto" class="flex-1 text-xs p-1 focus:outline-none">
+                            <select onchange="UI_Controller.updateNewOrderConceptRow(${idx},'categoria',this.value)" class="text-xs bg-white border rounded"><option value="refacciones" ${item.categoria==='refacciones'?'selected':''}>Refacc.</option><option value="mano-obra" ${item.categoria==='mano-obra'?'selected':''}>Mano Obra</option></select>
+                            <input type="number" step="any" value="${item.cantidad}" oninput="UI_Controller.updateNewOrderConceptRow(${idx},'cantidad',this.value)" class="w-10 text-center text-xs border rounded focus:outline-none">
+                            <input type="number" step="any" value="${item.precio}" oninput="UI_Controller.updateNewOrderConceptRow(${idx},'precio',this.value)" class="w-20 text-right text-xs border rounded focus:outline-none ${currentRole==='Mecánico'?'hidden':''}">
+                            <button type="button" onclick="UI_Controller.deleteNewOrderConceptRow(${idx})" class="text-rose-500"><span class="material-icons text-sm">delete</span></button>
+                        </div>`;
+                });
+                this.calculateNewOrderTotals();
+            },
+
+            async handleCreateOrder(e) {
+                e.preventDefault();
+                let m=0, r=0; newOrderConcepts.forEach(c=>{ if(c.categoria==='mano-obra') m+=c.cantidad*c.precio; else r+=c.cantidad*c.precio; });
+                
+                // Lee la fecha manual ingresada en el input
+                const manualDate = document.getElementById('form-fecha-ingreso').value;
+                const isoDate = manualDate ? new Date(manualDate + 'T12:00:00').toISOString() : new Date().toISOString();
+
+                const order = {
+                    cliente_nombre: document.getElementById('form-cliente-nombre').value,
+                    cliente_telefono: document.getElementById('form-cliente-telefono').value,
+                    auto_marca: document.getElementById('form-auto-marca').value,
+                    auto_modelo: document.getElementById('form-auto-modelo').value,
+                    auto_placas: document.getElementById('form-auto-placas').value.toUpperCase(),
+                    kilometraje: parseInt(document.getElementById('form-kilometraje').value) || 0,
+                    falla_reportada: document.getElementById('form-falla-reportada').value,
+                    tecnico_asignado: document.getElementById('form-tecnico').value,
+                    diagnostico_tecnico: '', 
+                    estado: 'Recepcionado', 
+                    costo_mano_obra: m, 
+                    costo_refacciones: r, 
+                    total_cobrado: m+r, 
+                    estado_pago: 'Pendiente', 
+                    metodo_pago: '',
+                    fecha_ingreso: isoDate
+                };
+                const { error } = await supabaseClient.from('ordenes_trabajo').insert([{...order, conceptos: JSON.stringify(newOrderConcepts)}]); 
+                if (error) { showToast("Error Supabase: " + error.message, true); return; }
+
+                showToast("Orden de trabajo histórica creada."); 
+                newOrderConcepts = [{ descripcion: 'Diagnóstico general computarizado', cantidad: 1, precio: 350, categoria: 'mano-obra' }];
+                document.getElementById('new-order-form').reset();
+                document.getElementById('form-fecha-ingreso').value = new Date().toISOString().split('T')[0];
+                API_Service.fetchOrders(); this.switchTab('ordenes');
+            },
+
+            async handleCreatePersonal(e) {
+                e.preventDefault();
+                const nombre = document.getElementById('personal-nombre').value;
+                const rol = document.getElementById('personal-rol').value;
+                const sueldo = parseFloat(document.getElementById('personal-sueldo').value) || 0;
+                const telefono = document.getElementById('personal-telefono').value;
+                const email = document.getElementById('personal-email').value;
+                const password = document.getElementById('personal-password').value;
+
+                showToast("Registrando accesos en la nube...");
+
+                const { data: authData, error: authError } = await supabaseClient.auth.signUp({
+                    email: email,
+                    password: password
+                });
+
+                if (authError) {
+                    showToast("Error en Credenciales: " + authError.message, true);
+                    return;
+                }
+
+                if (!authData.user) {
+                    showToast("Error al instanciar el canal seguro.", true);
+                    return;
+                }
+
+                const staff = {
+                    nombre: nombre,
+                    rol: rol,
+                    sueldo: sueldo,
+                    telefono: telefono,
+                    user_id: authData.user.id
+                };
+
+                const { error: dbError } = await supabaseClient.from('personal').insert([staff]); 
+                if (dbError) { 
+                    showToast("Error de base de datos: " + dbError.message, true); 
+                    return; 
+                }
+
+                document.getElementById('new-personal-form').reset(); 
+                showToast("Empleado y accesos creados con éxito."); 
+                API_Service.fetchPersonal();
+            },
+
+            async handleDeletePersonal(id) {
+                customConfirm("¿Eliminar empleado?", "Dejará de contabilizar en la nómina.", async () => {
+                    const { error } = await supabaseClient.from('personal').delete().eq('id', id); 
+                    if (error) { showToast("Error Supabase: " + error.message, true); return; }
+                    API_Service.fetchPersonal();
+                });
+            },
+
+            openEditModal(id) {
+                const o = _orders.find(x => x.id === id); if(!o) return;
+                currentEditingOrderId = id;
+                document.getElementById('modal-order-id').innerText = `#${o.id}`;
+                document.getElementById('modal-order-sub').innerText = `${o.auto_marca} - Placas: ${o.auto_placas}`;
+                document.getElementById('modal-estado-trabajo').value = o.estado;
+                document.getElementById('modal-estado-pago').value = o.estado_pago;
+                document.getElementById('modal-tecnico').value = o.tecnico_asignado || "Sin Asignar";
+                document.getElementById('modal-diagnostico').value = o.diagnostico_tecnico || '';
+                document.getElementById('modal-kilometraje').value = o.kilometraje || 0;
+                
+                // Mapea la fecha guardada en la base de datos al selector del modal
+                document.getElementById('modal-fecha-ingreso').value = o.fecha_ingreso ? o.fecha_ingreso.split('T')[0] : '';
+
+                modalEditingConcepts = o.conceptos ? [...o.conceptos] : [];
+                
+                const mSel = document.getElementById('modal-metodo-pago');
+                if(mSel) mSel.value = o.metodo_pago || "Efectivo";
+
+                document.getElementById('modal-edit-order').classList.remove('hidden');
+                this.applyRolePermissions();
+                this.toggleModalPaymentMethod();
+            },
+
+            closeModal() { document.getElementById('modal-edit-order').classList.add('hidden'); },
+            
+            toggleModalPaymentMethod() {
+                const state = document.getElementById('modal-estado-pago').value;
+                const container = document.getElementById('modal-payment-method-container');
+                if(!container) return;
+                if(state === 'Anticipo' || state === 'Pagado') {
+                    container.classList.remove('hidden');
+                } else {
+                    container.classList.add('hidden');
+                }
+            },
+
+            addModalConceptRow() { modalEditingConcepts.push({ descripcion: '', cantidad: 1, precio: 0, categoria: 'refacciones' }); this.renderModalConcepts(); },
+            deleteModalConceptRow(idx) { modalEditingConcepts.splice(idx,1); this.renderModalConcepts(); },
+            updateModalConceptRow(idx, field, val) {
+                if(field=='cantidad') modalEditingConcepts[idx].cantidad = parseInt(val)||1;
+                else if(field=='precio') modalEditingConcepts[idx].precio = parseFloat(val)||0;
+                else modalEditingConcepts[idx][field] = val;
+                this.calculateModalTotals();
+            },
+            calculateModalTotals() {
+                let m=0, r=0; modalEditingConcepts.forEach(c=>{ if(c.categoria==='mano-obra') m+=c.cantidad*c.precio; else r+=c.cantidad*c.precio; });
+                document.getElementById('modal-sum-mano').innerText = formatter.format(m);
+                document.getElementById('modal-sum-ref').innerText = formatter.format(r);
+                document.getElementById('modal-sum-total').innerText = formatter.format(m+r);
+            },
+
+            renderModalConcepts() {
+                const container = document.getElementById('modal-concepts-container'); if(!container) return; container.innerHTML = '';
+                modalEditingConcepts.forEach((item, idx) => {
+                    container.innerHTML += `
+                        <div class="flex gap-2 items-center text-xs border p-1.5 rounded bg-white">
+                            <input type="text" value="${item.descripcion}" oninput="UI_Controller.updateModalConceptRow(${idx},'descripcion',this.value)" class="flex-1 border p-0.5 focus:outline-none">
+                            <select onchange="UI_Controller.updateModalConceptRow(${idx},'categoria',this.value)" class="bg-white border"><option value="refacciones" ${item.categoria==='refacciones'?'selected':''}>Refacc.</option><option value="mano-obra" ${item.categoria==='mano-obra'?'selected':''}>Trabajo</option></select>
+                            <input type="number" step="any" value="${item.cantidad}" oninput="UI_Controller.updateModalConceptRow(${idx},'cantidad',this.value)" class="w-10 text-center border focus:outline-none">
+                            <input type="number" step="any" value="${item.precio}" oninput="UI_Controller.updateModalConceptRow(${idx},'precio',this.value)" class="w-16 text-right border focus:outline-none ${currentRole==='Mecánico'?'hidden':''}">
+                            <button onclick="UI_Controller.deleteModalConceptRow(${idx})" class="text-rose-500"><span class="material-icons text-xs">delete</span></button>
+                        </div>`;
+                });
+                this.calculateModalTotals();
+            },
+
+            async handleSaveChanges() {
+                let m=0, r=0; modalEditingConcepts.forEach(c=>{ if(c.categoria==='mano-obra') m+=c.cantidad*c.precio; else r+=c.cantidad*c.precio; });
+                const paymentState = document.getElementById('modal-estado-pago').value;
+                const modalManualDate = document.getElementById('modal-fecha-ingreso').value;
+                
+                let fields = {
+                    estado: document.getElementById('modal-estado-trabajo').value,
+                    diagnostico_tecnico: document.getElementById('modal-diagnostico').value,
+                    kilometraje: parseInt(document.getElementById('modal-kilometraje').value) || 0,
+                    conceptos: modalEditingConcepts,
+                    fecha_ingreso: modalManualDate ? new Date(modalManualDate + 'T12:00:00').toISOString() : new Date().toISOString()
+                };
+                if(currentRole !== 'Mecánico') {
+                    fields.estado_pago = paymentState;
+                    fields.tecnico_asignado = document.getElementById('modal-tecnico').value;
+                    fields.metodo_pago = (paymentState === 'Anticipo' || paymentState === 'Pagado') ? document.getElementById('modal-metodo-pago').value : '';
+                    if(currentRole === 'Administrador') { fields.costo_mano_obra = m; fields.costo_refacciones = r; fields.total_cobrado = m+r; }
+                }
+                const { error } = await supabaseClient.from('ordenes_trabajo').update({...fields, conceptos: JSON.stringify(modalEditingConcepts)}).eq('id', currentEditingOrderId); 
+                if (error) { showToast("Error al guardar: " + error.message, true); return; }
+
+                showToast("Cambios guardados con éxito.");
+                this.closeModal(); API_Service.fetchOrders();
+            },
+
+            async handleDeleteOrder() {
+                customConfirm("¿Eliminar orden?", "Acción permanente.", async () => {
+                    const { error } = await supabaseClient.from('ordenes_trabajo').delete().eq('id', currentEditingOrderId); 
+                    if (error) { showToast("Error al eliminar: " + error.message, true); return; }
+                    showToast("Orden eliminada.");
+                    UI_Controller.closeModal(); API_Service.fetchOrders();
+                });
+            },
+
+            loadOrderIntoQuote() {
+                const id = document.getElementById('quote-order-loader').value; if(!id) return;
+                const o = _orders.find(x => x.id == id); if(!o) return;
+                document.getElementById('quote-cliente').value = o.cliente_nombre;
+                document.getElementById('quote-telefono').value = o.cliente_telefono || '';
+                document.getElementById('quote-auto').value = `${o.auto_marca} ${o.auto_modelo}`;
+                document.getElementById('quote-placas').value = o.auto_placas;
+                document.getElementById('pdf-doc-id').innerText = `FOLIO: #COT-${o.id}`;
+                document.getElementById('pdf-km-view').innerText = `| KM: ${o.kilometraje || 0}`;
+                quoteItems = o.conceptos ? o.conceptos.map(x=>({...x})) : [];
+                this.renderQuoteBuilderItems();
+            },
+
+            addQuoteItem() { quoteItems.push({ descripcion: '', cantidad: 1, precio: 0, categoria: 'refacciones' }); this.renderQuoteBuilderItems(); },
+            deleteQuoteItem(idx) { quoteItems.splice(idx,1); this.renderQuoteBuilderItems(); },
+            updateQuoteItemData(idx, f, v) {
+                if(f==='cantidad') quoteItems[idx].cantidad = parseInt(v)||1;
+                else if(f==='precio') quoteItems[idx].precio = parseFloat(v)||0;
+                else quoteItems[idx][f] = v;
+                this.updateQuotePreview();
+            },
+
+            renderQuoteBuilderItems() {
+                const container = document.getElementById('quote-items-container'); if(!container) return; container.innerHTML = '';
+                quoteItems.forEach((item, idx) => {
+                    container.innerHTML += `
+                        <div class="flex gap-2 border p-1 rounded bg-slate-50 text-xs">
+                            <input type="text" value="${item.descripcion}" oninput="UI_Controller.updateQuoteItemData(${idx},'descripcion',this.value)" class="flex-1 p-0.5 border focus:outline-none">
+                            <input type="number" value="${item.cantidad}" oninput="UI_Controller.updateQuoteItemData(${idx},'cantidad',this.value)" class="w-10 text-center border focus:outline-none">
+                            <input type="number" value="${item.precio}" oninput="UI_Controller.updateQuoteItemData(${idx},'precio',this.value)" class="w-16 text-right border focus:outline-none">
+                            <button onclick="UI_Controller.deleteQuoteItem(${idx})" class="text-rose-500"><span class="material-icons text-xs">delete</span></button>
+                        </div>`;
+                });
+                this.updateQuotePreview();
+            },
+
+            updateQuotePreview() {
+                document.getElementById('pdf-client-name').innerText = document.getElementById('quote-cliente').value || 'Público General';
+                document.getElementById('pdf-client-phone').innerText = `Tel: ${document.getElementById('quote-telefono').value || '-'}`;
+                document.getElementById('pdf-vehicle').innerText = document.getElementById('quote-auto').value || 'Vehículo';
+                document.getElementById('pdf-plates').innerText = document.getElementById('quote-placas').value.toUpperCase() || 'S/P';
+
+                const tbody = document.getElementById('pdf-concepts-body'); if(!tbody) return;
+                tbody.innerHTML = '';
+                let subtotal = 0;
+                quoteItems.forEach(item => {
+                    const imp = item.cantidad * item.precio; subtotal += imp;
+                    tbody.innerHTML += `<tr class="border-b"><td class="py-2 px-4 font-bold">${item.descripcion || 'Sin descripción'}</td><td class="text-center text-[10px]">${item.categoria === 'mano-obra' ? 'Trabajo' : 'Refacc'}</td><td class="text-center">${item.cantidad}</td><td class="text-right">${formatter.format(item.precio)}</td><td class="text-right font-bold">${formatter.format(imp)}</td></tr>`;
+                });
+
+                const desc = parseFloat(document.getElementById('quote-discount').value) || 0;
+                const tax = parseFloat(document.getElementById('quote-tax').value) || 0;
+                
+                const descuentoMonto = subtotal * (desc / 100);
+                const subtotalConDescuento = subtotal - descuentoMonto;
+                const ivaMonto = subtotalConDescuento * (tax / 100);
+                const finalTotal = subtotalConDescuento + ivaMonto;
+
+                document.getElementById('pdf-subtotal').innerText = formatter.format(subtotal);
+                document.getElementById('pdf-discount').innerText = formatter.format(descuentoMonto);
+                document.getElementById('pdf-tax').innerText = formatter.format(ivaMonto);
+                document.getElementById('pdf-total').innerText = formatter.format(finalTotal);
+                
+                const valdays = document.getElementById('quote-validity').value || 15;
+                document.getElementById('pdf-validity-view').innerText = `Válido por ${valdays} días hábiles.`;
+            },
+
+            clearQuoteForm() {
+                document.getElementById('quote-cliente').value = '';
+                document.getElementById('quote-telefono').value = '';
+                document.getElementById('quote-auto').value = '';
+                document.getElementById('quote-placas').value = '';
+                document.getElementById('quote-order-loader').value = '';
+                quoteItems = [];
+                this.renderQuoteBuilderItems();
+            },
+
+            downloadQuotePDF() {
+                showToast("Generando archivo PDF...");
+                html2pdf().set({ margin: 0.2, filename: 'Cotizacion_NIZCO.pdf', image: { type: 'jpeg', quality: 0.98 }, html2canvas: { scale: 2 }, jsPDF: { format: 'letter', orientation: 'portrait' } })
+                    .from(document.getElementById('pdf-capture-area')).save();
+            },
+
+            loadFixedCosts() {
+                const saved = localStorage.getItem('fixed_operational_costs_final');
+                if (saved) {
+                    fixedCosts = JSON.parse(saved);
+                    document.getElementById('fixed-renta').value = fixedCosts.renta || 0;
+                    document.getElementById('fixed-servicios').value = fixedCosts.servicios || 0;
+                    document.getElementById('fixed-impuestos').value = fixedCosts.impuestos || 0;
+                }
+            },
+
+            saveFixedCosts() {
+                fixedCosts.renta = parseFloat(document.getElementById('fixed-renta').value) || 0;
+                fixedCosts.servicios = parseFloat(document.getElementById('fixed-servicios').value) || 0;
+                fixedCosts.impuestos = parseFloat(document.getElementById('fixed-impuestos').value) || 0;
+                localStorage.setItem('fixed_operational_costs_final', JSON.stringify(fixedCosts));
+                Financial_Engine.recalculate();
+            },
+
+            closeConfirmModal(result) {
+                document.getElementById('modal-confirm').classList.add('hidden');
+                if (result && typeof confirmCallback === 'function') confirmCallback();
+                confirmCallback = null;
+            }
+        };
+
+        let supabaseClient = null;
+
+        function initArchitecture() {
+            UI_Controller.loadFixedCosts();
+            UI_Controller.populateCategoriesDropdown();
+            
+            // Establecer fechas predeterminadas de hoy
+            const todayStr = new Date().toISOString().split('T')[0];
+            if(document.getElementById('expense-date')) {
+                document.getElementById('expense-date').value = todayStr;
+            }
+            if(document.getElementById('form-fecha-ingreso')) {
+                document.getElementById('form-fecha-ingreso').value = todayStr;
+            }
+            
+            // =============================================================
+            // CONFIGURACIÓN DE PRODUCCIÓN: CREDENCIALES
+            // =============================================================
+            const url = "https://krhauwvbbjlihkeasrju.supabase.co"; 
+            const key = "sb_publishable_FaCORWb3dFbMfSNST-VQwQ_lihLEkdx";
+            // =============================================================
+
+            try {
+                supabaseClient = supabase.createClient(url, key);
+                document.getElementById('connection-status').className = "px-3 py-1.5 bg-emerald-50 text-emerald-700 rounded-full text-xs font-semibold flex items-center gap-1";
+                document.getElementById('connection-status').innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span><span>🟢 ERP Producción</span>`;
+                
+                Auth_Engine.checkExistingSession();
+            } catch (err) { 
+                document.getElementById('connection-status').innerHTML = `<span>⚠️ Falla de Inicialización</span>`;
+            }
+            UI_Controller.applyRolePermissions();
+        }
+
+        function customConfirm(title, message, callback) {
+            document.getElementById('confirm-title').innerText = title;
+            document.getElementById('confirm-message').innerText = message;
+            confirmCallback = callback;
+            document.getElementById('modal-confirm').classList.remove('hidden');
+        }
+
+        window.onload = function() { 
+            initArchitecture(); 
+            setTimeout(() => {
+                Financial_Engine.handlePresetChange();
+            }, 300);
+        };
+    </script>
+</body>
+</html>
