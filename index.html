@@ -354,7 +354,7 @@
                 </div>
             </section>
 
-            <!-- PESTAÑA 3: CREAR NUEVA ORDEN -->
+            <!-- PESTAÑA 3: CREAR NUEVA ORDEN (CON CAPTURA DE FECHA MANUAL) -->
             <section id="tab-nueva-orden" class="tab-content hidden max-w-3xl mx-auto">
                 <div class="bg-white border border-slate-200 rounded-3xl p-6 md:p-8 shadow-sm flex flex-col gap-6">
                     <div>
@@ -389,12 +389,17 @@
                             </div>
                         </div>
 
+                        <!-- FILA DE KILOMETRAJE, MOTIVO Y FECHA MANUAL -->
                         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                            <div class="flex flex-col gap-1.5 md:col-span-1">
+                            <div class="flex flex-col gap-1.5">
                                 <label class="text-xs font-semibold text-slate-500 uppercase">Kilometraje *</label>
                                 <input type="number" id="form-kilometraje" required placeholder="Ej. 75000" class="border rounded-xl px-4 py-2.5 text-sm focus:outline-none">
                             </div>
-                            <div class="flex flex-col gap-1.5 md:col-span-2">
+                            <div class="flex flex-col gap-1.5">
+                                <label class="text-xs font-semibold text-slate-500 uppercase">Fecha de Ingreso *</label>
+                                <input type="date" id="form-fecha-ingreso" required class="border rounded-xl px-4 py-2.5 text-sm focus:outline-none bg-slate-50 cursor-pointer">
+                            </div>
+                            <div class="flex flex-col gap-1.5">
                                 <label class="text-xs font-semibold text-slate-500 uppercase">Falla / Motivo de Ingreso *</label>
                                 <input type="text" id="form-falla-reportada" required placeholder="Ej. Pérdida de potencia" class="border rounded-xl px-4 py-2.5 text-sm focus:outline-none">
                             </div>
@@ -818,7 +823,7 @@
                 </div>
             </section>
 
-            <!-- MODAL GESTIONAR ORDEN (DETALLADO) -->
+            <!-- MODAL GESTIONAR ORDEN (EDICIÓN DETALLADA CON MODIFICACIÓN DE FECHA) -->
             <div id="modal-edit-order" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
                 <div class="bg-white rounded-3xl w-full max-w-2xl border flex flex-col max-h-[90vh] overflow-hidden shadow-2xl">
                     <div class="px-6 py-4 border-b flex justify-between items-center bg-slate-50">
@@ -860,9 +865,16 @@
                             </select>
                         </div>
 
-                        <div>
-                            <label class="text-xs font-semibold text-slate-500 uppercase">Técnico Asignado</label>
-                            <select id="modal-tecnico" class="w-full border rounded-xl px-3 py-2 text-sm bg-white focus:outline-none cursor-pointer"></select>
+                        <!-- FECHA DE INGRESO EDITABLE EN MODAL -->
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="text-xs font-semibold text-slate-500 uppercase">Técnico Asignado</label>
+                                <select id="modal-tecnico" class="w-full border rounded-xl px-3 py-2 text-sm bg-white focus:outline-none cursor-pointer"></select>
+                            </div>
+                            <div>
+                                <label class="text-xs font-semibold text-slate-500 uppercase">Fecha de Ingreso</label>
+                                <input type="date" id="modal-fecha-ingreso" class="w-full border rounded-xl px-3 py-2 text-sm focus:outline-none bg-slate-50 cursor-pointer">
+                            </div>
                         </div>
 
                         <div>
@@ -921,7 +933,7 @@
         let _expenses = []; 
         
         let currentEditingOrderId = null;
-        let currentRole = "Mecánico"; // Rol mínimo defensivo inicial
+        let currentRole = "Mecánico"; 
         let confirmCallback = null;
 
         let newOrderConcepts = [{ descripcion: 'Diagnóstico general computarizado', cantidad: 1, precio: 350, categoria: 'mano-obra' }];
@@ -946,9 +958,7 @@
         }
 
         /**
-         * ==========================================
          * MOTOR DE AUTENTICACIÓN CENTRALIZADO
-         * ==========================================
          */
         const Auth_Engine = {
             async handleLogin(e) {
@@ -1247,7 +1257,7 @@
                     data: {
                         labels: mesesLabels,
                         datasets: [{
-                            label: 'Ingresos Mensuales',
+                            label: 'Ingresos',
                             data: dataIngresosMes,
                             borderColor: '#3b82f6',
                             tension: 0.3,
@@ -1517,6 +1527,11 @@
             async handleCreateOrder(e) {
                 e.preventDefault();
                 let m=0, r=0; newOrderConcepts.forEach(c=>{ if(c.categoria==='mano-obra') m+=c.cantidad*c.precio; else r+=c.cantidad*c.precio; });
+                
+                // Lee la fecha manual ingresada en el input
+                const manualDate = document.getElementById('form-fecha-ingreso').value;
+                const isoDate = manualDate ? new Date(manualDate + 'T12:00:00').toISOString() : new Date().toISOString();
+
                 const order = {
                     cliente_nombre: document.getElementById('form-cliente-nombre').value,
                     cliente_telefono: document.getElementById('form-cliente-telefono').value,
@@ -1526,21 +1541,25 @@
                     kilometraje: parseInt(document.getElementById('form-kilometraje').value) || 0,
                     falla_reportada: document.getElementById('form-falla-reportada').value,
                     tecnico_asignado: document.getElementById('form-tecnico').value,
-                    diagnostico_tecnico: '', estado: 'Recepcionado', costo_mano_obra: m, costo_refacciones: r, total_cobrado: m+r, estado_pago: 'Pendiente', metodo_pago: '',
-                    fecha_ingreso: new Date().toISOString()
+                    diagnostico_tecnico: '', 
+                    estado: 'Recepcionado', 
+                    costo_mano_obra: m, 
+                    costo_refacciones: r, 
+                    total_cobrado: m+r, 
+                    estado_pago: 'Pendiente', 
+                    metodo_pago: '',
+                    fecha_ingreso: isoDate
                 };
                 const { error } = await supabaseClient.from('ordenes_trabajo').insert([{...order, conceptos: JSON.stringify(newOrderConcepts)}]); 
                 if (error) { showToast("Error Supabase: " + error.message, true); return; }
 
-                showToast("Orden de trabajo creada."); 
+                showToast("Orden de trabajo histórica creada."); 
                 newOrderConcepts = [{ descripcion: 'Diagnóstico general computarizado', cantidad: 1, precio: 350, categoria: 'mano-obra' }];
                 document.getElementById('new-order-form').reset();
+                document.getElementById('form-fecha-ingreso').value = new Date().toISOString().split('T')[0];
                 API_Service.fetchOrders(); this.switchTab('ordenes');
             },
 
-            /**
-             * AUTOMATIZACIÓN DE REGISTRO EN NUBE DE EMPLEADOS NUEVOS
-             */
             async handleCreatePersonal(e) {
                 e.preventDefault();
                 const nombre = document.getElementById('personal-nombre').value;
@@ -1552,7 +1571,6 @@
 
                 showToast("Registrando accesos en la nube...");
 
-                // 1. Crear el usuario en el módulo de Autenticación de Supabase
                 const { data: authData, error: authError } = await supabaseClient.auth.signUp({
                     email: email,
                     password: password
@@ -1568,7 +1586,6 @@
                     return;
                 }
 
-                // 2. Insertar los datos del perfil vinculando el user_id (UUID) obtenido
                 const staff = {
                     nombre: nombre,
                     rol: rol,
@@ -1606,6 +1623,10 @@
                 document.getElementById('modal-tecnico').value = o.tecnico_asignado || "Sin Asignar";
                 document.getElementById('modal-diagnostico').value = o.diagnostico_tecnico || '';
                 document.getElementById('modal-kilometraje').value = o.kilometraje || 0;
+                
+                // Mapea la fecha guardada en la base de datos al selector del modal
+                document.getElementById('modal-fecha-ingreso').value = o.fecha_ingreso ? o.fecha_ingreso.split('T')[0] : '';
+
                 modalEditingConcepts = o.conceptos ? [...o.conceptos] : [];
                 
                 const mSel = document.getElementById('modal-metodo-pago');
@@ -1662,12 +1683,14 @@
             async handleSaveChanges() {
                 let m=0, r=0; modalEditingConcepts.forEach(c=>{ if(c.categoria==='mano-obra') m+=c.cantidad*c.precio; else r+=c.cantidad*c.precio; });
                 const paymentState = document.getElementById('modal-estado-pago').value;
+                const modalManualDate = document.getElementById('modal-fecha-ingreso').value;
                 
                 let fields = {
                     estado: document.getElementById('modal-estado-trabajo').value,
                     diagnostico_tecnico: document.getElementById('modal-diagnostico').value,
                     kilometraje: parseInt(document.getElementById('modal-kilometraje').value) || 0,
-                    conceptos: modalEditingConcepts
+                    conceptos: modalEditingConcepts,
+                    fecha_ingreso: modalManualDate ? new Date(modalManualDate + 'T12:00:00').toISOString() : new Date().toISOString()
                 };
                 if(currentRole !== 'Mecánico') {
                     fields.estado_pago = paymentState;
@@ -1804,15 +1827,21 @@
         function initArchitecture() {
             UI_Controller.loadFixedCosts();
             UI_Controller.populateCategoriesDropdown();
+            
+            // Establecer fechas predeterminadas de hoy
+            const todayStr = new Date().toISOString().split('T')[0];
             if(document.getElementById('expense-date')) {
-                document.getElementById('expense-date').value = new Date().toISOString().split('T')[0];
+                document.getElementById('expense-date').value = todayStr;
+            }
+            if(document.getElementById('form-fecha-ingreso')) {
+                document.getElementById('form-fecha-ingreso').value = todayStr;
             }
             
             // =============================================================
             // CONFIGURACIÓN DE PRODUCCIÓN: COLOCA TUS CREDENCIALES AQUÍ
             // =============================================================
-            const url = "https://krhauwvbbjlihkeasrju.supabase.co"; 
-            const key = "sb_publishable_FaCORWb3dFbMfSNST-VQwQ_lihLEkdx";
+            const url = "https://TU_PROYECTO.supabase.co"; 
+            const key = "TU_ANON_KEY_LARGA...";
             // =============================================================
 
             try {
