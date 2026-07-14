@@ -1667,19 +1667,19 @@
                 document.getElementById('modal-sum-total').innerText = formatter.format(m+r);
             },
 
-            renderModalConcepts() {
-                const container = document.getElementById('modal-concepts-container'); if(!container) return; container.innerHTML = '';
-                modalEditingConcepts.forEach((item, idx) => {
-                    container.innerHTML += `
-                        <div class="flex gap-2 items-center text-xs border p-1.5 rounded bg-white">
-                            <input type="text" value="${item.descripcion}" oninput="UI_Controller.updateModalConceptRow(${idx},'descripcion',this.value)" class="flex-1 border p-0.5 focus:outline-none">
-                            <select onchange="UI_Controller.updateModalConceptRow(${idx},'categoria',this.value)" class="bg-white border"><option value="refacciones" ${item.categoria==='refacciones'?'selected':''}>Refacc.</option><option value="mano-obra" ${item.categoria==='mano-obra'?'selected':''}>Trabajo</option></select>
-                            <input type="number" value="${item.cantidad}" oninput="UI_Controller.updateModalConceptRow(${idx},'cantidad',this.value)" class="w-10 text-center border focus:outline-none">
-                            <input type="number" value="${item.precio}" oninput="UI_Controller.updateModalConceptRow(${idx},'precio',this.value)" class="w-16 text-right border focus:outline-none ${currentRole==='Mecánico'?'hidden':''}">
-                            <button onclick="UI_Controller.deleteModalConceptRow(${idx})" class="text-rose-500"><span class="material-icons text-xs">delete</span></button>
-                        </div>`;
-                });
-                this.calculateModalTotals();
+           renderModalConcepts() {
+    const container = document.getElementById('modal-concepts-container'); if(!container) return; container.innerHTML = '';
+    modalEditingConcepts.forEach((item, idx) => {
+        container.innerHTML += `
+            <div class="flex gap-2 items-center text-xs border p-1.5 rounded bg-white">
+                <input type="text" value="${item.descripcion}" oninput="UI_Controller.updateModalConceptRow(${idx},'descripcion',this.value)" class="flex-1 border p-0.5 focus:outline-none">
+                <select onchange="UI_Controller.updateModalConceptRow(${idx},'categoria',this.value)" class="bg-white border"><option value="refacciones" ${item.categoria==='refacciones'?'selected':''}>Refacc.</option><option value="mano-obra" ${item.categoria==='mano-obra'?'selected':''}>Trabajo</option></select>
+                <input type="number" step="any" value="${item.cantidad}" oninput="UI_Controller.updateModalConceptRow(${idx},'cantidad',this.value)" class="w-10 text-center border focus:outline-none">
+                <input type="number" step="any" value="${item.precio}" oninput="UI_Controller.updateModalConceptRow(${idx},'precio',this.value)" class="w-16 text-right border focus:outline-none ${currentRole==='Mecánico'?'hidden':''}">
+                <button onclick="UI_Controller.deleteModalConceptRow(${idx})" class="text-rose-500"><span class="material-icons text-xs">delete</span></button>
+            </div>`;
+    });
+    this.calculateModalTotals();
             },
 
             async handleSaveChanges() {
