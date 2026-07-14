@@ -1510,18 +1510,20 @@
                 document.getElementById('new-order-total-general').innerText = formatter.format(m+r);
             },
             renderNewOrderConcepts() {
-                const c = document.getElementById('new-order-concepts-container'); if(!c) return; c.innerHTML = '';
-                newOrderConcepts.forEach((item, idx) => {
-                    c.innerHTML += `
-                        <div class="flex gap-2 bg-white border p-2 rounded-xl">
-                            <input type="text" value="${item.descripcion}" oninput="UI_Controller.updateNewOrderConceptRow(${idx},'descripcion',this.value)" placeholder="Concepto" class="flex-1 text-xs p-1 focus:outline-none">
-                            <select onchange="UI_Controller.updateNewOrderConceptRow(${idx},'categoria',this.value)" class="text-xs bg-white border rounded"><option value="refacciones" ${item.categoria==='refacciones'?'selected':''}>Refacc.</option><option value="mano-obra" ${item.categoria==='mano-obra'?'selected':''}>Mano Obra</option></select>
-                            <input type="number" value="${item.cantidad}" oninput="UI_Controller.updateNewOrderConceptRow(${idx},'cantidad',this.value)" class="w-10 text-center text-xs border rounded focus:outline-none">
-                            <input type="number" value="${item.precio}" oninput="UI_Controller.updateNewOrderConceptRow(${idx},'precio',this.value)" class="w-20 text-right text-xs border rounded focus:outline-none ${currentRole==='Mecánico'?'hidden':''}">
-                            <button type="button" onclick="UI_Controller.deleteNewOrderConceptRow(${idx})" class="text-rose-500"><span class="material-icons text-sm">delete</span></button>
-                        </div>`;
-                });
-                this.calculateNewOrderTotals();
+    const c = document.getElementById('new-order-concepts-container'); if(!c) return; c.innerHTML = '';
+    newOrderConcepts.forEach((item, idx) => {
+        c.innerHTML += `
+            <div class="flex gap-2 bg-white border p-2 rounded-xl">
+                <input type="text" value="${item.descripcion}" oninput="UI_Controller.updateNewOrderConceptRow(${idx},'descripcion',this.value)" placeholder="Concepto" class="flex-1 text-xs p-1 focus:outline-none">
+                <select onchange="UI_Controller.updateNewOrderConceptRow(${idx},'categoria',this.value)" class="text-xs bg-white border rounded"><option value="refacciones" ${item.categoria==='refacciones'?'selected':''}>Refacc.</option><option value="mano-obra" ${item.categoria==='mano-obra'?'selected':''}>Mano Obra</option></select>
+                <input type="number" step="any" value="${item.cantidad}" oninput="UI_Controller.updateNewOrderConceptRow(${idx},'cantidad',this.value)" class="w-10 text-center text-xs border rounded focus:outline-none">
+                <input type="number" step="any" value="${item.precio}" oninput="UI_Controller.updateNewOrderConceptRow(${idx},'precio',this.value)" class="w-20 text-right text-xs border rounded focus:outline-none ${currentRole==='Mecánico'?'hidden':''}">
+                <button type="button" onclick="UI_Controller.deleteNewOrderConceptRow(${idx})" class="text-rose-500"><span class="material-icons text-sm">delete</span></button>
+            </div>`;
+    });
+    this.calculateNewOrderTotals();
+}
+            
             },
 
             async handleCreateOrder(e) {
