@@ -1170,19 +1170,28 @@
                 });
 
                 let egresosManuales = 0;
+                let deduccionesNomina = 0; // Para rastrear faltas/descuentos
+
                 _expenses.forEach(e => {
                     const eDate = new Date(e.fecha + 'T00:00:00');
                     if(eDate >= start && eDate <= end) {
                         const mAmt = parseFloat(e.monto || 0);
-                        egresosManuales += mAmt;
-                        if(montosPorCategoria[e.categoria] !== undefined) {
-                            montosPorCategoria[e.categoria] += mAmt;
+                        
+                        // Si es un monto negativo en la categoría Nómina, lo tratamos como deducción
+                        if (e.categoria === "Nómina" && mAmt < 0) {
+                            deduccionesNomina += Math.abs(mAmt); // Acumulamos el descuento como positivo para restar después
                         } else {
-                            montosPorCategoria[e.categoria] = mAmt;
+                            egresosManuales += mAmt;
+                            if(montosPorCategoria[e.categoria] !== undefined) {
+                                montosPorCategoria[e.categoria] += mAmt;
+                            } else {
+                                montosPorCategoria[e.categoria] = mAmt;
+                            }
                         }
                     }
                 });
 
+                // CÁLCULO DINÁMICO DE NÓMINA BASADO EN FECHAS DE ALTA Y BAJA
                 let costoNominaPeriodo = 0;
                 _personal.forEach(p => {
                     const sueldoDiario = (parseFloat(p.sueldo) || 0) / 7;
@@ -1197,6 +1206,28 @@
                         const msDiferencia = finInterseccion - inicioInterseccion;
                         const diasTrabajadosEnPeriodo = Math.ceil(msDiferencia / (1000 * 60 * 60 * 24));
                         costoNominaPeriodo += diasTrabajadosEnPeriodo * sueldoDiario;
+                    }
+                });
+
+                const fijosMensuales = (fixedCosts.renta || 0) + (fixedCosts.servicios || 0) + (fixedCosts.impuestos || 0);
+                const fijosPorDia = fijosMensuales / 30.4;
+                const costoFijosPeriodo = fijosPorDia * totalDays;
+
+                // APLICAMOS EL DESCUENTO: Nómina contratada menos las faltas registradas
+                let nominaFinalConDescuentos = costoNominaPeriodo - deduccionesNomina;
+                montosPorCategoria["Nómina"] = nominaFinalConDescuentos;
+                montosPorCategoria["Refacciones"] = refaccionesCostNeto; 
+                
+                montosPorCategoria["Renta"] += (fixedCosts.renta / 30.4) * totalDays;
+                montosPorCategoria["Impuestos"] += (fixedCosts.impuestos / 30.4) * totalDays;
+                
+                const serviciosFraccionados = ((fixedCosts.servicios || 0) / 3) / 30.4 * totalDays;
+                montosPorCategoria["Agua"] += serviciosFraccionados;
+                montosPorCategoria["Luz"] += serviciosFraccionados;
+                montosPorCategoria["Internet"] += serviciosFraccionados;
+
+                // Gastos totales ahora incluye la nómina ya reducida
+                const totalGastos = refaccionesCostNeto + nominaFinalConDescuentos + costoFijosPeriodo + egresosManuales;
                     }
                 });
 
@@ -1608,12 +1639,17 @@
                 if(expenseBody) {
                     expenseBody.innerHTML = '';
                     _expenses.forEach(e => {
+                        const amt = parseFloat(e.monto || 0);
+                        // Si es negativo, es un descuento, lo mostramos bonito
+                        const textMonto = amt < 0 ? `+${formatter.format(Math.abs(amt))} (Desc.)` : `-${formatter.format(amt)}`;
+                        const classMonto = amt < 0 ? 'text-emerald-600 font-bold' : 'text-rose-600 font-bold';
+                        
                         expenseBody.innerHTML += `
                             <tr class="border-b">
                                 <td class="py-2 font-medium">${e.fecha}</td>
                                 <td class="py-2 font-bold">${e.concepto}<span class="text-[10px] text-rose-600 font-bold block">${e.categoria}</span></td>
                                 <td class="py-2 text-slate-400">${e.metodo_pago}</td>
-                                <td class="py-2 text-right font-bold text-rose-600">-${formatter.format(e.monto)}</td>
+                                <td class="py-2 text-right ${classMonto}">${textMonto}</td>
                             </tr>`;
                     });
                 }
