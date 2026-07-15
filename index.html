@@ -1122,9 +1122,11 @@
                 let refaccionesCost = 0;
                 let erManoObra = 0;
 
+                // 1. Inicializar limpias TODAS las categorías operativas
                 let montosPorCategoria = {};
                 _categories.forEach(cat => montosPorCategoria[cat] = 0);
 
+                // 2. Procesar ingresos por Órdenes de Trabajo en el periodo
                 _orders.forEach(o => {
                     const oDate = new Date(o.fecha_ingreso || o.fecha_registro);
                     if (oDate >= start && oDate <= end) {
@@ -1142,6 +1144,31 @@
                     }
                 });
 
+                // 3. CÁLCULO DE NÓMINA DE EMPLEADOS (NORMALIZADO A MEDIANOCHE HORAS LOCALES)
+                let costoNominaPeriodo = 0;
+                _personal.forEach(p => {
+                    const sueldoDiario = (parseFloat(p.sueldo) || 0) / 7;
+                    
+                    const empInicio = p.fecha_ingreso ? new Date(p.fecha_ingreso + 'T00:00:00') : new Date(0);
+                    const empFin = p.fecha_egreso ? new Date(p.fecha_egreso + 'T00:00:00') : new Date(8640000000000000);
+
+                    const filtroInicio = new Date(start); filtroInicio.setHours(0,0,0,0);
+                    const filtroFin = new Date(end); filtroFin.setHours(0,0,0,0);
+
+                    const inicioInterseccion = new Date(Math.max(filtroInicio.getTime(), empInicio.getTime()));
+                    const finInterseccion = new Date(Math.min(filtroFin.getTime(), empFin.getTime()));
+
+                    if (inicioInterseccion <= finInterseccion) {
+                        const msDiferencia = finInterseccion.getTime() - inicioInterseccion.getTime();
+                        const diasTrabajadosEnPeriodo = Math.floor(msDiferencia / (1000 * 60 * 60 * 24)) + 1;
+                        costoNominaPeriodo += diasTrabajadosEnPeriodo * sueldoDiario;
+                    }
+                });
+
+                // Asignar el costo real calculado al acumulador de la categoría de Nómina
+                montosPorCategoria["Nómina"] = costoNominaPeriodo;
+
+                // 4. Procesar Egresos / Gastos Manuales asentados en Tesorería
                 let egresosManuales = 0;
                 _expenses.forEach(e => {
                     const eDate = new Date(e.fecha + 'T00:00:00');
@@ -1149,38 +1176,19 @@
                         const mAmt = parseFloat(e.monto || 0);
                         egresosManuales += mAmt;
                         if(montosPorCategoria[e.categoria] !== undefined) {
-                            montosPorCategoria[e.categoria] += mAmt;
+                            montosPorCategoria[e.categoria] += mAmt; // Si es nómina manual, se suma al costo fijo calculado
                         } else {
                             montosPorCategoria[e.categoria] = mAmt;
                         }
                     }
                 });
 
-                // CÁLCULO DINÁMICO DE NÓMINA BASADO EN FECHAS DE ALTA Y BAJA
-                let costoNominaPeriodo = 0;
-                _personal.forEach(p => {
-                    const sueldoDiario = (parseFloat(p.sueldo) || 0) / 7;
-                    
-                    const empInicio = p.fecha_ingreso ? new Date(p.fecha_ingreso + 'T00:00:00') : new Date(0);
-                    const empFin = p.fecha_egreso ? new Date(p.fecha_egreso + 'T23:59:59') : new Date(8640000000000000);
-
-                    const inicioInterseccion = new Date(Math.max(start, empInicio));
-                    const finInterseccion = new Date(Math.min(end, empFin));
-
-                    if (inicioInterseccion <= finInterseccion) {
-                        const msDiferencia = finInterseccion - inicioInterseccion;
-                        const diasTrabajadosEnPeriodo = Math.ceil(msDiferencia / (1000 * 60 * 60 * 24));
-                        costoNominaPeriodo += diasTrabajadosEnPeriodo * sueldoDiario;
-                    }
-                });
-
+                // 5. Calcular costos fijos estructurales prorrateados por los días del periodo
                 const fijosMensuales = (fixedCosts.renta || 0) + (fixedCosts.servicios || 0) + (fixedCosts.impuestos || 0);
                 const fijosPorDia = fijosMensuales / 30.4;
                 const costoFijosPeriodo = fijosPorDia * totalDays;
 
-                montosPorCategoria["Nómina"] += costoNominaPeriodo;
                 montosPorCategoria["Refacciones"] += refaccionesCost;
-                
                 montosPorCategoria["Renta"] += (fixedCosts.renta / 30.4) * totalDays;
                 montosPorCategoria["Impuestos"] += (fixedCosts.impuestos / 30.4) * totalDays;
                 
@@ -1189,12 +1197,14 @@
                 montosPorCategoria["Luz"] += serviciosFraccionados;
                 montosPorCategoria["Internet"] += serviciosFraccionados;
 
-                const totalGastos = refaccionesCost + costoNominaPeriodo + costoFijosPeriodo + egresosManuales;
+                // El gasto total es la suma consolidada de todas las categorías afectadas
+                const totalGastos = refaccionesCost + montosPorCategoria["Nómina"] + costoFijosPeriodo + (egresosManuales - (montosPorCategoria["Nómina"] - costoNominaPeriodo)); 
                 const utilidadBruta = ingresos - refaccionesCost; 
                 const utilidadNeta = ingresos - totalGastos;
                 const margenUtilidad = ingresos > 0 ? (utilidadNeta / ingresos) * 100 : 0;
                 const ticketPromedio = vehiculosAtendidos > 0 ? ingresos / vehiculosAtendidos : 0;
 
+                // 6. RENDERIZADO EN PANTALLA (HTML INTERFAZ)
                 if(document.getElementById('dash-ingresos')) {
                     document.getElementById('dash-ingresos').innerText = formatter.format(ingresos);
                     document.getElementById('dash-utilidad-bruta').innerText = formatter.format(utilidadBruta);
@@ -1209,21 +1219,25 @@
                     if(document.getElementById('caja-anticipo')) document.getElementById('caja-anticipo').innerText = formatter.format(anticipo);
                     if(document.getElementById('costo-ref-total')) document.getElementById('costo-ref-total').innerText = formatter.format(refaccionesCost);
                     if(document.getElementById('costo-fijos-total')) document.getElementById('costo-fijos-total').innerText = formatter.format(costoFijosPeriodo);
-                    if(document.getElementById('costo-nomina-total')) document.getElementById('costo-nomina-total').innerText = formatter.format(costoNominaPeriodo);
+                    // Muestra el costo real total de la nómina del periodo en el indicador superior
+                    if(document.getElementById('costo-nomina-total')) document.getElementById('costo-nomina-total').innerText = formatter.format(montosPorCategoria["Nómina"]);
 
                     const catContainer = document.getElementById('dashboard-categories-container');
                     catContainer.innerHTML = '';
                     Object.keys(montosPorCategoria).forEach(cName => {
-                        catContainer.innerHTML += `
-                            <div class="flex justify-between items-center border-b border-slate-100 pb-1">
-                                <span class="text-slate-600 font-medium">${cName}:</span>
-                                <span class="font-bold text-slate-800">${formatter.format(montosPorCategoria[cName])}</span>
-                            </div>`;
+                        if(montosPorCategoria[cName] > 0) {
+                            catContainer.innerHTML += `
+                                <div class="flex justify-between items-center border-b border-slate-100 pb-1">
+                                    <span class="text-slate-600 font-medium">${cName}:</span>
+                                    <span class="font-bold text-slate-800">${formatter.format(montosPorCategoria[cName])}</span>
+                                </div>`;
+                        }
                     });
 
+                    // Inyección exacta al Estado de Resultados Consolidado
                     document.getElementById('er-ingresos').innerText = formatter.format(ingresos);
                     document.getElementById('er-refacciones').innerText = formatter.format(montosPorCategoria["Refacciones"]);
-                    document.getElementById('er-nomina').innerText = formatter.format(montosPorCategoria["Nómina"]);
+                    document.getElementById('er-nomina').innerText = formatter.format(montosPorCategoria["Nómina"]); // <- CORREGIDO AQUÍ
                     document.getElementById('er-gasolina').innerText = formatter.format(montosPorCategoria["Gasolina"] + montosPorCategoria["Diesel"]);
                     document.getElementById('er-consumibles').innerText = formatter.format(montosPorCategoria["Consumibles"]);
                     
@@ -1231,14 +1245,14 @@
                     document.getElementById('er-servicios').innerText = formatter.format(sumServiciosAcumulados);
                     document.getElementById('er-publicidad').innerText = formatter.format(montosPorCategoria["Publicidad"]);
                     
-                    const otrosAcumulados = totalGastos - (montosPorCategoria["Refacciones"] + montosPorCategoria["Nómina"] + montosPorCategoria["Gasolina"] + montosPorCategoria["Diesel"] + montosPorCategoria["Consumibles"] + sumServiciosAcumulados + montosPorCategoria["Publicidad"]);
+                    const determinados = montosPorCategoria["Refacciones"] + montosPorCategoria["Nómina"] + montosPorCategoria["Gasolina"] + montosPorCategoria["Diesel"] + montosPorCategoria["Consumibles"] + sumServiciosAcumulados + montosPorCategoria["Publicidad"];
+                    const otrosAcumulados = totalGastos - determinados;
                     document.getElementById('er-otros').innerText = formatter.format(otrosAcumulados > 0 ? otrosAcumulados : 0);
                     document.getElementById('er-utilidad-neta').innerText = formatter.format(utilidadNeta);
                 }
 
                 this.renderCharts(ingresos, totalGastos, montosPorCategoria);
             },
-
             renderCharts(ingresos, totalGastos, montosPorCategoria) {
                 if(chartInstance1) chartInstance1.destroy();
                 if(chartInstance2) chartInstance2.destroy();
