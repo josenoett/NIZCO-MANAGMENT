@@ -728,7 +728,7 @@
                                             <span>I.V.A.:</span> <span id="pdf-tax">$0.00</span>
                                         </div>
                                         <div class="flex justify-between text-slate-900 font-black text-sm border-t-2 border-slate-200 pt-2.5">
-                                            <span>TOTAL ESTIMADO:</span> <span id="pdf-total" class="text-blue-600">$0.00</span>
+                    <span id="pdf-total-label">TOTAL ESTIMADO:</span> <span id="pdf-total" class="text-blue-600">$0.00</span>
                                         </div>
                                     </div>
                                 </div>
@@ -1895,14 +1895,18 @@
                 const orderLoader = document.getElementById('quote-order-loader').value;
 
                 if (docType === 'NOTA DE VENTA') {
-                    if(validityContainer) validityContainer.classList.add('hidden');
-                    if(validityText) validityText.classList.add('hidden');
-                    document.getElementById('pdf-doc-id').innerText = orderLoader ? `FOLIO: #NOTA-${orderLoader}` : 'FOLIO: #NOTA-000';
-                } else {
-                    if(validityContainer) validityContainer.classList.remove('hidden');
-                    if(validityText) validityText.classList.remove('hidden');
-                    document.getElementById('pdf-doc-id').innerText = orderLoader ? `FOLIO: #COT-${orderLoader}` : 'FOLIO: #COT-000';
-                }
+    if(validityContainer) validityContainer.classList.add('hidden');
+    if(validityText) validityText.classList.add('hidden');
+    document.getElementById('pdf-doc-id').innerText = orderLoader ? `FOLIO: #NOTA-${orderLoader}` : 'FOLIO: #NOTA-000';
+    // Mete esta línea nueva aquí:
+    document.getElementById('pdf-total-label').innerText = 'TOTAL A PAGAR:';
+} else {
+    if(validityContainer) validityContainer.classList.remove('hidden');
+    if(validityText) validityText.classList.remove('hidden');
+    document.getElementById('pdf-doc-id').innerText = orderLoader ? `FOLIO: #COT-${orderLoader}` : 'FOLIO: #COT-000';
+    // Mete esta línea nueva acá:
+    document.getElementById('pdf-total-label').innerText = 'TOTAL ESTIMADO:';
+}
 
                 document.getElementById('pdf-client-name').innerText = document.getElementById('quote-cliente').value || 'Público General';
                 document.getElementById('pdf-client-phone').innerText = `Tel: ${document.getElementById('quote-telefono').value || '-'}`;
