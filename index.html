@@ -1240,10 +1240,48 @@
                     const catContainer = document.getElementById('dashboard-categories-container');
                     catContainer.innerHTML = '';
 
+                    // CÁLCULOS FISCALES DE VENTAS E INGRESO REAL
+                    let totalIva16Cobrado = 0;
+                    _orders.forEach(o => {
+                        const oDate = new Date(o.fecha_ingreso || o.fecha_registro);
+                        if (oDate >= start && oDate <= end) {
+                            if (o.estado_pago === 'Pagado') {
+                                totalIva16Cobrado += parseFloat(o.total_iva || 0);
+                            } else if (o.estado_pago === 'Anticipo') {
+                                totalIva16Cobrado += parseFloat(o.total_iva || 0) * 0.5; // Proporcional al anticipo
+                            }
+                        }
+                    });
+                    let ventasNetasSinIva16 = ingresos - totalIva16Cobrado;
                     const iva8Total = refaccionesCostBruto - refaccionesCostNeto;
+
+                    // NUEVA TARJETA 1: DESGLOSE COMPLETO DE VENTAS e IVA 16% COBRADO
                     catContainer.innerHTML += `
-                        <div class="bg-slate-50 p-2.5 rounded-xl border border-slate-200 flex flex-col gap-1 mb-2 font-sans">
-                            <span class="text-[10px] uppercase font-bold text-blue-600 tracking-wider flex items-center gap-1"><span class="material-icons text-xs">inventory_2</span> Desglose Refacciones</span>
+                        <div class="bg-emerald-50/60 p-2.5 rounded-xl border border-emerald-200 flex flex-col gap-1 mb-2 font-sans text-xs">
+                            <span class="text-[10px] uppercase font-bold text-emerald-700 tracking-wider flex items-center gap-1">
+                                <span class="material-icons text-xs">point_of_sale</span> 📊 Desglose de Ventas (Ingresos)
+                            </span>
+                            <div class="flex justify-between text-slate-600">
+                                <span>Ventas Brutas (Total en Caja):</span>
+                                <span class="font-semibold text-slate-800">${formatter.format(ingresos)}</span>
+                            </div>
+                            <div class="flex justify-between text-slate-600">
+                                <span>Ventas Netas (Sin IVA 16%):</span>
+                                <span class="font-bold text-slate-900">${formatter.format(ventasNetasSinIva16)}</span>
+                            </div>
+                            <div class="flex justify-between text-emerald-700 text-[10px] pt-0.5 border-t border-dashed border-emerald-300">
+                                <span>Puro IVA 16% por Trasladar/Pagar:</span>
+                                <span class="font-bold">${formatter.format(totalIva16Cobrado)}</span>
+                            </div>
+                        </div>
+                    `;
+
+                    // TARJETA 2: DESGLOSE DE REFACCIONES E IVA 8% PAGADO
+                    catContainer.innerHTML += `
+                        <div class="bg-blue-50/60 p-2.5 rounded-xl border border-blue-200 flex flex-col gap-1 mb-2 font-sans text-xs">
+                            <span class="text-[10px] uppercase font-bold text-blue-600 tracking-wider flex items-center gap-1">
+                                <span class="material-icons text-xs">inventory_2</span> 📦 Desglose Refacciones (Costos)
+                            </span>
                             <div class="flex justify-between text-slate-600">
                                 <span>Refacciones Bruto (c/ IVA 8%):</span>
                                 <span class="font-semibold text-slate-800">${formatter.format(refaccionesCostBruto)}</span>
@@ -1252,9 +1290,9 @@
                                 <span>Refacciones Neto (s/ IVA):</span>
                                 <span class="font-bold text-slate-900">${formatter.format(refaccionesCostNeto)}</span>
                             </div>
-                            <div class="flex justify-between text-slate-400 text-[10px] pt-0.5 border-t border-dashed">
+                            <div class="flex justify-between text-blue-700 text-[10px] pt-0.5 border-t border-dashed border-blue-300">
                                 <span>IVA 8% Acreditable Pagado:</span>
-                                <span class="font-medium">${formatter.format(iva8Total)}</span>
+                                <span class="font-bold">${formatter.format(iva8Total)}</span>
                             </div>
                         </div>
                     `;
