@@ -1294,17 +1294,42 @@
 
                     let totalIva16Cobrado = 0;
                     _orders.forEach(o => {
-                        const oDate = new Date(o.fecha_ingreso || o.fecha_registro);
-                        if (oDate >= start && oDate <= end) {
-                            if (o.estado_pago === 'Pagado') {
-                                totalIva16Cobrado += parseFloat(o.total_iva || 0);
-                            } else if (o.estado_pago === 'Anticipo') {
-                                // El IVA cobrado del anticipo es proporcional al abono realizado frente al total estimado
-                                const totCot = parseFloat(o.total_cobrado || 1);
-                                const factorAbono = parseFloat(o.costo_diagnostico || 0) / totCot;
-                                totalIva16Cobrado += parseFloat(o.total_iva || 0) * factorAbono;
-                            }
-                        }
+        const oDate = new Date(o.fecha_ingreso || o.fecha_registro);
+        const oDateEgreso = o.fecha_egreso ? new Date(o.fecha_egreso) : null;
+        
+        const requiereIVA = o.requiere_factura === true;
+        const totalIva = parseFloat(o.total_iva || 0);
+        const totCot = parseFloat(o.total_cobrado || 1);
+        const abonoBruto = parseFloat(o.costo_diagnostico || 0);
+
+        // 1. EVALUAR EL IVA EN LA FECHA DE INGRESO
+        if (oDate >= start && oDate <= end) {
+            if (o.estado_pago === 'Pagado') {
+                // Si se pagó completa en este mes y no tuvo anticipo previo
+                if (abonoBruto === 0 || abonoBruto === totCot) {
+                    totalIva16Cobrado += totalIva;
+                } else {
+                    // Si nació como anticipo y se liquidó este mismo mes, sumamos la parte proporcional del abono
+                    const factorAbono = abonoBruto / totCot;
+                    totalIva16Cobrado += totalIva * factorAbono;
+                }
+            } else if (o.estado_pago === 'Anticipo') {
+                // Si sigue en anticipo, sumamos solo la parte proporcional de lo que dejó
+                const factorAbono = abonoBruto / totCot;
+                totalIva16Cobrado += totalIva * factorAbono;
+            }
+        }
+
+        // 2. EVALUAR EL IVA RESTANTE EN LA FECHA DE EGRESO (CUANDO SE LIQUIDA)
+        if (o.estado_pago === 'Pagado' && oDateEgreso && oDateEgreso >= start && oDateEgreso <= end) {
+            if (abonoBruto > 0 && abonoBruto < totCot) {
+                // Si tuvo un anticipo en otro mes, aquí en el egreso cobramos la diferencia del IVA
+                const factorAbono = abonoBruto / totCot;
+                const factorLiquidacion = 1 - factorAbono;
+                totalIva16Cobrado += totalIva * factorLiquidacion;
+            }
+        }
+        
                     });
                     let ventasNetasSinIva16 = ingresos - totalIva16Cobrado;
                     const iva8Total = refaccionesCostBruto - refaccionesCostNeto;
