@@ -1904,11 +1904,14 @@
                 let ivaCalculado = requiereFactura ? subtotal * 0.16 : 0;
                 let granTotal = subtotal + ivaCalculado;
                 
+                // Buscamos la orden original en memoria para saber si ya tenía un anticipo registrado previamente
+                const ordenOriginal = _orders.find(x => x.id === currentEditingOrderId);
+                let abonoPrevio = ordenOriginal ? parseFloat(ordenOriginal.costo_diagnostico || 0) : 0;
+
                 let fields = {
                     estado: document.getElementById('modal-estado-trabajo').value,
                     diagnostico_tecnico: document.getElementById('modal-diagnostico').value,
                     kilometraje: parseInt(document.getElementById('modal-kilometraje').value) || 0,
-                    conceptos: modalEditingConcepts,
                     fecha_ingreso: modalManualDate ? new Date(modalManualDate + 'T12:00:00').toISOString() : new Date().toISOString(),
                     fecha_egreso: modalEgresoDate ? new Date(modalEgresoDate + 'T12:00:00').toISOString() : null,
                     requiere_factura: requiereFactura,
@@ -1920,17 +1923,28 @@
                     fields.tecnico_asignado = document.getElementById('modal-tecnico').value;
                     fields.metodo_pago = (paymentState === 'Anticipo' || paymentState === 'Pagado') ? document.getElementById('modal-metodo-pago').value : '';
                     
-                    // Si cambia de Anticipo a Pagado completo en la gestión, se sobrescribe costo_diagnostico al valor full
-                    if(paymentState === 'Pagado') {
-                        fields.costo_diagnostico = granTotal;
+                    // LÓGICA DE ASIGNACIÓN CONTABLE CORRECTA:
+                    if (paymentState === 'Anticipo') {
+                        // Si se mantiene en anticipo pero agregaste cosas, actualizamos el abono con lo que diga el registro o la orden
+                        fields.costo_diagnostico = abonoPrevio > 0 ? abonoPrevio : granTotal;
+                    } else if (paymentState === 'Pagado') {
+                        // Si pasa a Pagado pero ANTES era un anticipo, conservamos el valor del abono previo intacto
+                        // para que el motor financiero pueda restar: (Total Nuevo - Abono Previo) en el mes de egreso.
+                        fields.costo_diagnostico = abonoPrevio > 0 ? abonoPrevio : 0;
+                    } else {
+                        fields.costo_diagnostico = 0;
                     }
                     
-                    if(currentRole === 'Administrador') { fields.costo_mano_obra = m; fields.costo_refacciones = r; fields.total_cobrado = granTotal; }
+                    if(currentRole === 'Administrador') { 
+                        fields.costo_mano_obra = m; 
+                        fields.costo_refacciones = r; 
+                        fields.total_cobrado = granTotal; 
+                    }
                 }
                 const { error } = await supabaseClient.from('ordenes_trabajo').update({...fields, conceptos: JSON.stringify(modalEditingConcepts)}).eq('id', currentEditingOrderId); 
                 if (error) { showToast("Error al guardar: " + error.message, true); return; }
 
-                showToast("Cambios guardados con éxito.");
+                showToast("Cambios guardados con éxito. Flujo de caja actualizado.");
                 this.closeModal(); API_Service.fetchOrders();
             },
 
