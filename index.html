@@ -1172,26 +1172,50 @@
                 _categories.forEach(cat => montosPorCategoria[cat] = 0);
 
                 _orders.forEach(o => {
-                    const oDate = new Date(o.fecha_ingreso || o.fecha_registro);
-                    if (oDate >= start && oDate <= end) {
-                        vehiculosAtendidos++;
-                        const tot = parseFloat(o.total_cobrado || 0);
-                        const abonoExacto = parseFloat(o.costo_diagnostico || 0); // Lee la cantidad real abonada en pesos ($)
+                    const oDateIngreso = new Date(o.fecha_ingreso || o.fecha_registro);
+                    // Si ya está pagado, usamos la fecha de egreso para la liquidación final; si no tiene egreso, usamos la de ingreso
+                    const oDateEgreso = o.fecha_egreso ? new Date(o.fecha_egreso) : oDateIngreso;
+                    
+                    const tot = parseFloat(o.total_cobrado || 0);
+                    const abonoExacto = parseFloat(o.costo_diagnostico || 0); // Tu columna de anticipos en pesos exactos
+                    const restoLiquidacion = tot - abonoExacto;
 
-                        if (o.estado_pago === 'Pagado') {
-                            ingresos += tot;
-                            pagado += tot;
-                        } else if (o.estado_pago === 'Anticipo') {
-                            ingresos += abonoExacto; // Suma exactamente el monto del abono sin alterar balances contables
-                            anticipo += abonoExacto;
-                        }
+                    // 1. EVALUAR EL ANTICIPO (Siempre cae en la fecha de ingreso)
+                    if (oDateIngreso >= start && oDateIngreso <= end) {
+                        vehiculosAtendidos++; // Contamos el carro en el mes que ingresó
+                        
                         const costRef = parseFloat(o.costo_refacciones || 0);
                         refaccionesCostBruto += costRef;
                         refaccionesCostNeto += (costRef / 1.08); 
                         erManoObra += parseFloat(o.costo_mano_obra || 0);
+
+                        // Si la orden nació como anticipo o se liquidó, el abono inicial se queda en este mes
+                        if (o.estado_pago === 'Anticipo') {
+                            ingresos += abonoExacto;
+                            anticipo += abonoExacto;
+                        } else if (o.estado_pago === 'Pagado' && abonoExacto > 0) {
+                            // Si ya se pagó completa pero tuvo un anticipo en su origen, dejamos el anticipo en su mes de ingreso
+                            ingresos += abonoExacto;
+                            anticipo += abonoExacto;
+                        }
+                    }
+
+                    // 2. EVALUAR LA LIQUIDACIÓN (Cae estrictamente en la fecha de egreso/entrega)
+                    if (oDateEgreso >= start && oDateEgreso <= end) {
+                        if (o.estado_pago === 'Pagado') {
+                            if (abonoExacto > 0) {
+                                // Si tuvo anticipo en otro mes, aquí solo sumamos el resto que faltaba liquidar
+                                ingresos += restoLiquidacion;
+                                pagado += restoLiquidacion;
+                            } else {
+                                // Si se pagó completa en una sola exhibición al entregar
+                                ingresos += tot;
+                                pagado += tot;
+                            }
+                        }
                     }
                 });
-
+                
                 let egresosManuales = 0;
                 let deduccionesNomina = 0; 
 
