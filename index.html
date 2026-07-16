@@ -1453,7 +1453,7 @@
                 this.renderOrdersList();
             },
 
-            renderOrdersList() {
+           renderOrdersList() {
                 const tbody = document.getElementById('orders-table-body'); if(!tbody) return;
                 tbody.innerHTML = '';
                 const query = document.getElementById('search-bar').value.toLowerCase();
@@ -1484,6 +1484,26 @@
                         estadiaTexto = "1 día (Histórico)";
                     }
 
+                    // --- NUEVA LÓGICA DE MAPEO DE COLORES DINÁMICOS ---
+                    let estadoBadgeColor = "bg-slate-100 text-slate-700 border-slate-200"; // Por defecto
+                    switch(o.estado) {
+                        case 'Recepcionado':
+                            estadoBadgeColor = "bg-blue-50 text-blue-700 border-blue-200";
+                            break;
+                        case 'En Diagnóstico':
+                            estadoBadgeColor = "bg-purple-50 text-purple-700 border-purple-200";
+                            break;
+                        case 'Esperando Refacciones':
+                            estadoBadgeColor = "bg-amber-50 text-amber-700 border-amber-200";
+                            break;
+                        case 'Terminado':
+                            estadoBadgeColor = "bg-emerald-50 text-emerald-700 border-emerald-200";
+                            break;
+                        case 'Entregado':
+                            estadoBadgeColor = "bg-slate-100 text-slate-600 border-slate-300";
+                            break;
+                    }
+
                     tr.innerHTML = `
                         <td class="py-3 px-6"><span class="font-bold block">#${o.id}</span><span class="text-[10px] text-slate-400 font-bold">${dateFormatted}</span></td>
                         <td class="py-3 px-6">
@@ -1492,7 +1512,10 @@
                             ${o.requiere_factura ? '<span class="inline-block mt-1 px-1.5 py-0.5 text-[9px] font-bold bg-blue-50 text-blue-600 rounded border border-blue-100 uppercase">Factura 16%</span>' : ''}
                         </td>
                         <td class="py-3 px-6">
-                            <span class="text-xs font-bold px-2 py-1 rounded-full bg-slate-100 block w-fit mb-1">${o.estado}</span>
+                            <!-- BADGE CON COLOR DINÁMICO Y BORDE SUTIL -->
+                            <span class="text-xs font-bold px-2.5 py-1 rounded-full border block w-fit mb-1 ${estadoBadgeColor}">
+                                ${o.estado}
+                            </span>
                             <span class="text-[10px] text-slate-500 font-semibold flex items-center gap-1"><span class="material-icons text-[11px]">schedule</span> ${estadiaTexto}</span>
                         </td>
                         <td class="py-3 px-6 section-finance-view font-bold text-slate-700">${formatter.format(o.total_cobrado)}</td>
@@ -1502,7 +1525,6 @@
                 });
                 if(currentRole !== 'Administrador') document.querySelectorAll('.section-finance-view').forEach(el => el.classList.add('hidden'));
             },
-
             renderPersonalList() {
                 const tbody = document.getElementById('personal-table-body'); if(!tbody) return;
                 tbody.innerHTML = '';
