@@ -680,42 +680,42 @@
                     <div class="lg:col-span-7 flex flex-col gap-3">
                         <span class="text-xs font-bold text-slate-400 uppercase tracking-widest px-2">Hoja Carta Impresión</span>
                         <div class="bg-white border border-slate-200 rounded-3xl p-2 shadow-md overflow-x-auto">
-                            <div id="pdf-capture-area" class="w-[790px] bg-white p-10 font-sans text-slate-800 relative mx-auto" style="min-height: 1020px;">
-                                
-                                <div class="flex justify-between items-center border-b-2 border-blue-600 pb-6 mb-6">
-                                    <div>
-                                        <div class="flex items-center gap-2 mb-1">
-                                            <div class="bg-blue-600 text-white p-1.5 rounded-lg flex items-center justify-center">
-                                                <span class="material-icons text-base">build</span>
-                                            </div>
-                                            <!-- ACTUALIZADO NOMBRE COMERCIAL A BEFIX GARAGE -->
-                                            <span class="text-xl font-black tracking-tight text-slate-900">BEFIX GARAGE <span class="text-blue-600 text-xs">SERVICES</span></span>
-                                        </div>
-                                        <p class="text-xs text-slate-500 font-semibold">Servicio Mecánico y Diagnóstico Automotriz</p>
-                                    </div>
-                                    <div class="text-right">
-                                        <h2 id="pdf-doc-title" class="text-2xl font-black text-slate-900 tracking-tight">PRESUPUESTO</h2>
-                                        <p class="text-xs text-blue-600 font-bold mt-1" id="pdf-doc-id">FOLIO: #COT-000</p>
-                                        <p class="text-[10px] text-slate-400 mt-0.5" id="pdf-doc-date">Fecha: 13 Jul 2026</p>
-                                    </div>
-                                </div>
+                          
+<div class="flex justify-between items-center border-b-2 border-blue-600 pb-6 mb-6">
+    <div>
+        <div class="flex items-center gap-2 mb-1">
+            <div class="bg-blue-600 text-white p-1.5 rounded-lg flex items-center justify-center">
+                <span class="material-icons text-base">build</span>
+            </div>
+            <span class="text-xl font-black tracking-tight text-slate-900">BEFIX GARAGE <span class="text-blue-600 text-xs">SERVICES</span></span>
+        </div>
+        <p class="text-xs text-slate-500 font-semibold">Servicio Mecánico y Diagnóstico Automotriz</p>
+    </div>
+    <div class="text-right">
+        <h2 id="pdf-doc-title" class="text-2xl font-black text-slate-900 tracking-tight">PRESUPUESTO</h2>
+        <p class="text-xs text-blue-600 font-bold mt-1" id="pdf-doc-id">FOLIO: #COT-000</p>
+        <!-- SE AGRANDÓ LA FECHA -->
+        <p class="text-xs font-bold text-slate-600 mt-1" id="pdf-doc-date">Fecha: 13 Jul 2026</p>
+    </div>
+</div>
 
-                                <div class="grid grid-cols-2 gap-6 bg-slate-50 p-4 rounded-xl border mb-6">
-                                    <div>
-                                        <h4 class="text-[10px] font-extrabold text-blue-600 uppercase tracking-wider mb-1">CLIENTE</h4>
-                                        <p class="text-sm font-bold text-slate-800" id="pdf-client-name">Público General</p>
-                                        <p class="text-xs text-slate-500 mt-0.5" id="pdf-client-phone">Tel: -</p>
-                                    </div>
-                                    <div>
-                                        <h4 class="text-[10px] font-extrabold text-blue-600 uppercase tracking-wider mb-1">VEHÍCULO</h4>
-                                        <p class="text-sm font-bold text-slate-800" id="pdf-vehicle">Vehículo</p>
-                                        <div class="flex items-center gap-2 mt-1">
-                                            <span class="bg-slate-200 text-slate-700 font-bold px-1.5 py-0.5 rounded text-[9px] uppercase" id="pdf-plates">S/P</span>
-                                            <span id="pdf-km-view" class="text-[10px] text-slate-500 font-medium"></span>
-                                        </div>
-                                    </div>
-                                </div>
-
+<div class="grid grid-cols-2 gap-6 bg-slate-50 p-5 rounded-xl border border-slate-200 mb-6">
+    <div>
+        <h4 class="text-xs font-extrabold text-blue-600 uppercase tracking-wider mb-1.5">CLIENTE</h4>
+        <p class="text-base font-black text-slate-900" id="pdf-client-name">Público General</p>
+        <!-- SE AGRANDÓ EL TELÉFONO -->
+        <p class="text-sm font-bold text-slate-700 mt-1" id="pdf-client-phone">Tel: -</p>
+    </div>
+    <div>
+        <h4 class="text-xs font-extrabold text-blue-600 uppercase tracking-wider mb-1.5">VEHÍCULO</h4>
+        <p class="text-base font-black text-slate-900" id="pdf-vehicle">Vehículo</p>
+        <!-- SE AGRANDARON LAS PLACAS Y LOS KILÓMETROS -->
+        <div class="flex items-center gap-3 mt-1.5">
+            <span class="bg-slate-200 text-slate-900 font-black px-2.5 py-1 rounded text-xs uppercase border border-slate-300" id="pdf-plates">S/P</span>
+            <span id="pdf-km-view" class="text-sm text-slate-800 font-bold"></span>
+        </div>
+    </div>
+</div>
                                 <table class="w-full text-left mb-6 border-collapse">
                                     <thead>
                                         <tr class="bg-slate-900 text-white uppercase text-[9px] font-bold tracking-wider">
