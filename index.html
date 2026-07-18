@@ -1998,81 +1998,91 @@
                 this.renderQuoteBuilderItems();
             },
 
-            addQuoteItem() { quoteItems.push({ descripcion: '', cantidad: 1, precio: 0, category: 'refacciones' }); this.renderQuoteBuilderItems(); },
-            deleteQuoteItem(idx) { quoteItems.splice(idx,1); this.renderQuoteBuilderItems(); },
-            updateQuoteItemData(idx, f, v) {
-                if(f==='cantidad') quoteItems[idx].cantidad = parseInt(v)||1;
-                else if(f==='precio') quoteItems[idx].precio = parseFloat(v)||0;
-                else quoteItems[idx][f] = v;
-                this.updateQuotePreview();
-            },
+            addQuoteItem() { 
+    // CORREGIDO: Se cambió 'category' a 'categoria' para mantener consistencia con la base de datos
+    quoteItems.push({ descripcion: '', cantidad: 1, precio: 0, categoria: 'refacciones' }); 
+    this.renderQuoteBuilderItems(); 
+},
 
-            renderQuoteBuilderItems() {
-                const container = document.getElementById('quote-items-container'); if(!container) return; container.innerHTML = '';
-                quoteItems.forEach((item, idx) => {
-                    container.innerHTML += `
-                        <div class="flex gap-2 border p-1 rounded bg-slate-50 text-xs">
-                            <input type="text" value="${escapeHtml(item.descripcion)}" oninput="UI_Controller.updateQuoteItemData(${idx},'descripcion',this.value)" class="flex-1 p-0.5 border focus:outline-none">
-                            <select onchange="UI_Controller.updateQuoteItemData(${idx},'categoria',this.value)" class="bg-white border text-[10px] rounded"><option value="refacciones" ${item.categoria==='refacciones'?'selected':''}>Refacc</option><option value="mano-obra" ${item.categoria==='mano-obra'?'selected':''}>Trabajo</option></select>
-                            <input type="number" value="${Number(item.cantidad) || 0}" oninput="UI_Controller.updateQuoteItemData(${idx},'cantidad',this.value)" class="w-10 text-center border focus:outline-none">
-                            <input type="number" value="${Number(item.precio) || 0}" oninput="UI_Controller.updateQuoteItemData(${idx},'precio',this.value)" class="w-16 text-right border focus:outline-none">
-                            <button onclick="UI_Controller.deleteQuoteItem(${idx})" class="text-rose-500"><span class="material-icons text-xs">delete</span></button>
-                        </div>`;
-                });
-                this.updateQuotePreview();
-            },
+renderQuoteBuilderItems() {
+    const container = document.getElementById('quote-items-container'); if(!container) return; container.innerHTML = '';
+    quoteItems.forEach((item, idx) => {
+        // CORREGIDO: Se homogeneizó el uso de item.categoria en el selector dinámico
+        container.innerHTML += `
+            <div class="flex gap-2 border p-1 rounded bg-slate-50 text-xs">
+                <input type="text" value="${escapeHtml(item.descripcion)}" oninput="UI_Controller.updateQuoteItemData(${idx},'descripcion',this.value)" class="flex-1 p-0.5 border focus:outline-none">
+                <select onchange="UI_Controller.updateQuoteItemData(${idx},'categoria',this.value)" class="bg-white border text-[10px] rounded">
+                    <option value="refacciones" ${item.categoria==='refacciones'?'selected':''}>Refacc</option>
+                    <option value="mano-obra" ${item.categoria==='mano-obra'?'selected':''}>Trabajo</option>
+                </select>
+                <input type="number" value="${Number(item.cantidad) || 0}" oninput="UI_Controller.updateQuoteItemData(${idx},'cantidad',this.value)" class="w-10 text-center border focus:outline-none">
+                <input type="number" value="${Number(item.precio) || 0}" oninput="UI_Controller.updateQuoteItemData(${idx},'precio',this.value)" class="w-16 text-right border focus:outline-none">
+                <button onclick="UI_Controller.deleteQuoteItem(${idx})" class="text-rose-500"><span class="material-icons text-xs">delete</span></button>
+            </div>`;
+    });
+    this.updateQuotePreview();
+},
 
-            updateQuotePreview() {
-                const docType = document.getElementById('quote-doc-type').value;
-                document.getElementById('pdf-doc-title').innerText = docType;
+updateQuotePreview() {
+    const docType = document.getElementById('quote-doc-type').value;
+    document.getElementById('pdf-doc-title').innerText = docType;
 
-                const validityContainer = document.getElementById('quote-validity-container');
-                const validityText = document.getElementById('pdf-validity-view');
-                const orderLoader = document.getElementById('quote-order-loader').value;
+    const validityContainer = document.getElementById('quote-validity-container');
+    const validityText = document.getElementById('pdf-validity-view');
+    const orderLoader = document.getElementById('quote-order-loader').value;
 
-                if (docType === 'NOTA DE VENTA') {
-                    if(validityContainer) validityContainer.classList.add('hidden');
-                    if(validityText) validityText.classList.add('hidden');
-                    document.getElementById('pdf-doc-id').innerText = orderLoader ? `FOLIO: #NOTA-${orderLoader}` : 'FOLIO: #NOTA-000';
-                    document.getElementById('pdf-total-label').innerText = 'TOTAL A PAGAR:';
-                } else {
-                    if(validityContainer) validityContainer.classList.remove('hidden');
-                    if(validityText) validityText.classList.remove('hidden');
-                    document.getElementById('pdf-doc-id').innerText = orderLoader ? `FOLIO: #COT-${orderLoader}` : 'FOLIO: #COT-000';
-                    document.getElementById('pdf-total-label').innerText = 'TOTAL ESTIMADO:';
-                }
+    if (docType === 'NOTA DE VENTA') {
+        if(validityContainer) validityContainer.classList.add('hidden');
+        if(validityText) validityText.classList.add('hidden');
+        document.getElementById('pdf-doc-id').innerText = orderLoader ? `FOLIO: #NOTA-${orderLoader}` : 'FOLIO: #NOTA-000';
+        document.getElementById('pdf-total-label').innerText = 'TOTAL A PAGAR:';
+    } else {
+        if(validityContainer) validityContainer.classList.remove('hidden');
+        if(validityText) validityText.classList.remove('hidden');
+        document.getElementById('pdf-doc-id').innerText = orderLoader ? `FOLIO: #COT-${orderLoader}` : 'FOLIO: #COT-000';
+        document.getElementById('pdf-total-label').innerText = 'TOTAL ESTIMADO:';
+    }
 
-                document.getElementById('pdf-client-name').innerText = document.getElementById('quote-cliente').value || 'Público General';
-                document.getElementById('pdf-client-phone').innerText = `Tel: ${document.getElementById('quote-telefono').value || '-'}`;
-                document.getElementById('pdf-vehicle').innerText = document.getElementById('quote-auto').value || 'Vehículo';
-                document.getElementById('pdf-plates').innerText = document.getElementById('quote-placas').value.toUpperCase() || 'S/P';
+    document.getElementById('pdf-client-name').innerText = document.getElementById('quote-cliente').value || 'Público General';
+    document.getElementById('pdf-client-phone').innerText = `Tel: ${document.getElementById('quote-telefono').value || '-'}`;
+    document.getElementById('pdf-vehicle').innerText = document.getElementById('quote-auto').value || 'Vehículo';
+    document.getElementById('pdf-plates').innerText = document.getElementById('quote-placas').value.toUpperCase() || 'S/P';
 
-                const tbody = document.getElementById('pdf-concepts-body'); if(!tbody) return;
-                tbody.innerHTML = '';
-                let subtotal = 0;
-                quoteItems.forEach(item => {
-                    const imp = item.cantidad * item.precio; subtotal += imp;
-                    tbody.innerHTML += `<tr class="border-b"><td class="py-2 px-4 font-bold">${escapeHtml(item.descripcion || 'Sin descripción')}</td><td class="text-center text-[10px]">${item.categoria === 'mano-obra' ? 'Trabajo' : 'Refacc'}</td><td class="text-center">${number(item.cantidad) || 0}</td><td class="text-right">${formatter.format(Number(item.precio) || 0)}</td><td class="text-right font-bold">${formatter.format(imp)}</td></tr>`;
-                });
+    const tbody = document.getElementById('pdf-concepts-body'); if(!tbody) return;
+    tbody.innerHTML = '';
+    let subtotal = 0;
+    
+    quoteItems.forEach(item => {
+        const imp = item.cantidad * item.precio; subtotal += imp;
+        // CORREGIDO: Se cambió 'number(item.cantidad)' por 'Number(item.cantidad)' con la N mayúscula
+        tbody.innerHTML += `
+            <tr class="border-b">
+                <td class="py-2 px-4 font-bold">${escapeHtml(item.descripcion || 'Sin descripción')}</td>
+                <td class="text-center text-[10px]">${item.categoria === 'mano-obra' ? 'Trabajo' : 'Refacc'}</td>
+                <td class="text-center">${Number(item.cantidad) || 0}</td>
+                <td class="text-right">${formatter.format(Number(item.precio) || 0)}</td>
+                <td class="text-right font-bold">${formatter.format(imp)}</td>
+            </tr>`;
+    });
 
-                const desc = parseFloat(document.getElementById('quote-discount').value) || 0;
-                const tax = parseFloat(document.getElementById('quote-tax').value) || 0;
-                
-                const descuentoMonto = subtotal * (desc / 100);
-                const subtotalConDescuento = subtotal - descuentoMonto;
-                const ivaMonto = subtotalConDescuento * (tax / 100);
-                const finalTotal = subtotalConDescuento + ivaMonto;
+    const desc = parseFloat(document.getElementById('quote-discount').value) || 0;
+    const tax = parseFloat(document.getElementById('quote-tax').value) || 0;
+    
+    const descuentoMonto = subtotal * (desc / 100);
+    const subtotalConDescuento = subtotal - descuentoMonto;
+    const ivaMonto = subtotalConDescuento * (tax / 100);
+    const finalTotal = subtotalConDescuento + ivaMonto;
 
-                document.getElementById('pdf-subtotal').innerText = formatter.format(subtotal);
-                document.getElementById('pdf-discount').innerText = formatter.format(descuentoMonto);
-                document.getElementById('pdf-tax').innerText = formatter.format(ivaMonto);
-                document.getElementById('pdf-total').innerText = formatter.format(finalTotal);
-                
-                const valdays = document.getElementById('quote-validity').value || 15;
-                if(docType !== 'NOTA DE VENTA') {
-                    document.getElementById('pdf-validity-view').innerText = `Válido por ${valdays} días hábiles.`;
-                }
-            },
+    document.getElementById('pdf-subtotal').innerText = formatter.format(subtotal);
+    document.getElementById('pdf-discount').innerText = formatter.format(descuentoMonto);
+    document.getElementById('pdf-tax').innerText = formatter.format(ivaMonto);
+    document.getElementById('pdf-total').innerText = formatter.format(finalTotal);
+    
+    const valdays = document.getElementById('quote-validity').value || 15;
+    if(docType !== 'NOTA DE VENTA') {
+        document.getElementById('pdf-validity-view').innerText = `Válido por ${valdays} días hábiles.`;
+    }
+},
 
             clearQuoteForm() {
                 document.getElementById('quote-cliente').value = '';
