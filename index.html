@@ -974,9 +974,11 @@
                                     <option value="Recepcionado">Recepcionado</option>
                                     <option value="En Diagnóstico">En Diagnóstico</option>
                                     <option value="Esperando Refacciones">Esperando Refacciones</option>
+                                    <option value="En reparación">En reparación</option>
                                     <option value="Terminado">Terminado</option>
                                     <option value="Entregado">Entregado</option>
-                                </select>
+                                  </select>
+                                    
                             </div>
                             <div class="section-finance-view">
                                 <label class="text-xs font-semibold text-slate-500 uppercase">Estado de Pago</label>
@@ -1637,23 +1639,26 @@
 
                     let estadoBadgeColor = "bg-slate-100 text-slate-700 border-slate-200"; 
                     switch(o.estado) {
-                        case 'Recepcionado':
-                            estadoBadgeColor = "bg-blue-50 text-blue-700 border-blue-200";
-                            break;
-                        case 'En Diagnóstico':
-                            estadoBadgeColor = "bg-purple-50 text-purple-700 border-purple-200";
-                            break;
-                        case 'Esperando Refacciones':
-                            estadoBadgeColor = "bg-amber-50 text-amber-700 border-amber-200";
-                            break;
-                        case 'Terminado':
-                            estadoBadgeColor = "bg-emerald-50 text-emerald-700 border-emerald-200";
-                            break;
-                        case 'Entregado':
-                            estadoBadgeColor = "bg-slate-100 text-slate-600 border-slate-300";
-                            break;
-                    }
-
+                      case 'Recepcionado':
+                          estadoBadgeColor = "bg-blue-50 text-blue-700 border-blue-200";
+                          break;
+                      case 'En Diagnóstico':
+                          estadoBadgeColor = "bg-purple-50 text-purple-700 border-purple-200";
+                          break;
+                     case 'Esperando Refacciones':
+                          estadoBadgeColor = "bg-amber-50 text-amber-700 border-amber-200";
+                          break;
+                     case 'En reparación':
+                          estadoBadgeColor = "bg-indigo-50 text-indigo-700 border-indigo-200";
+                          break;
+                    case 'Terminado':
+                          estadoBadgeColor = "bg-emerald-50 text-emerald-700 border-emerald-200";
+                          break;
+                     case 'Entregado':
+                          estadoBadgeColor = "bg-slate-100 text-slate-600 border-slate-300";
+                           break;
+                }
+                    
                     const nombreTecnico = o.tecnico_asignado && o.tecnico_asignado.trim() !== '' ? o.tecnico_asignado : 'Sin Asignar';
                     
                     let metodoPagoBadge = '<span class="text-xs text-slate-400 font-medium">-</span>';
