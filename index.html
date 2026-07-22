@@ -1072,7 +1072,7 @@
         </div>
     </div>
 
-    <!-- SCRIPTS ERP STATE-DRIVEN ENGINE (OPTIMIZADO CON CACHÉ Y RENDERIZADO EFICIENTE) -->
+    <!-- SCRIPTS ERP STATE-DRIVEN ENGINE -->
     <script>
         let _orders = [];   
         let _personal = []; 
@@ -1231,7 +1231,6 @@
             recalculate() {
                 const preset = document.getElementById('erp-date-preset').value;
                 const { start, end } = this.getDateRange(preset);
-                if (!document.getElementById('chart-ingresos-gastos')) return;
 
                 const durationMs = end - start;
                 const totalDays = Math.max(1, Math.ceil(durationMs / (1000 * 60 * 60 * 24)));
@@ -1440,21 +1439,21 @@
                             </div>`)
                         .join('');
 
-                    catContainer.innerHTML = categoriesHtml;
+                    if (catContainer) catContainer.innerHTML = categoriesHtml;
 
-                    document.getElementById('er-ingresos').innerText = formatter.format(ingresos);
-                    document.getElementById('er-refacciones').innerText = formatter.format(montosPorCategoria["Refacciones"]);
-                    document.getElementById('er-nomina').innerText = formatter.format(montosPorCategoria["Nómina"]);
-                    document.getElementById('er-gasolina').innerText = formatter.format(montosPorCategoria["Gasolina"] + montosPorCategoria["Diesel"]);
-                    document.getElementById('er-consumibles').innerText = formatter.format(montosPorCategoria["Consumibles"]);
+                    if (document.getElementById('er-ingresos')) document.getElementById('er-ingresos').innerText = formatter.format(ingresos);
+                    if (document.getElementById('er-refacciones')) document.getElementById('er-refacciones').innerText = formatter.format(montosPorCategoria["Refacciones"]);
+                    if (document.getElementById('er-nomina')) document.getElementById('er-nomina').innerText = formatter.format(montosPorCategoria["Nómina"]);
+                    if (document.getElementById('er-gasolina')) document.getElementById('er-gasolina').innerText = formatter.format(montosPorCategoria["Gasolina"] + montosPorCategoria["Diesel"]);
+                    if (document.getElementById('er-consumibles')) document.getElementById('er-consumibles').innerText = formatter.format(montosPorCategoria["Consumibles"]);
                     
                     const sumServiciosAcumulados = montosPorCategoria["Renta"] + montosPorCategoria["Agua"] + montosPorCategoria["Luz"] + montosPorCategoria["Internet"];
-                    document.getElementById('er-servicios').innerText = formatter.format(sumServiciosAcumulados);
-                    document.getElementById('er-publicidad').innerText = formatter.format(montosPorCategoria["Publicidad"]);
+                    if (document.getElementById('er-servicios')) document.getElementById('er-servicios').innerText = formatter.format(sumServiciosAcumulados);
+                    if (document.getElementById('er-publicidad')) document.getElementById('er-publicidad').innerText = formatter.format(montosPorCategoria["Publicidad"]);
                     
                     const otrosAcumulados = totalGastos - (montosPorCategoria["Refacciones"] + montosPorCategoria["Nómina"] + montosPorCategoria["Gasolina"] + montosPorCategoria["Diesel"] + montosPorCategoria["Consumibles"] + sumServiciosAcumulados + montosPorCategoria["Publicidad"]);
-                    document.getElementById('er-otros').innerText = formatter.format(otrosAcumulados > 0 ? otrosAcumulados : 0);
-                    document.getElementById('er-utilidad-neta').innerText = formatter.format(utilidadNeta);
+                    if (document.getElementById('er-otros')) document.getElementById('er-otros').innerText = formatter.format(otrosAcumulados > 0 ? otrosAcumulados : 0);
+                    if (document.getElementById('er-utilidad-neta')) document.getElementById('er-utilidad-neta').innerText = formatter.format(utilidadNeta);
                 }
 
                 this.renderCharts(ingresos, totalGastos, montosPorCategoria);
@@ -1470,7 +1469,8 @@
                 const ctx2 = document.getElementById('chart-gastos-categoria');
                 const ctx3 = document.getElementById('chart-evolucion-ingresos');
                 const ctx4 = document.getElementById('chart-utilidad-mes');
-                if(!ctx1 || ctx1.offsetParent === null) return; 
+                
+                if(!ctx1 || !ctx2 || !ctx3 || !ctx4) return; 
 
                 chartInstance1 = new Chart(ctx1, {
                     type: 'bar',
@@ -1517,14 +1517,13 @@
             }
         };
 
-        // API_SERVICE CON SISTEMA DE CACHÉ Y SELECCIÓN EXPLÍCITA DE COLUMNAS
         const API_Service = {
             _lastSync: { orders: 0, personal: 0, expenses: 0 },
-            STALE_MS: 60000, // 60 segundos de validez de caché
+            STALE_MS: 60000,
 
             async fetchOrders(force = false) {
-                if (!force && (Date.now() - this._lastSync.orders) < this.STALE_MS) return;
-                if (supabaseClient) {
+                const isFresh = !force && (Date.now() - this._lastSync.orders) < this.STALE_MS;
+                if (!isFresh && supabaseClient) {
                     try {
                         const { data, error } = await supabaseClient
                             .from('ordenes_trabajo')
@@ -1535,16 +1534,17 @@
                         this._lastSync.orders = Date.now();
                     } catch (error) { _orders = []; showToast(`No fue posible cargar las órdenes: ${error.message}`, true); }
                 }
-                Financial_Engine.recalculate();
+                
                 UI_Controller.renderOrdersList();
                 UI_Controller.populateQuoteOrdersDropdown();
                 UI_Controller.renderTreasuryData();
                 UI_Controller.renderMecanicosStats();
+                Financial_Engine.recalculate();
             },
 
             async fetchPersonal(force = false) {
-                if (!force && (Date.now() - this._lastSync.personal) < this.STALE_MS) return;
-                if (supabaseClient) {
+                const isFresh = !force && (Date.now() - this._lastSync.personal) < this.STALE_MS;
+                if (!isFresh && supabaseClient) {
                     try {
                         const { data, error } = await supabaseClient.from('personal').select('*').order('nombre', { ascending: true });
                         if (error) throw error;
@@ -1559,8 +1559,8 @@
             },
 
             async fetchExpenses(force = false) {
-                if (!force && (Date.now() - this._lastSync.expenses) < this.STALE_MS) return;
-                if (supabaseClient) {
+                const isFresh = !force && (Date.now() - this._lastSync.expenses) < this.STALE_MS;
+                if (!isFresh && supabaseClient) {
                     try {
                         const { data, error } = await supabaseClient.from('gastos').select('*').order('fecha', { ascending: false });
                         if (error) throw error;
@@ -1591,6 +1591,12 @@
                     API_Service.fetchOrders();
                     API_Service.fetchPersonal();
                     API_Service.fetchExpenses();
+                }
+
+                if (tabId === 'dashboard') {
+                    setTimeout(() => {
+                        Financial_Engine.recalculate();
+                    }, 50);
                 }
             },
 
