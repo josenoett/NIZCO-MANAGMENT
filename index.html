@@ -1501,26 +1501,39 @@
             STALE_MS: 60000,
 
             async fetchOrders(force = false) {
-                const isFresh = !force && (Date.now() - this._lastSync.orders) < this.STALE_MS;
-                if (!isFresh && supabaseClient) {
-                    try {
-                        const { data, error } = await supabaseClient
-                            .from('ordenes_trabajo')
-                            .select('id, cliente_nombre, cliente_telefono, auto_marca, auto_modelo, auto_placas, kilometraje, tecnico_asignado, tecnico_user_id, estado, costo_mano_obra, costo_refacciones, total_cobrado, estado_pago, metodo_pago, fecha_ingreso, fecha_egreso, requiere_factura, total_iva, conceptos')
-                            .order('id', { ascending: false });
-                        if (error) throw error;
-                        _orders = (data || []).map(o => ({ ...o, conceptos: Array.isArray(o.conceptos) ? o.conceptos : JSON.parse(o.conceptos || '[]') }));
-                        this._lastSync.orders = Date.now();
-                    } catch (error) { _orders = []; showToast(`No fue posible cargar las órdenes: ${error.message}`, true); }
-                }
-                
-                await this.fetchPagos(force);
-                UI_Controller.renderOrdersList();
-                UI_Controller.populateQuoteOrdersDropdown();
-                UI_Controller.renderTreasuryData();
-                UI_Controller.renderMecanicosStats();
-                Financial_Engine.recalculate();
-            },
+    const isFresh = !force && (Date.now() - this._lastSync.orders) < this.STALE_MS;
+    if (!isFresh && supabaseClient) {
+        try {
+            // 1. Cargar Órdenes
+            const { data: ordersData, error: ordersError } = await supabaseClient
+                .from('ordenes_trabajo')
+                .select('id, cliente_nombre, cliente_telefono, auto_marca, auto_modelo, auto_placas, kilometraje, tecnico_asignado, tecnico_user_id, estado, costo_mano_obra, costo_refacciones, total_cobrado, estado_pago, metodo_pago, fecha_ingreso, fecha_egreso, requiere_factura, total_iva, conceptos')
+                .order('id', { ascending: false });
+            if (ordersError) throw ordersError;
+            _orders = (ordersData || []).map(o => ({ ...o, conceptos: Array.isArray(o.conceptos) ? o.conceptos : JSON.parse(o.conceptos || '[]') }));
+
+            // 2. Cargar Pagos Históricos Sincronizados
+            const { data: pagosData, error: pagosError } = await supabaseClient
+                .from('pagos')
+                .select('*')
+                .order('fecha', { ascending: false });
+            if (!pagosError) {
+                _pagos = pagosData || [];
+            }
+
+            this._lastSync.orders = Date.now();
+        } catch (error) { 
+            _orders = []; 
+            showToast(`Error al sincronizar datos: ${error.message}`, true); 
+        }
+    }
+    
+    UI_Controller.renderOrdersList();
+    UI_Controller.populateQuoteOrdersDropdown();
+    UI_Controller.renderTreasuryData();
+    UI_Controller.renderMecanicosStats();
+    Financial_Engine.recalculate();
+}
 
             async fetchPagos(force = false) {
                 const isFresh = !force && (Date.now() - this._lastSync.pagos) < this.STALE_MS;
