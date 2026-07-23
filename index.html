@@ -5,6 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>BEFIX GARAGE MANAGEMENT - ERP Production</title>
     
+    <!-- Favicon para evitar error 404 -->
+    <link rel="icon" href="data:;base64,iVBORw0KGgo=">
+
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Google Fonts & Material Icons -->
@@ -117,7 +120,7 @@
 
                 <button onclick="UI_Controller.switchTab('cotizaciones')" id="btn-cotizaciones" class="nav-btn flex flex-col md:flex-row items-center gap-3 px-3 py-3 rounded-xl transition text-slate-500 hover:bg-slate-50 text-sm w-full">
                     <span class="material-icons">picture_as_pdf</span>
-                    <span class="hidden md:inline">Generador PDF / Funnel</span>
+                    <span class="hidden md:inline">Generador PDF</span>
                 </button>
 
                 <button onclick="UI_Controller.switchTab('personal')" id="btn-personal" class="nav-btn flex flex-col md:flex-row items-center gap-3 px-3 py-3 rounded-xl transition text-slate-500 hover:bg-slate-50 text-sm w-full">
@@ -154,7 +157,7 @@
                     </div>
                     
                     <div class="flex flex-wrap items-center gap-4 w-full lg:w-auto justify-end">
-                        <select id="erp-date-preset" onchange=".handlePresetChange(); UI_Controller.renderOrdersList();" class="bg-slate-50 border border-slate-200 text-xs font-bold rounded-xl px-4 py-2.5 text-slate-700 focus:outline-none w-full sm:w-56 cursor-pointer">
+                        <select id="erp-date-preset" onchange="Financial_Engine.handlePresetChange(); UI_Controller.renderOrdersList();" class="bg-slate-50 border border-slate-200 text-xs font-bold rounded-xl px-4 py-2.5 text-slate-700 focus:outline-none w-full sm:w-56 cursor-pointer">
                             <option value="today">☀️ Hoy</option>
                             <option value="this-week">📅 Esta Semana</option>
                             <option value="this-month" selected>🗓️ Este Mes</option>
@@ -166,11 +169,11 @@
                         <div id="erp-custom-dates" class="hidden flex flex-wrap items-center gap-3 text-xs font-semibold text-slate-600 bg-slate-50 p-2 rounded-xl border border-slate-100">
                             <div class="flex items-center gap-1.5">
                                 <span>Desde:</span>
-                                <input type="date" id="erp-start-date" onchange=".recalculate(); UI_Controller.renderOrdersList();" class="border border-slate-200 px-3 py-1.5 rounded-lg bg-white focus:outline-none">
+                                <input type="date" id="erp-start-date" onchange="Financial_Engine.recalculate(); UI_Controller.renderOrdersList();" class="border border-slate-200 px-3 py-1.5 rounded-lg bg-white focus:outline-none">
                             </div>
                             <div class="flex items-center gap-1.5">
                                 <span>Hasta:</span>
-                                <input type="date" id="erp-end-date" onchange=".recalculate(); UI_Controller.renderOrdersList();" class="border border-slate-200 px-3 py-1.5 rounded-lg bg-white focus:outline-none">
+                                <input type="date" id="erp-end-date" onchange="Financial_Engine.recalculate(); UI_Controller.renderOrdersList();" class="border border-slate-200 px-3 py-1.5 rounded-lg bg-white focus:outline-none">
                             </div>
                         </div>
 
@@ -230,8 +233,8 @@
                     </div>
                 </div>
 
-                <!-- INDICADORES OPERATIVOS SECUNDARIOS Y BI METRICS -->
-                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 font-sans">
+                <!-- INDICADORES OPERATIVOS SECUNDARIOS -->
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 font-sans">
                     <div class="bg-white border border-slate-200 p-4 rounded-xl shadow-sm flex items-center gap-4">
                         <div class="bg-purple-50 text-purple-600 p-2 rounded-lg"><span class="material-icons">directions_car</span></div>
                         <div>
@@ -249,22 +252,8 @@
                     <div class="bg-white border border-slate-200 p-4 rounded-xl shadow-sm flex items-center gap-4">
                         <div class="bg-amber-50 text-amber-600 p-2 rounded-lg"><span class="material-icons">percent</span></div>
                         <div>
-                            <p class="text-[10px] font-bold text-slate-400 uppercase">Margen Utilidad</p>
+                            <p class="text-[10px] font-bold text-slate-400 uppercase">Margen de Utilidad</p>
                             <h4 id="dash-margen" class="text-lg font-bold text-slate-800">0%</h4>
-                        </div>
-                    </div>
-                    <div class="bg-white border border-slate-200 p-4 rounded-xl shadow-sm flex items-center gap-4">
-                        <div class="bg-emerald-50 text-emerald-600 p-2 rounded-lg"><span class="material-icons">task_alt</span></div>
-                        <div>
-                            <p class="text-[10px] font-bold text-slate-400 uppercase">Conversión Cotiz.</p>
-                            <h4 id="dash-tasa-conversion" class="text-lg font-bold text-slate-800">0%</h4>
-                        </div>
-                    </div>
-                    <div class="bg-white border border-slate-200 p-4 rounded-xl shadow-sm flex items-center gap-4">
-                        <div class="bg-rose-50 text-rose-600 p-2 rounded-lg"><span class="material-icons">money_off</span></div>
-                        <div>
-                            <p class="text-[10px] font-bold text-slate-400 uppercase">Ventas Perdidas</p>
-                            <h4 id="dash-ventas-perdidas" class="text-lg font-bold text-slate-800">$0.00</h4>
                         </div>
                     </div>
                 </div>
@@ -383,7 +372,7 @@
                         <p class="text-sm text-slate-500">Métricas detalladas de órdenes completadas y mano de obra generada por técnico.</p>
                     </div>
 
-                    <!-- BARRA DE FILTROS PARA PRODUCCIÓN DE MECÁNICOS -->
+                    <!-- BARRA DE FILTROS AÑADIDA PARA PRODUCCIÓN DE MECÁNICOS -->
                     <div class="bg-white border border-slate-200 p-2.5 rounded-2xl flex flex-wrap items-center gap-3 shadow-sm">
                         <div class="flex items-center gap-2 min-w-[180px]">
                             <span class="material-icons text-slate-400 text-sm">person_search</span>
@@ -473,6 +462,7 @@
                             </div>
                         </div>
 
+                        <!-- FILA DE KILOMETRAJE -->
                         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                             <div class="flex flex-col gap-1.5">
                                 <label class="text-xs font-semibold text-slate-500 uppercase">Kilometraje *</label>
@@ -493,6 +483,7 @@
                             <select id="form-tecnico" required class="border rounded-xl px-4 py-2.5 text-sm bg-white focus:outline-none"></select>
                         </div>
 
+                        <!-- INTERRUPTOR DE IVA GLOBAL -->
                         <div class="bg-blue-50/50 border border-blue-100 p-4 rounded-2xl flex items-center justify-between">
                             <div class="flex items-center gap-2.5">
                                 <span class="material-icons text-blue-600">receipt</span>
@@ -507,6 +498,7 @@
                             </label>
                         </div>
 
+                        <!-- REGISTRO DE ANTICIPO O PAGO INICIAL -->
                         <div class="grid grid-cols-1 md:grid-cols-3 gap-4 bg-slate-50 p-4 rounded-2xl border border-slate-200 text-sm">
                             <div class="flex flex-col gap-1.5">
                                 <label class="text-xs font-semibold text-slate-500 uppercase">Estado de Pago Inicial</label>
@@ -575,6 +567,7 @@
                 </div>
 
                 <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+                    <!-- REGISTRO DE GASTOS -->
                     <div class="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm flex flex-col gap-4">
                         <h3 class="font-bold text-slate-800 text-sm uppercase tracking-wider flex items-center gap-2">
                             <span class="material-icons text-rose-500">money_off</span>Registrar Egreso / Gasto
@@ -627,6 +620,7 @@
                         </form>
                     </div>
 
+                    <!-- PANELES DE AUDITORÍA -->
                     <div class="lg:col-span-2 flex flex-col gap-5">
                         <div class="bg-white border border-slate-200 rounded-3xl p-5 shadow-sm">
                             <h3 class="font-bold text-slate-800 text-sm uppercase tracking-wider flex items-center gap-2 mb-3">
@@ -669,33 +663,11 @@
                 </div>
             </section>
 
-            <!-- PESTAÑA 4: GENERADOR PDF & FUNNEL COMERCIAL -->
+            <!-- PESTAÑA 4: GENERADOR PDF -->
             <section id="tab-cotizaciones" class="tab-content hidden flex flex-col gap-6">
                 <div>
-                    <h2 class="text-xl font-bold text-slate-900">Funnel Comercial & Generador PDF</h2>
-                    <p class="text-sm text-slate-500">Genera presupuestos, administra cotizaciones del funnel o imprímelas para el cliente.</p>
-                </div>
-
-                <!-- TABLA FUNNEL DE COTIZACIONES -->
-                <div class="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm flex flex-col gap-4">
-                    <h3 class="font-bold text-slate-800 text-sm uppercase tracking-wider flex items-center gap-2">
-                        <span class="material-icons text-blue-600">filter_alt</span> Cotizaciones Registradas
-                    </h3>
-                    <div class="overflow-x-auto">
-                        <table class="w-full text-left text-xs border-collapse">
-                            <thead>
-                                <tr class="bg-slate-50 text-slate-500 uppercase text-[10px] tracking-wider font-bold border-b border-slate-200">
-                                    <th class="py-3 px-4">Folio</th>
-                                    <th class="py-3 px-4">Cliente</th>
-                                    <th class="py-3 px-4">Vehículo</th>
-                                    <th class="py-3 px-4">Monto Presupuestado</th>
-                                    <th class="py-3 px-4">Estado</th>
-                                    <th class="py-3 px-4 text-right">Acciones</th>
-                                </tr>
-                            </thead>
-                            <tbody id="cotizaciones-table-body" class="divide-y text-slate-700"></tbody>
-                        </table>
-                    </div>
+                    <h2 class="text-xl font-bold text-slate-900">Generador de Documentos PDF</h2>
+                    <p class="text-sm text-slate-500">Genera presupuestos o notas de venta con precios adaptados al cliente sin descuadrar tu contabilidad.</p>
                 </div>
 
                 <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
@@ -765,26 +737,23 @@
                                 <label class="text-[10px] font-bold text-slate-500 uppercase">IVA (%)</label>
                                 <input type="number" id="quote-tax" value="16" oninput="UI_Controller.updateQuotePreview()" class="border text-center rounded-xl px-3 py-1.5 text-xs focus:outline-none">
                             </div>
+                            <!-- SECCIÓN DE VIGENCIA AJUSTADA DINÁMICAMENTE EN JS -->
                             <div class="flex flex-col gap-1" id="quote-validity-container">
                                 <label class="text-[10px] font-bold text-slate-500 uppercase">Validez (días)</label>
                                 <input type="number" id="quote-validity" value="15" oninput="UI_Controller.updateQuotePreview()" class="border text-center rounded-xl px-3 py-1.5 text-xs focus:outline-none">
                             </div>
                         </div>
 
-                        <div class="flex gap-2 mt-2">
-                            <button onclick="UI_Controller.handleSaveQuoteFromPDF()" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-2xl text-xs flex items-center justify-center gap-2 transition-all shadow-md">
-                                <span class="material-icons text-sm">save</span>
-                                <span>Registrar Cotización</span>
-                            </button>
-                            <button onclick="UI_Controller.downloadQuotePDF()" class="bg-slate-900 hover:bg-slate-800 text-white font-bold px-4 py-3 rounded-2xl text-xs flex items-center justify-center gap-1 transition-all">
-                                <span class="material-icons text-sm">picture_as_pdf</span>
-                            </button>
-                        </div>
+                        <button onclick="UI_Controller.downloadQuotePDF()" class="bg-slate-900 hover:bg-slate-800 text-white font-bold py-3 rounded-2xl text-sm flex items-center justify-center gap-2 mt-2 transition-all">
+                            <span class="material-icons">picture_as_pdf</span>
+                            <span>Descargar PDF</span>
+                        </button>
                     </div>
 
                     <div class="lg:col-span-7 flex flex-col gap-3">
                         <span class="text-xs font-bold text-slate-400 uppercase tracking-widest px-2">Hoja Carta Impresión</span>
                         <div class="bg-white border border-slate-200 rounded-3xl p-2 shadow-md overflow-x-auto">
+                            <!-- DIV CONTENEDOR PRINCIPAL DEL PDF RESTAURADO -->
                             <div id="pdf-capture-area" class="w-[790px] bg-white p-10 font-sans text-slate-800 relative mx-auto" style="min-height: 1020px;">
                                 
                                 <div class="flex justify-between items-center border-b-2 border-blue-600 pb-6 mb-6">
@@ -840,6 +809,7 @@
                                             <p class="text-slate-400">Garantía de 3 meses en refacciones originales y mano de obra.</p>
                                         </div>
                                         <div>
+                                            <!-- LEYENDA CONTROLADA DINÁMICAMENTE -->
                                             <p class="text-blue-600 font-bold" id="pdf-validity-view">Válido por 15 días hábiles.</p>
                                         </div>
                                     </div>
@@ -1011,6 +981,7 @@
                                     <option value="Terminado">Terminado</option>
                                     <option value="Entregado">Entregado</option>
                                   </select>
+                                    
                             </div>
                             <div class="section-finance-view">
                                 <label class="text-xs font-semibold text-slate-500 uppercase">Estado de Pago</label>
@@ -1020,13 +991,6 @@
                                     <option value="Pagado">Pagado</option>
                                 </select>
                             </div>
-                        </div>
-
-                        <!-- COSTO REAL DE ADQUISICIÓN PROVEEDOR -->
-                        <div class="bg-blue-50 border border-blue-200 p-3 rounded-xl section-finance-view">
-                            <label class="text-xs font-bold text-blue-900 uppercase block mb-1">Costo Real Refacciones con Proveedor ($ MXN)</label>
-                            <input type="number" step="0.01" id="modal-costo-refacciones-real" placeholder="0.00" class="w-full border rounded-xl px-3 py-1.5 text-sm bg-white font-bold focus:outline-none">
-                            <p class="text-[10px] text-blue-700 mt-1">Costo real de compra para el taller. Se resta de los ingresos para obtener la utilidad real exacta.</p>
                         </div>
 
                         <div class="bg-slate-50 border p-3.5 rounded-xl flex items-center justify-between section-finance-view mt-1">
@@ -1111,9 +1075,9 @@
         </div>
     </div>
 
-    <!-- SCRIPTS ERP STATE-DRIVEN ENGINE COMPLETO -->
-    let _orders = [];   
-        let _cotizaciones = [];
+    <!-- SCRIPTS ERP STATE-DRIVEN ENGINE -->
+    <script>
+        let _orders = [];   
         let _personal = []; 
         let _expenses = []; 
         
@@ -1139,7 +1103,6 @@
 
         function showToast(message, isError = false) {
             const container = document.getElementById('toast-container');
-            if(!container) return;
             const toast = document.createElement('div');
             toast.className = `px-4 py-2.5 text-xs font-semibold rounded-xl shadow-xl transition-all duration-300 transform translate-y-2 ${isError ? 'bg-rose-600 text-white' : 'bg-slate-900 text-white'}`;
             toast.innerText = message;
@@ -1269,9 +1232,7 @@
             },
 
             recalculate() {
-                const presetEl = document.getElementById('erp-date-preset');
-                if(!presetEl) return;
-                const preset = presetEl.value;
+                const preset = document.getElementById('erp-date-preset').value;
                 const { start, end } = this.getDateRange(preset);
 
                 const durationMs = end - start;
@@ -1299,9 +1260,7 @@
                     if (oDateIngreso >= start && oDateIngreso <= end) {
                         vehiculosAtendidos++; 
                         
-                        const costRealVal = parseFloat(o.costo_refacciones_real || 0);
-                        const costRef = costRealVal > 0 ? costRealVal : parseFloat(o.costo_refacciones || 0);
-
+                        const costRef = parseFloat(o.costo_refacciones || 0);
                         refaccionesCostBruto += costRef;
                         refaccionesCostNeto += (costRef / 1.08); 
                         erManoObra += parseFloat(o.costo_mano_obra || 0);
@@ -1386,12 +1345,6 @@
                 const margenUtilidad = ingresos > 0 ? (utilidadNeta / ingresos) * 100 : 0;
                 const ticketPromedio = vehiculosAtendidos > 0 ? ingresos / vehiculosAtendidos : 0;
 
-                const totalCot = _cotizaciones.length;
-                const cotAprobadas = _cotizaciones.filter(c => c.estado === 'Aprobada').length;
-                const cotRechazadas = _cotizaciones.filter(c => c.estado === 'Rechazada');
-                const tasaConversion = totalCot > 0 ? ((cotAprobadas / totalCot) * 100).toFixed(1) : 0;
-                const ventasPerdidas = cotRechazadas.reduce((sum, c) => sum + parseFloat(c.monto_total || 0), 0);
-
                 if(document.getElementById('dash-ingresos')) {
                     document.getElementById('dash-ingresos').innerText = formatter.format(ingresos);
                     document.getElementById('dash-utilidad-bruta').innerText = formatter.format(utilidadBruta);
@@ -1400,8 +1353,6 @@
                     document.getElementById('dash-vehiculos').innerText = vehiculosAtendidos;
                     document.getElementById('dash-ticket-promedio').innerText = formatter.format(ticketPromedio);
                     document.getElementById('dash-margen').innerText = `${margenUtilidad.toFixed(1)}%`;
-                    if(document.getElementById('dash-tasa-conversion')) document.getElementById('dash-tasa-conversion').innerText = `${tasaConversion}%`;
-                    if(document.getElementById('dash-ventas-perdidas')) document.getElementById('dash-ventas-perdidas').innerText = formatter.format(ventasPerdidas);
                     
                     if(document.getElementById('caja-pagado')) document.getElementById('caja-pagado').innerText = formatter.format(pagado);
                     if(document.getElementById('caja-anticipo')) document.getElementById('caja-anticipo').innerText = formatter.format(anticipo);
@@ -1570,7 +1521,7 @@
         };
 
         const API_Service = {
-            _lastSync: { orders: 0, cotizaciones: 0, personal: 0, expenses: 0 },
+            _lastSync: { orders: 0, personal: 0, expenses: 0 },
             STALE_MS: 60000,
 
             async fetchOrders(force = false) {
@@ -1579,7 +1530,7 @@
                     try {
                         const { data, error } = await supabaseClient
                             .from('ordenes_trabajo')
-                            .select('id, cliente_nombre, cliente_telefono, auto_marca, auto_modelo, auto_placas, kilometraje, tecnico_asignado, tecnico_user_id, estado, costo_mano_obra, costo_refacciones, costo_refacciones_real, total_cobrado, estado_pago, metodo_pago, fecha_ingreso, fecha_egreso, requiere_factura, total_iva, costo_diagnostico, conceptos')
+                            .select('id, cliente_nombre, cliente_telefono, auto_marca, auto_modelo, auto_placas, kilometraje, tecnico_asignado, tecnico_user_id, estado, costo_mano_obra, costo_refacciones, total_cobrado, estado_pago, metodo_pago, fecha_ingreso, fecha_egreso, requiere_factura, total_iva, costo_diagnostico, conceptos')
                             .order('id', { ascending: false });
                         if (error) throw error;
                         _orders = (data || []).map(o => ({ ...o, conceptos: Array.isArray(o.conceptos) ? o.conceptos : JSON.parse(o.conceptos || '[]') }));
@@ -1591,23 +1542,6 @@
                 UI_Controller.populateQuoteOrdersDropdown();
                 UI_Controller.renderTreasuryData();
                 UI_Controller.renderMecanicosStats();
-                Financial_Engine.recalculate();
-            },
-
-            async fetchCotizaciones(force = false) {
-                const isFresh = !force && (Date.now() - this._lastSync.cotizaciones) < this.STALE_MS;
-                if (!isFresh && supabaseClient) {
-                    try {
-                        const { data, error } = await supabaseClient
-                            .from('cotizaciones')
-                            .select('*')
-                            .order('id', { ascending: false });
-                        if (error) throw error;
-                        _cotizaciones = data || [];
-                        this._lastSync.cotizaciones = Date.now();
-                    } catch (error) { _cotizaciones = []; }
-                }
-                UI_Controller.renderCotizacionesTable();
                 Financial_Engine.recalculate();
             },
 
@@ -1642,7 +1576,7 @@
             },
 
             async refreshAll() {
-                await Promise.all([this.fetchOrders(true), this.fetchCotizaciones(true), this.fetchPersonal(true), this.fetchExpenses(true)]);
+                await Promise.all([this.fetchOrders(true), this.fetchPersonal(true), this.fetchExpenses(true)]);
             }
         };
 
@@ -1658,7 +1592,6 @@
                 
                 if (['dashboard','ordenes','personal','cotizaciones','tesoreria','rendimiento-mecanicos'].includes(tabId)) {
                     API_Service.fetchOrders();
-                    API_Service.fetchCotizaciones();
                     API_Service.fetchPersonal();
                     API_Service.fetchExpenses();
                 }
@@ -1673,14 +1606,14 @@
             applyRolePermissions() {
                 const elms = ['btn-dashboard', 'btn-personal', 'btn-config', 'btn-cotizaciones', 'btn-tesoreria', 'btn-rendimiento-mecanicos'];
                 if(currentRole === 'Mecánico') {
-                    elms.forEach(id => { const el = document.getElementById(id); if(el) el.classList.add('hidden'); });
+                    elms.forEach(id => document.getElementById(id).classList.add('hidden'));
                     document.querySelectorAll('.section-finance-view').forEach(el => el.classList.add('hidden'));
                 } else if (currentRole === 'Recepcionista') {
-                    ['btn-dashboard', 'btn-config'].forEach(id => { const el = document.getElementById(id); if(el) el.classList.add('hidden'); });
-                    ['btn-personal', 'btn-cotizaciones', 'btn-tesoreria', 'btn-rendimiento-mecanicos'].forEach(id => { const el = document.getElementById(id); if(el) el.classList.remove('hidden'); });
+                    ['btn-dashboard', 'btn-config'].forEach(id => document.getElementById(id).classList.add('hidden'));
+                    ['btn-personal', 'btn-cotizaciones', 'btn-tesoreria', 'btn-rendimiento-mecanicos'].forEach(id => document.getElementById(id).classList.remove('hidden'));
                     document.querySelectorAll('.section-finance-view').forEach(el => el.classList.add('hidden'));
                 } else {
-                    elms.forEach(id => { const el = document.getElementById(id); if(el) el.classList.remove('hidden'); });
+                    elms.forEach(id => document.getElementById(id).classList.remove('hidden'));
                     document.querySelectorAll('.section-finance-view').forEach(el => el.classList.remove('hidden'));
                 }
                 this.renderNewOrderConcepts();
@@ -1691,14 +1624,13 @@
             renderOrdersList() {
                 const tbody = document.getElementById('orders-table-body'); if(!tbody) return;
                 
-                const presetEl = document.getElementById('erp-date-preset');
-                const preset = presetEl ? presetEl.value : 'this-month';
+                const preset = document.getElementById('erp-date-preset').value;
                 const { start, end } = Financial_Engine.getDateRange(preset);
                 
-                const query = (document.getElementById('search-bar')?.value || '').toLowerCase();
+                const query = document.getElementById('search-bar').value.toLowerCase();
                 const filtered = _orders.filter(o => {
-                    const matchQuery = (o.cliente_nombre || '').toLowerCase().includes(query) || 
-                                       (o.auto_placas || '').toLowerCase().includes(query) || 
+                    const matchQuery = o.cliente_nombre.toLowerCase().includes(query) || 
+                                       o.auto_placas.toLowerCase().includes(query) || 
                                        (o.tecnico_asignado && o.tecnico_asignado.toLowerCase().includes(query));
                     
                     const oDate = new Date(o.fecha_ingreso || o.fecha_registro);
@@ -1708,13 +1640,11 @@
                 });
 
                 if(filtered.length === 0) {
-                    const noOrdersMsg = document.getElementById('no-orders-message');
-                    if(noOrdersMsg) noOrdersMsg.classList.remove('hidden');
+                    document.getElementById('no-orders-message').classList.remove('hidden');
                     tbody.innerHTML = '';
                     return;
                 }
-                const noOrdersMsg = document.getElementById('no-orders-message');
-                if(noOrdersMsg) noOrdersMsg.classList.add('hidden');
+                document.getElementById('no-orders-message').classList.add('hidden');
 
                 const rowsHtml = filtered.map(o => {
                     const dIngreso = new Date(o.fecha_ingreso || o.fecha_registro);
@@ -1780,108 +1710,6 @@
 
                 tbody.innerHTML = rowsHtml;
                 if(currentRole !== 'Administrador') document.querySelectorAll('.section-finance-view').forEach(el => el.classList.add('hidden'));
-            },
-
-            renderCotizacionesTable() {
-                const tbody = document.getElementById('cotizaciones-table-body');
-                if(!tbody) return;
-
-                tbody.innerHTML = _cotizaciones.map(c => {
-                    let badgeClass = "bg-amber-50 text-amber-600 border-amber-200";
-                    if(c.estado === 'Aprobada') badgeClass = "bg-emerald-50 text-emerald-600 border-emerald-200";
-                    if(c.estado === 'Rechazada') badgeClass = "bg-rose-50 text-rose-600 border-rose-200";
-
-                    const actions = c.estado === 'Pendiente' ? `
-                        <button onclick="UI_Controller.approveQuoteAndCreateOrder(${c.id})" class="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-[10px] font-bold mr-1">
-                            ✅ Aprobar
-                        </button>
-                        <button onclick="UI_Controller.rejectQuote(${c.id})" class="px-2.5 py-1 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-[10px] font-bold">
-                            ❌ Rechazar
-                        </button>
-                    ` : `<span class="text-[10px] font-bold text-slate-400">${c.estado}</span>`;
-
-                    return `
-                        <tr class="hover:bg-slate-50 border-b text-xs">
-                            <td class="py-3 px-4 font-mono font-bold">#COT-${c.id}</td>
-                            <td class="py-3 px-4 font-semibold">${escapeHtml(c.cliente_nombre)}</td>
-                            <td class="py-3 px-4 text-slate-500">${escapeHtml(c.auto_info || '-')} (${escapeHtml(c.placas || 'S/P')})</td>
-                            <td class="py-3 px-4 font-bold text-slate-800">${formatter.format(c.monto_total || 0)}</td>
-                            <td class="py-3 px-4">
-                                <span class="px-2 py-0.5 rounded-full text-[10px] font-bold border ${badgeClass}">${c.estado}</span>
-                            </td>
-                            <td class="py-3 px-4 text-right">${actions}</td>
-                        </tr>
-                    `;
-                }).join('');
-            },
-
-            async handleSaveQuoteFromPDF() {
-                const cliente = document.getElementById('quote-cliente').value;
-                if(!cliente) { showToast("Ingresa el nombre del cliente.", true); return; }
-
-                let subtotal = quoteItems.reduce((sum, item) => sum + (item.cantidad * item.precio), 0);
-                const desc = parseFloat(document.getElementById('quote-discount').value) || 0;
-                const tax = parseFloat(document.getElementById('quote-tax').value) || 0;
-                const total = (subtotal * (1 - desc / 100)) * (1 + tax / 100);
-
-                const newQuote = {
-                    cliente_nombre: cliente,
-                    cliente_telefono: document.getElementById('quote-telefono').value,
-                    auto_info: document.getElementById('quote-auto').value,
-                    placas: document.getElementById('quote-placas').value.toUpperCase(),
-                    monto_total: total,
-                    estado: 'Pendiente',
-                    conceptos: quoteItems
-                };
-
-                const { data, error } = await supabaseClient.from('cotizaciones').insert([newQuote]).select();
-                if(error) { showToast("Error al guardar cotización: " + error.message, true); return; }
-
-                showToast("Cotización guardada en el funnel.");
-                _cotizaciones.unshift(data[0]);
-                this.renderCotizacionesTable();
-                Financial_Engine.recalculate();
-            },
-
-            async approveQuoteAndCreateOrder(cotizacionId) {
-                const quote = _cotizaciones.find(c => c.id === cotizacionId);
-                if(!quote) return;
-
-                const newOrder = {
-                    cliente_nombre: quote.cliente_nombre,
-                    cliente_telefono: quote.cliente_telefono,
-                    auto_marca: quote.auto_info,
-                    auto_placas: quote.placas,
-                    total_cobrado: quote.monto_total,
-                    costo_refacciones_real: 0, 
-                    estado: 'En reparación',
-                    cotizacion_id: quote.id,
-                    conceptos: quote.conceptos,
-                    fecha_ingreso: new Date().toISOString()
-                };
-
-                const { data: orderData, error: orderError } = await supabaseClient.from('ordenes_trabajo').insert([newOrder]).select();
-                if(orderError) { showToast("Error al crear la orden: " + orderError.message, true); return; }
-
-                await supabaseClient.from('cotizaciones').update({ estado: 'Aprobada', orden_id: orderData[0].id }).eq('id', cotizacionId);
-
-                quote.estado = 'Aprobada';
-                _orders.unshift(orderData[0]);
-
-                this.renderCotizacionesTable();
-                this.renderOrdersList();
-                Financial_Engine.recalculate();
-                showToast(`¡Cotización #${cotizacionId} Aprobada y Convertida en Orden de Trabajo!`);
-            },
-
-            async rejectQuote(cotizacionId) {
-                await supabaseClient.from('cotizaciones').update({ estado: 'Rechazada' }).eq('id', cotizacionId);
-                const quote = _cotizaciones.find(c => c.id === cotizacionId);
-                if(quote) quote.estado = 'Rechazada';
-                
-                this.renderCotizacionesTable();
-                Financial_Engine.recalculate();
-                showToast(`Cotización #${cotizacionId} marcada como Rechazada.`);
             },
 
             handleProdPresetChange() {
@@ -2138,24 +1966,30 @@
             calculateNewOrderTotals() {
                 let m=0, r=0; newOrderConcepts.forEach(c=>{ if(c.categoria==='mano-obra') m+=c.cantidad*c.precio; else r+=c.cantidad*c.precio; });
                 let subtotal = m + r;
-                let requiereFactura = document.getElementById('form-requiere-factura')?.checked || false;
+                let requiereFactura = document.getElementById('form-requiere-factura').checked;
                 let iva = requiereFactura ? subtotal * 0.16 : 0;
                 let total = subtotal + iva;
 
-                if(document.getElementById('new-order-total-mano')) document.getElementById('new-order-total-mano').innerText = formatter.format(m);
-                if(document.getElementById('new-order-total-ref')) document.getElementById('new-order-total-ref').innerText = formatter.format(r);
-                if(document.getElementById('new-order-total-general')) document.getElementById('new-order-total-general').innerText = formatter.format(total);
+                document.getElementById('new-order-total-mano').innerText = formatter.format(m);
+                document.getElementById('new-order-total-ref').innerText = formatter.format(r);
+                document.getElementById('new-order-total-general').innerText = formatter.format(total);
             },
+            
+            // CORREGIDO: Template Strings con backticks para evitar valores literales inevaluados en inputs de tipo number
             renderNewOrderConcepts() {
                 const c = document.getElementById('new-order-concepts-container'); if(!c) return;
                 c.innerHTML = newOrderConcepts.map((item, idx) => {
-                    const precioDisplay = (item.precio === 0 || item.precio === '') ? '' : item.precio;
+                    const cant = Number(item.cantidad) || 0;
+                    const precioVal = (item.precio === 0 || item.precio === '' || item.precio === undefined) ? '' : item.precio;
                     return `
                         <div class="flex gap-2 bg-white border p-2 rounded-xl">
                             <input type="text" value="${escapeHtml(item.descripcion)}" oninput="UI_Controller.updateNewOrderConceptRow(${idx},'descripcion',this.value)" placeholder="Concepto (Ej. Cambio de balatas)" class="flex-1 text-xs p-1 focus:outline-none">
-                            <select onchange="UI_Controller.updateNewOrderConceptRow(${idx},'categoria',this.value)" class="text-xs bg-white border rounded"><option value="refacciones" ${item.categoria==='refacciones'?'selected':''}>Refacc.</option><option value="mano-obra" ${item.categoria==='mano-obra'?'selected':''}>Mano Obra</option></select>
-                            <input type="number" step="any" value="${Number(item.cantidad) || 0}" oninput="UI_Controller.updateNewOrderConceptRow(${idx},'cantidad',this.value)" class="w-10 text-center text-xs border rounded focus:outline-none">
-                            <input type="number" step="any" value="${Number(precioDisplay) || ''}" placeholder="0.00" oninput="UI_Controller.updateNewOrderConceptRow(${idx},'precio',this.value)" class="w-20 text-right text-xs border rounded focus:outline-none ${currentRole==='Mecánico'?'hidden':''}">
+                            <select onchange="UI_Controller.updateNewOrderConceptRow(${idx},'categoria',this.value)" class="text-xs bg-white border rounded">
+                                <option value="refacciones" ${item.categoria==='refacciones'?'selected':''}>Refacc.</option>
+                                <option value="mano-obra" ${item.categoria==='mano-obra'?'selected':''}>Mano Obra</option>
+                            </select>
+                            <input type="number" step="any" value="${cant}" oninput="UI_Controller.updateNewOrderConceptRow(${idx},'cantidad',this.value)" class="w-10 text-center text-xs border rounded focus:outline-none">
+                            <input type="number" step="any" value="${precioVal}" placeholder="0.00" oninput="UI_Controller.updateNewOrderConceptRow(${idx},'precio',this.value)" class="w-20 text-right text-xs border rounded focus:outline-none ${currentRole==='Mecánico'?'hidden':''}">
                             <button type="button" onclick="UI_Controller.deleteNewOrderConceptRow(${idx})" class="text-rose-500"><span class="material-icons text-sm">delete</span></button>
                         </div>`;
                 }).join('');
@@ -2269,9 +2103,6 @@
                 document.getElementById('modal-fecha-ingreso').value = o.fecha_ingreso ? o.fecha_ingreso.split('T')[0] : '';
                 document.getElementById('modal-fecha-egreso').value = o.fecha_egreso ? o.fecha_egreso.split('T')[0] : '';
 
-                const realCostInput = document.getElementById('modal-costo-refacciones-real');
-                if (realCostInput) realCostInput.value = o.costo_refacciones_real !== undefined && o.costo_refacciones_real !== null ? o.costo_refacciones_real : '';
-
                 modalEditingConcepts = o.conceptos ? [...o.conceptos] : [];
                 const mSel = document.getElementById('modal-metodo-pago');
                 if(mSel) mSel.value = o.metodo_pago || "Efectivo";
@@ -2305,21 +2136,26 @@
                 let iva = requiereFactura ? subtotal * 0.16 : 0;
                 let total = subtotal + iva;
 
-                if(document.getElementById('modal-sum-mano')) document.getElementById('modal-sum-mano').innerText = formatter.format(m);
-                if(document.getElementById('modal-sum-ref')) document.getElementById('modal-sum-ref').innerText = formatter.format(r);
-                if(document.getElementById('modal-sum-total')) document.getElementById('modal-sum-total').innerText = formatter.format(total);
+                document.getElementById('modal-sum-mano').innerText = formatter.format(m);
+                document.getElementById('modal-sum-ref').innerText = formatter.format(r);
+                document.getElementById('modal-sum-total').innerText = formatter.format(total);
             },
 
+            // CORREGIDO: Template Strings con backticks para evitar valores literales inevaluados en inputs de tipo number
             renderModalConcepts() {
                 const container = document.getElementById('modal-concepts-container'); if(!container) return;
                 container.innerHTML = modalEditingConcepts.map((item, idx) => {
-                    const precioDisplay = (item.precio === 0 || item.precio === '') ? '' : item.precio;
+                    const cant = Number(item.cantidad) || 0;
+                    const precioVal = (item.precio === 0 || item.precio === '' || item.precio === undefined) ? '' : item.precio;
                     return `
                         <div class="flex gap-2 items-center text-xs border p-1.5 rounded bg-white">
                             <input type="text" value="${escapeHtml(item.descripcion)}" oninput="UI_Controller.updateModalConceptRow(${idx},'descripcion',this.value)" class="flex-1 border p-0.5 focus:outline-none">
-                            <select onchange="UI_Controller.updateModalConceptRow(${idx},'categoria',this.value)" class="bg-white border"><option value="refacciones" ${item.categoria==='refacciones'?'selected':''}>Refacc.</option><option value="mano-obra" ${item.categoria==='mano-obra'?'selected':''}>Trabajo</option></select>
-                            <input type="number" step="any" value="${Number(item.cantidad) || 0}" oninput="UI_Controller.updateModalConceptRow(${idx},'cantidad',this.value)" class="w-10 text-center border focus:outline-none">
-                            <input type="number" step="any" value="${Number(precioDisplay) || ''}" placeholder="0.00" oninput="UI_Controller.updateModalConceptRow(${idx},'precio',this.value)" class="w-16 text-right border focus:outline-none ${currentRole==='Mecánico'?'hidden':''}">
+                            <select onchange="UI_Controller.updateModalConceptRow(${idx},'categoria',this.value)" class="bg-white border">
+                                <option value="refacciones" ${item.categoria==='refacciones'?'selected':''}>Refacc.</option>
+                                <option value="mano-obra" ${item.categoria==='mano-obra'?'selected':''}>Trabajo</option>
+                            </select>
+                            <input type="number" step="any" value="${cant}" oninput="UI_Controller.updateModalConceptRow(${idx},'cantidad',this.value)" class="w-10 text-center border focus:outline-none">
+                            <input type="number" step="any" value="${precioVal}" placeholder="0.00" oninput="UI_Controller.updateModalConceptRow(${idx},'precio',this.value)" class="w-16 text-right border focus:outline-none ${currentRole==='Mecánico'?'hidden':''}">
                             <button onclick="UI_Controller.deleteModalConceptRow(${idx})" class="text-rose-500"><span class="material-icons text-xs">delete</span></button>
                         </div>`;
                 }).join('');
@@ -2333,9 +2169,6 @@
                 const targetUserVal = document.getElementById('modal-tecnico').value || null;
                 const mecObj = _personal.find(p => (p.user_id && p.user_id === targetUserVal) || p.id == targetUserVal);
 
-                const realCostInput = document.getElementById('modal-costo-refacciones-real');
-                const costReal = realCostInput && realCostInput.value !== '' ? parseFloat(realCostInput.value) : null;
-
                 let fields = {
                     estado: document.getElementById('modal-estado-trabajo').value,
                     diagnostico_tecnico: document.getElementById('modal-diagnostico').value,
@@ -2345,10 +2178,6 @@
                     tecnico_user_id: mecObj ? (mecObj.user_id || null) : null,
                     tecnico_asignado: mecObj ? mecObj.nombre : 'Sin Asignar'
                 };
-
-                if (costReal !== null) {
-                    fields.costo_refacciones_real = costReal;
-                }
                 
                 if(currentRole !== 'Mecánico') {
                     const paymentState = document.getElementById('modal-estado-pago').value;
@@ -2386,7 +2215,7 @@
                 const { error } = await supabaseClient.from('ordenes_trabajo').update(fields).eq('id', currentEditingOrderId); 
                 if (error) { showToast("Error al guardar: " + error.message, true); return; }
 
-                showToast("Cambios guardados con éxito.");
+                showToast("Cambios guardados con éxito. Flujo de caja y mecánicos actualizados.");
                 this.closeModal(); API_Service.fetchOrders(true);
             },
 
@@ -2537,9 +2366,9 @@
                 const saved = localStorage.getItem('fixed_operational_costs_final');
                 if (saved) {
                     fixedCosts = JSON.parse(saved);
-                    if(document.getElementById('fixed-renta')) document.getElementById('fixed-renta').value = fixedCosts.renta || 0;
-                    if(document.getElementById('fixed-servicios')) document.getElementById('fixed-servicios').value = fixedCosts.servicios || 0;
-                    if(document.getElementById('fixed-impuestos')) document.getElementById('fixed-impuestos').value = fixedCosts.impuestos || 0;
+                    document.getElementById('fixed-renta').value = fixedCosts.renta || 0;
+                    document.getElementById('fixed-servicios').value = fixedCosts.servicios || 0;
+                    document.getElementById('fixed-impuestos').value = fixedCosts.impuestos || 0;
                 }
             },
 
