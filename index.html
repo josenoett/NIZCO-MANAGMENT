@@ -1112,8 +1112,7 @@
     </div>
 
     <!-- SCRIPTS ERP STATE-DRIVEN ENGINE COMPLETO -->
-    <script>
-        let _orders = [];   
+    let _orders = [];   
         let _cotizaciones = [];
         let _personal = []; 
         let _expenses = []; 
@@ -1140,6 +1139,7 @@
 
         function showToast(message, isError = false) {
             const container = document.getElementById('toast-container');
+            if(!container) return;
             const toast = document.createElement('div');
             toast.className = `px-4 py-2.5 text-xs font-semibold rounded-xl shadow-xl transition-all duration-300 transform translate-y-2 ${isError ? 'bg-rose-600 text-white' : 'bg-slate-900 text-white'}`;
             toast.innerText = message;
@@ -1216,7 +1216,7 @@
             }
         };
 
-       const Financial_Engine = {
+        const Financial_Engine = {
             getDateRange(preset, customStartId = 'erp-start-date', customEndId = 'erp-end-date') {
                 const now = new Date();
                 let start, end;
@@ -1269,7 +1269,9 @@
             },
 
             recalculate() {
-                const preset = document.getElementById('erp-date-preset').value;
+                const presetEl = document.getElementById('erp-date-preset');
+                if(!presetEl) return;
+                const preset = presetEl.value;
                 const { start, end } = this.getDateRange(preset);
 
                 const durationMs = end - start;
@@ -1566,228 +1568,6 @@
                 });
             }
         };
-        
-                let costoNominaPeriodo = 0;
-                _personal.forEach(p => {
-                    const sueldoDiario = (parseFloat(p.sueldo) || 0) / 7;
-                    const empInicio = p.fecha_ingreso ? new Date(p.fecha_ingreso + 'T00:00:00') : new Date(0);
-                    const empFin = p.fecha_egreso ? new Date(p.fecha_egreso + 'T23:59:59') : new Date(8640000000000000);
-
-                    const inicioInterseccion = new Date(Math.max(start, empInicio));
-                    const finInterseccion = new Date(Math.min(end, empFin));
-
-                    if (inicioInterseccion <= finInterseccion) {
-                        const msDiferencia = finInterseccion - inicioInterseccion;
-                        const diasTrabajadosEnPeriodo = Math.ceil(msDiferencia / (1000 * 60 * 60 * 24));
-                        costoNominaPeriodo += diasTrabajadosEnPeriodo * sueldoDiario;
-                    }
-                });
-
-                const fijosMensuales = (fixedCosts.renta || 0) + (fixedCosts.servicios || 0) + (fixedCosts.impuestos || 0);
-                const fijosPorDia = fijosMensuales / 30.4;
-                const costoFijosPeriodo = fijosPorDia * totalDays;
-
-                let nominaFinalConDescuentos = costoNominaPeriodo - deduccionesNomina;
-                montosPorCategoria["Nómina"] = nominaFinalConDescuentos;
-                montosPorCategoria["Refacciones"] = refaccionesCostNeto; 
-                
-                montosPorCategoria["Renta"] += (fixedCosts.renta / 30.4) * totalDays;
-                montosPorCategoria["Impuestos"] += (fixedCosts.impuestos / 30.4) * totalDays;
-                
-                const serviciosFraccionados = ((fixedCosts.servicios || 0) / 3) / 30.4 * totalDays;
-                montosPorCategoria["Agua"] += serviciosFraccionados;
-                montosPorCategoria["Luz"] += serviciosFraccionados;
-                montosPorCategoria["Internet"] += serviciosFraccionados;
-
-                const totalGastos = refaccionesCostNeto + nominaFinalConDescuentos + costoFijosPeriodo + egresosManuales;
-                const utilidadBruta = ingresos - refaccionesCostNeto; 
-                const utilidadNeta = ingresos - totalGastos;
-                const margenUtilidad = ingresos > 0 ? (utilidadNeta / ingresos) * 100 : 0;
-                const ticketPromedio = vehiculosAtendidos > 0 ? ingresos / vehiculosAtendidos : 0;
-
-                // MÉTRICAS BI DE COTIZACIONES
-                const totalCot = _cotizaciones.length;
-                const cotAprobadas = _cotizaciones.filter(c => c.estado === 'Aprobada').length;
-                const cotRechazadas = _cotizaciones.filter(c => c.estado === 'Rechazada');
-                const tasaConversion = totalCot > 0 ? ((cotAprobadas / totalCot) * 100).toFixed(1) : 0;
-                const ventasPerdidas = cotRechazadas.reduce((sum, c) => sum + parseFloat(c.monto_total || 0), 0);
-
-                if(document.getElementById('dash-ingresos')) {
-                    document.getElementById('dash-ingresos').innerText = formatter.format(ingresos);
-                    document.getElementById('dash-utilidad-bruta').innerText = formatter.format(utilidadBruta);
-                    document.getElementById('dash-egresos').innerText = formatter.format(totalGastos);
-                    document.getElementById('dash-utilidad').innerText = formatter.format(utilidadNeta);
-                    document.getElementById('dash-vehiculos').innerText = vehiculosAtendidos;
-                    document.getElementById('dash-ticket-promedio').innerText = formatter.format(ticketPromedio);
-                    document.getElementById('dash-margen').innerText = `${margenUtilidad.toFixed(1)}%`;
-                    if(document.getElementById('dash-tasa-conversion')) document.getElementById('dash-tasa-conversion').innerText = `${tasaConversion}%`;
-                    if(document.getElementById('dash-ventas-perdidas')) document.getElementById('dash-ventas-perdidas').innerText = formatter.format(ventasPerdidas);
-                    
-                    if(document.getElementById('caja-pagado')) document.getElementById('caja-pagado').innerText = formatter.format(pagado);
-                    if(document.getElementById('caja-anticipo')) document.getElementById('caja-anticipo').innerText = formatter.format(anticipo);
-                    if(document.getElementById('costo-ref-total')) document.getElementById('costo-ref-total').innerText = formatter.format(refaccionesCostNeto);
-                    if(document.getElementById('costo-fijos-total')) document.getElementById('costo-fijos-total').innerText = formatter.format(costoFijosPeriodo);
-                    if(document.getElementById('costo-nomina-total')) document.getElementById('costo-nomina-total').innerText = formatter.format(nominaFinalConDescuentos);
-
-                    const catContainer = document.getElementById('dashboard-categories-container');
-                    
-                    let totalIva16Cobrado = 0;
-                    _orders.forEach(o => {
-                        const oDate = new Date(o.fecha_ingreso || o.fecha_registro);
-                        const oDateEgreso = o.fecha_egreso ? new Date(o.fecha_egreso) : null;
-                        
-                        const totalIva = parseFloat(o.total_iva || 0);
-                        const totCot = parseFloat(o.total_cobrado || 1);
-                        const abonoBruto = parseFloat(o.costo_diagnostico || 0);
-
-                        if (oDate >= start && oDate <= end) {
-                            if (o.estado_pago === 'Pagado') {
-                                if (abonoBruto === 0 || abonoBruto === totCot) {
-                                    totalIva16Cobrado += totalIva;
-                                } else {
-                                    const factorAbono = abonoBruto / totCot;
-                                    totalIva16Cobrado += totalIva * factorAbono;
-                                }
-                            } else if (o.estado_pago === 'Anticipo') {
-                                const factorAbono = abonoBruto / totCot;
-                                totalIva16Cobrado += totalIva * factorAbono;
-                            }
-                        }
-
-                        if (o.estado_pago === 'Pagado' && oDateEgreso && oDateEgreso >= start && oDateEgreso <= end) {
-                            if (abonoBruto > 0 && abonoBruto < totCot) {
-                                const factorAbono = abonoBruto / totCot;
-                                const factorLiquidacion = 1 - factorAbono;
-                                totalIva16Cobrado += totalIva * factorLiquidacion;
-                            }
-                        }
-                    });
-                    let ventasNetasSinIva16 = ingresos - totalIva16Cobrado;
-                    const iva8Total = refaccionesCostBruto - refaccionesCostNeto;
-
-                    let categoriesHtml = `
-                        <div class="bg-emerald-50/60 p-2.5 rounded-xl border border-emerald-200 flex flex-col gap-1 mb-2 font-sans text-xs">
-                            <span class="text-[10px] uppercase font-bold text-emerald-700 tracking-wider flex items-center gap-1">
-                                <span class="material-icons text-xs">point_of_sale</span> 📊 Desglose de Ventas (Ingresos)
-                            </span>
-                            <div class="flex justify-between text-slate-600">
-                                <span>Ventas Brutas (Total en Caja):</span>
-                                <span class="font-semibold text-slate-800">${formatter.format(ingresos)}</span>
-                            </div>
-                            <div class="flex justify-between text-slate-600">
-                                <span>Ventas Netas (Sin IVA 16%):</span>
-                                <span class="font-bold text-slate-900">${formatter.format(ventasNetasSinIva16)}</span>
-                            </div>
-                            <div class="flex justify-between text-emerald-700 text-[10px] pt-0.5 border-t border-dashed border-emerald-300">
-                                <span>Puro IVA 16% por Trasladar/Pagar:</span>
-                                <span class="font-bold">${formatter.format(totalIva16Cobrado)}</span>
-                            </div>
-                        </div>
-                        <div class="bg-blue-50/60 p-2.5 rounded-xl border border-blue-200 flex flex-col gap-1 mb-2 font-sans text-xs">
-                            <span class="text-[10px] uppercase font-bold text-blue-600 tracking-wider flex items-center gap-1">
-                                <span class="material-icons text-xs">inventory_2</span> 📦 Desglose Refacciones (Costos)
-                            </span>
-                            <div class="flex justify-between text-slate-600">
-                                <span>Refacciones Bruto (c/ IVA 8%):</span>
-                                <span class="font-semibold text-slate-800">${formatter.format(refaccionesCostBruto)}</span>
-                            </div>
-                            <div class="flex justify-between text-slate-600">
-                                <span>Refacciones Neto (s/ IVA):</span>
-                                <span class="font-bold text-slate-900">${formatter.format(refaccionesCostNeto)}</span>
-                            </div>
-                            <div class="flex justify-between text-blue-700 text-[10px] pt-0.5 border-t border-dashed border-blue-300">
-                                <span>IVA 8% Acreditable Pagado:</span>
-                                <span class="font-bold">${formatter.format(iva8Total)}</span>
-                            </div>
-                        </div>
-                    `;
-
-                    categoriesHtml += Object.keys(montosPorCategoria)
-                        .filter(cName => cName !== "Refacciones")
-                        .map(cName => `
-                            <div class="flex justify-between items-center border-b border-slate-100 pb-1">
-                                <span class="text-slate-600 font-medium">${escapeHtml(cName)}:</span>
-                                <span class="font-bold text-slate-800">${formatter.format(montosPorCategoria[cName])}</span>
-                            </div>`)
-                        .join('');
-
-                    if (catContainer) catContainer.innerHTML = categoriesHtml;
-
-                    if (document.getElementById('er-ingresos')) document.getElementById('er-ingresos').innerText = formatter.format(ingresos);
-                    if (document.getElementById('er-refacciones')) document.getElementById('er-refacciones').innerText = formatter.format(montosPorCategoria["Refacciones"]);
-                    if (document.getElementById('er-nomina')) document.getElementById('er-nomina').innerText = formatter.format(montosPorCategoria["Nómina"]);
-                    if (document.getElementById('er-gasolina')) document.getElementById('er-gasolina').innerText = formatter.format(montosPorCategoria["Gasolina"] + montosPorCategoria["Diesel"]);
-                    if (document.getElementById('er-consumibles')) document.getElementById('er-consumibles').innerText = formatter.format(montosPorCategoria["Consumibles"]);
-                    
-                    const sumServiciosAcumulados = montosPorCategoria["Renta"] + montosPorCategoria["Agua"] + montosPorCategoria["Luz"] + montosPorCategoria["Internet"];
-                    if (document.getElementById('er-servicios')) document.getElementById('er-servicios').innerText = formatter.format(sumServiciosAcumulados);
-                    if (document.getElementById('er-publicidad')) document.getElementById('er-publicidad').innerText = formatter.format(montosPorCategoria["Publicidad"]);
-                    
-                    const otrosAcumulados = totalGastos - (montosPorCategoria["Refacciones"] + montosPorCategoria["Nómina"] + montosPorCategoria["Gasolina"] + montosPorCategoria["Diesel"] + montosPorCategoria["Consumibles"] + sumServiciosAcumulados + montosPorCategoria["Publicidad"]);
-                    if (document.getElementById('er-otros')) document.getElementById('er-otros').innerText = formatter.format(otrosAcumulados > 0 ? otrosAcumulados : 0);
-                    if (document.getElementById('er-utilidad-neta')) document.getElementById('er-utilidad-neta').innerText = formatter.format(utilidadNeta);
-                }
-
-                this.renderCharts(ingresos, totalGastos, montosPorCategoria);
-            },
-
-            renderCharts(ingresos, totalGastos, montosPorCategoria) {
-                if(chartInstance1) chartInstance1.destroy();
-                if(chartInstance2) chartInstance2.destroy();
-                if(chartInstance3) chartInstance3.destroy();
-                if(chartInstance4) chartInstance4.destroy();
-
-                const ctx1 = document.getElementById('chart-ingresos-gastos');
-                const ctx2 = document.getElementById('chart-gastos-categoria');
-                const ctx3 = document.getElementById('chart-evolucion-ingresos');
-                const ctx4 = document.getElementById('chart-utilidad-mes');
-                
-                if(!ctx1 || !ctx2 || !ctx3 || !ctx4) return; 
-
-                chartInstance1 = new Chart(ctx1, {
-                    type: 'bar',
-                    data: {
-                        labels: ['Ingresos', 'Gastos'],
-                        datasets: [{ data: [ingresos, totalGastos], backgroundColor: ['#10b981', '#f43f5e'], borderRadius: 8 }]
-                    },
-                    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
-                });
-
-                const catLabels = Object.keys(montosPorCategoria).filter(k => montosPorCategoria[k] > 0);
-                const catData = catLabels.map(k => montosPorCategoria[k]);
-
-                chartInstance2 = new Chart(ctx2, {
-                    type: 'doughnut',
-                    data: {
-                        labels: catLabels.length > 0 ? catLabels : ['Sin gastos'],
-                        datasets: [{ data: catData.length > 0 ? catData : [0], backgroundColor: ['#3b82f6', '#10b981', '#ef4444', '#f59e0b', '#8b5cf6', '#ec4899', '#64748b', '#06b6d4', '#14b8a6', '#a855f7'] }]
-                    },
-                    options: { responsive: true, maintainAspectRatio: false }
-                });
-
-                const mesesLabels = ['Mayo', 'Junio', 'Julio'];
-                const dataIngresosMes = [ingresos * 0.8, ingresos * 0.9, ingresos];
-                const dataUtilidadMes = [dataIngresosMes[0] * 0.2, dataIngresosMes[1] * 0.25, ingresos - totalGastos];
-
-                chartInstance3 = new Chart(ctx3, {
-                    type: 'line',
-                    data: {
-                        labels: mesesLabels,
-                        datasets: [{ label: 'Ingresos', data: dataIngresosMes, borderColor: '#3b82f6', tension: 0.3, fill: false }]
-                    },
-                    options: { responsive: true, maintainAspectRatio: false }
-                });
-
-                chartInstance4 = new Chart(ctx4, {
-                    type: 'line',
-                    data: {
-                        labels: mesesLabels,
-                        datasets: [{ label: 'Utilidad Neta', data: dataUtilidadMes, borderColor: '#10b981', backgroundColor: 'rgba(16, 185, 129, 0.1)', tension: 0.3, fill: true }]
-                    },
-                    options: { responsive: true, maintainAspectRatio: false }
-                });
-            }
-        };
 
         const API_Service = {
             _lastSync: { orders: 0, cotizaciones: 0, personal: 0, expenses: 0 },
@@ -1893,14 +1673,14 @@
             applyRolePermissions() {
                 const elms = ['btn-dashboard', 'btn-personal', 'btn-config', 'btn-cotizaciones', 'btn-tesoreria', 'btn-rendimiento-mecanicos'];
                 if(currentRole === 'Mecánico') {
-                    elms.forEach(id => document.getElementById(id).classList.add('hidden'));
+                    elms.forEach(id => { const el = document.getElementById(id); if(el) el.classList.add('hidden'); });
                     document.querySelectorAll('.section-finance-view').forEach(el => el.classList.add('hidden'));
                 } else if (currentRole === 'Recepcionista') {
-                    ['btn-dashboard', 'btn-config'].forEach(id => document.getElementById(id).classList.add('hidden'));
-                    ['btn-personal', 'btn-cotizaciones', 'btn-tesoreria', 'btn-rendimiento-mecanicos'].forEach(id => document.getElementById(id).classList.remove('hidden'));
+                    ['btn-dashboard', 'btn-config'].forEach(id => { const el = document.getElementById(id); if(el) el.classList.add('hidden'); });
+                    ['btn-personal', 'btn-cotizaciones', 'btn-tesoreria', 'btn-rendimiento-mecanicos'].forEach(id => { const el = document.getElementById(id); if(el) el.classList.remove('hidden'); });
                     document.querySelectorAll('.section-finance-view').forEach(el => el.classList.add('hidden'));
                 } else {
-                    elms.forEach(id => document.getElementById(id).classList.remove('hidden'));
+                    elms.forEach(id => { const el = document.getElementById(id); if(el) el.classList.remove('hidden'); });
                     document.querySelectorAll('.section-finance-view').forEach(el => el.classList.remove('hidden'));
                 }
                 this.renderNewOrderConcepts();
@@ -1911,13 +1691,14 @@
             renderOrdersList() {
                 const tbody = document.getElementById('orders-table-body'); if(!tbody) return;
                 
-                const preset = document.getElementById('erp-date-preset').value;
+                const presetEl = document.getElementById('erp-date-preset');
+                const preset = presetEl ? presetEl.value : 'this-month';
                 const { start, end } = Financial_Engine.getDateRange(preset);
                 
-                const query = document.getElementById('search-bar').value.toLowerCase();
+                const query = (document.getElementById('search-bar')?.value || '').toLowerCase();
                 const filtered = _orders.filter(o => {
-                    const matchQuery = o.cliente_nombre.toLowerCase().includes(query) || 
-                                       o.auto_placas.toLowerCase().includes(query) || 
+                    const matchQuery = (o.cliente_nombre || '').toLowerCase().includes(query) || 
+                                       (o.auto_placas || '').toLowerCase().includes(query) || 
                                        (o.tecnico_asignado && o.tecnico_asignado.toLowerCase().includes(query));
                     
                     const oDate = new Date(o.fecha_ingreso || o.fecha_registro);
@@ -1927,11 +1708,13 @@
                 });
 
                 if(filtered.length === 0) {
-                    document.getElementById('no-orders-message').classList.remove('hidden');
+                    const noOrdersMsg = document.getElementById('no-orders-message');
+                    if(noOrdersMsg) noOrdersMsg.classList.remove('hidden');
                     tbody.innerHTML = '';
                     return;
                 }
-                document.getElementById('no-orders-message').classList.add('hidden');
+                const noOrdersMsg = document.getElementById('no-orders-message');
+                if(noOrdersMsg) noOrdersMsg.classList.add('hidden');
 
                 const rowsHtml = filtered.map(o => {
                     const dIngreso = new Date(o.fecha_ingreso || o.fecha_registro);
@@ -2355,13 +2138,13 @@
             calculateNewOrderTotals() {
                 let m=0, r=0; newOrderConcepts.forEach(c=>{ if(c.categoria==='mano-obra') m+=c.cantidad*c.precio; else r+=c.cantidad*c.precio; });
                 let subtotal = m + r;
-                let requiereFactura = document.getElementById('form-requiere-factura').checked;
+                let requiereFactura = document.getElementById('form-requiere-factura')?.checked || false;
                 let iva = requiereFactura ? subtotal * 0.16 : 0;
                 let total = subtotal + iva;
 
-                document.getElementById('new-order-total-mano').innerText = formatter.format(m);
-                document.getElementById('new-order-total-ref').innerText = formatter.format(r);
-                document.getElementById('new-order-total-general').innerText = formatter.format(total);
+                if(document.getElementById('new-order-total-mano')) document.getElementById('new-order-total-mano').innerText = formatter.format(m);
+                if(document.getElementById('new-order-total-ref')) document.getElementById('new-order-total-ref').innerText = formatter.format(r);
+                if(document.getElementById('new-order-total-general')) document.getElementById('new-order-total-general').innerText = formatter.format(total);
             },
             renderNewOrderConcepts() {
                 const c = document.getElementById('new-order-concepts-container'); if(!c) return;
@@ -2486,7 +2269,6 @@
                 document.getElementById('modal-fecha-ingreso').value = o.fecha_ingreso ? o.fecha_ingreso.split('T')[0] : '';
                 document.getElementById('modal-fecha-egreso').value = o.fecha_egreso ? o.fecha_egreso.split('T')[0] : '';
 
-                // Cargar el costo real de proveedor si ya existía
                 const realCostInput = document.getElementById('modal-costo-refacciones-real');
                 if (realCostInput) realCostInput.value = o.costo_refacciones_real !== undefined && o.costo_refacciones_real !== null ? o.costo_refacciones_real : '';
 
@@ -2523,9 +2305,9 @@
                 let iva = requiereFactura ? subtotal * 0.16 : 0;
                 let total = subtotal + iva;
 
-                document.getElementById('modal-sum-mano').innerText = formatter.format(m);
-                document.getElementById('modal-sum-ref').innerText = formatter.format(r);
-                document.getElementById('modal-sum-total').innerText = formatter.format(total);
+                if(document.getElementById('modal-sum-mano')) document.getElementById('modal-sum-mano').innerText = formatter.format(m);
+                if(document.getElementById('modal-sum-ref')) document.getElementById('modal-sum-ref').innerText = formatter.format(r);
+                if(document.getElementById('modal-sum-total')) document.getElementById('modal-sum-total').innerText = formatter.format(total);
             },
 
             renderModalConcepts() {
@@ -2755,9 +2537,9 @@
                 const saved = localStorage.getItem('fixed_operational_costs_final');
                 if (saved) {
                     fixedCosts = JSON.parse(saved);
-                    document.getElementById('fixed-renta').value = fixedCosts.renta || 0;
-                    document.getElementById('fixed-servicios').value = fixedCosts.servicios || 0;
-                    document.getElementById('fixed-impuestos').value = fixedCosts.impuestos || 0;
+                    if(document.getElementById('fixed-renta')) document.getElementById('fixed-renta').value = fixedCosts.renta || 0;
+                    if(document.getElementById('fixed-servicios')) document.getElementById('fixed-servicios').value = fixedCosts.servicios || 0;
+                    if(document.getElementById('fixed-impuestos')) document.getElementById('fixed-impuestos').value = fixedCosts.impuestos || 0;
                 }
             },
 
