@@ -1533,7 +1533,7 @@
     UI_Controller.renderTreasuryData();
     UI_Controller.renderMecanicosStats();
     Financial_Engine.recalculate();
-}
+},
 
             async fetchPagos(force = false) {
                 const isFresh = !force && (Date.now() - this._lastSync.pagos) < this.STALE_MS;
