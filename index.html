@@ -154,7 +154,7 @@
                     </div>
                     
                     <div class="flex flex-wrap items-center gap-4 w-full lg:w-auto justify-end">
-                        <select id="erp-date-preset" onchange="Financial_Engine.handlePresetChange(); UI_Controller.renderOrdersList();" class="bg-slate-50 border border-slate-200 text-xs font-bold rounded-xl px-4 py-2.5 text-slate-700 focus:outline-none w-full sm:w-56 cursor-pointer">
+                        <select id="erp-date-preset" onchange=".handlePresetChange(); UI_Controller.renderOrdersList();" class="bg-slate-50 border border-slate-200 text-xs font-bold rounded-xl px-4 py-2.5 text-slate-700 focus:outline-none w-full sm:w-56 cursor-pointer">
                             <option value="today">☀️ Hoy</option>
                             <option value="this-week">📅 Esta Semana</option>
                             <option value="this-month" selected>🗓️ Este Mes</option>
@@ -166,11 +166,11 @@
                         <div id="erp-custom-dates" class="hidden flex flex-wrap items-center gap-3 text-xs font-semibold text-slate-600 bg-slate-50 p-2 rounded-xl border border-slate-100">
                             <div class="flex items-center gap-1.5">
                                 <span>Desde:</span>
-                                <input type="date" id="erp-start-date" onchange="Financial_Engine.recalculate(); UI_Controller.renderOrdersList();" class="border border-slate-200 px-3 py-1.5 rounded-lg bg-white focus:outline-none">
+                                <input type="date" id="erp-start-date" onchange=".recalculate(); UI_Controller.renderOrdersList();" class="border border-slate-200 px-3 py-1.5 rounded-lg bg-white focus:outline-none">
                             </div>
                             <div class="flex items-center gap-1.5">
                                 <span>Hasta:</span>
-                                <input type="date" id="erp-end-date" onchange="Financial_Engine.recalculate(); UI_Controller.renderOrdersList();" class="border border-slate-200 px-3 py-1.5 rounded-lg bg-white focus:outline-none">
+                                <input type="date" id="erp-end-date" onchange=".recalculate(); UI_Controller.renderOrdersList();" class="border border-slate-200 px-3 py-1.5 rounded-lg bg-white focus:outline-none">
                             </div>
                         </div>
 
@@ -1297,7 +1297,6 @@
                     if (oDateIngreso >= start && oDateIngreso <= end) {
                         vehiculosAtendidos++; 
                         
-                        // CORRECCIÓN: Si el costo real de proveedor es > 0, usa ese. Si es 0 o null, usa el de la orden.
                         const costRealVal = parseFloat(o.costo_refacciones_real || 0);
                         const costRef = costRealVal > 0 ? costRealVal : parseFloat(o.costo_refacciones || 0);
 
@@ -1567,7 +1566,7 @@
                 });
             }
         };
-
+        
                 let costoNominaPeriodo = 0;
                 _personal.forEach(p => {
                     const sueldoDiario = (parseFloat(p.sueldo) || 0) / 7;
