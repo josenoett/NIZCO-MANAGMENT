@@ -2431,18 +2431,22 @@
                 
                 let montoAbonoIngresado = 0;
 
-                if(currentRole !== 'Mecánico') {
+                if (currentRole !== 'Mecánico') {
                     const paymentState = document.getElementById('modal-estado-pago').value;
                     const requiereFactura = document.getElementById('modal-requiere-factura').checked;
 
-                    let m=0, r=0; modalEditingConcepts.forEach(c=>{ if(c.categoria==='mano-obra') m+=c.cantidad*c.precio; else r+=c.cantidad*c.precio; });
+                    let m = 0, r = 0; 
+                    modalEditingConcepts.forEach(c => { 
+                        if (c.categoria === 'mano-obra') m += c.cantidad * c.precio; 
+                        else r += c.cantidad * c.precio; 
+                    });
                     let subtotal = m + r;
                     let ivaCalculado = requiereFactura ? subtotal * 0.16 : 0;
                     let granTotal = subtotal + ivaCalculado;
 
                     montoAbonoIngresado = parseFloat(document.getElementById('modal-monto-abono').value) || 0;
 
-                    // Si marca la orden como Pagado y no metió monto en la caja de abono, asume el total de la orden
+                    // Si marca la orden como Pagado y no ingresó un monto manual, se asume el total de la orden
                     if (paymentState === 'Pagado' && montoAbonoIngresado === 0) {
                         montoAbonoIngresado = granTotal;
                     }
@@ -2452,7 +2456,7 @@
                     fields.requiere_factura = requiereFactura;
                     fields.total_iva = ivaCalculado;
                     
-                    if(currentRole === 'Administrador') { 
+                    if (currentRole === 'Administrador') { 
                         fields.costo_mano_obra = m; 
                         fields.costo_refacciones = r; 
                         fields.total_cobrado = granTotal; 
@@ -2460,23 +2464,42 @@
                     }
                 }
 
+                // 1. Actualizar la orden en Supabase
                 const { error } = await supabaseClient.from('ordenes_trabajo').update(fields).eq('id', currentEditingOrderId); 
                 if (error) { showToast("Error al guardar: " + error.message, true); return; }
 
+                // 2. Registrar el pago en la base de datos y actualizar memoria local
                 if (montoAbonoIngresado > 0) {
-                    await supabaseClient.from('pagos').insert([{
+                    const nuevoPagoObj = {
                         orden_id: currentEditingOrderId,
                         monto: montoAbonoIngresado,
                         metodo_pago: fields.metodo_pago || 'Efectivo',
                         tipo: fields.estado_pago === 'Anticipo' ? 'anticipo' : 'pago_final',
                         fecha: new Date().toISOString(),
                         observaciones: 'Pago/Liquidación registrado desde el modal de orden'
-                    }]);
+                    };
+
+                    const { data: pagoInsertado, error: errorPago } = await supabaseClient
+                        .from('pagos')
+                        .insert([nuevoPagoObj])
+                        .select();
+
+                    if (!errorPago && pagoInsertado && pagoInsertado.length > 0) {
+                        // Insertar en la lista global en memoria
+                        _pagos.push(pagoInsertado[0]);
+                    } else if (!errorPago) {
+                        _pagos.push(nuevoPagoObj);
+                    }
                 }
 
                 showToast("Cambios guardados con éxito.");
                 this.closeModal(); 
+
+                // 3. Recargar órdenes y re-calcular métricas en tiempo real
                 await API_Service.fetchOrders(true);
+                if (typeof Financial_Engine !== 'undefined') {
+                    await Financial_Engine.recalculate();
+                }
             },
 
             async handleDeleteOrder() {
