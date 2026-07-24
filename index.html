@@ -1022,6 +1022,59 @@
                             <textarea id="modal-diagnostico" rows="3" class="w-full border rounded-xl p-2.5 text-sm resize-none focus:outline-none"></textarea>
                         </div>
 
+                        <!-- SECCIÓN INTEGRADA: COMPRAS Y REFACCIONES -->
+                        <div class="border border-slate-200 rounded-2xl p-4 bg-slate-50/50 flex flex-col gap-3">
+                          <div class="flex justify-between items-center">
+                            <h4 class="font-semibold text-slate-800 text-xs flex items-center gap-1.5 uppercase tracking-wider">
+                              <span class="material-icons text-base text-slate-500">build</span> Compras y Refacciones
+                            </h4>
+                            <span id="lbl-total-refacciones-orden" class="bg-blue-100 text-blue-700 text-xs font-bold px-2.5 py-1 rounded-full">$0.00</span>
+                          </div>
+
+                          <!-- Formulario para agregar compras -->
+                          <form id="form-agregar-refaccion" onsubmit="UI_Controller.guardarRefaccionModal(event)" class="flex flex-col gap-2">
+                            <div class="grid grid-cols-1 sm:grid-cols-12 gap-2">
+                              <input type="text" id="ref-descripcion" placeholder="Descripción (Ej. Kit distribución)" required class="sm:col-span-5 px-3 py-1.5 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+                              <input type="text" id="ref-proveedor" placeholder="Proveedor (Ej. AutoZone)" class="sm:col-span-4 px-3 py-1.5 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+                              <input type="number" step="0.01" id="ref-costo" placeholder="Costo $" required class="sm:col-span-3 px-3 py-1.5 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+                            </div>
+
+                            <div class="grid grid-cols-1 sm:grid-cols-12 gap-2">
+                              <select id="ref-metodo" required class="sm:col-span-4 px-3 py-1.5 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+                                <option value="Efectivo">Efectivo</option>
+                                <option value="Transferencia">Transferencia</option>
+                                <option value="Tarjeta">Tarjeta</option>
+                                <option value="Crédito Proveedor">Crédito Proveedor</option>
+                              </select>
+                              <input type="text" id="ref-folio" placeholder="Folio / Ticket (Opcional)" class="sm:col-span-3 px-3 py-1.5 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+                              <input type="datetime-local" id="ref-fecha" required class="sm:col-span-3 px-3 py-1.5 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+                              
+                              <button type="submit" class="sm:col-span-2 bg-emerald-600 hover:bg-emerald-700 text-white font-medium py-1.5 px-3 rounded-lg text-xs flex items-center justify-center gap-1 transition-colors">
+                                <span class="material-icons text-sm">add</span> Agregar
+                              </button>
+                            </div>
+                          </form>
+
+                          <!-- Tabla de historial de refacciones -->
+                          <div class="overflow-x-auto border border-slate-200 rounded-xl bg-white">
+                            <table class="w-full text-left border-collapse text-xs">
+                              <thead>
+                                <tr class="bg-slate-100/80 text-slate-500 border-b border-slate-200">
+                                  <th class="p-2">Fecha</th>
+                                  <th class="p-2">Descripción</th>
+                                  <th class="p-2">Proveedor</th>
+                                  <th class="p-2">Método</th>
+                                  <th class="p-2 text-right">Costo</th>
+                                  <th class="p-2 text-center"></th>
+                                </tr>
+                              </thead>
+                              <tbody id="tbody-refacciones-orden" class="divide-y divide-slate-100 text-slate-700">
+                                <!-- Se llena dinámicamente -->
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+
                         <div class="bg-slate-50 p-4 rounded-xl border flex flex-col gap-3">
                             <div class="flex justify-between items-center border-b pb-2">
                                 <h4 class="font-bold text-xs text-slate-500 uppercase">Conceptos de la Orden</h4>
@@ -1494,33 +1547,29 @@
                     options: { responsive: true, maintainAspectRatio: false }
                 });
             },
-    // ==========================================
-    // CONSULTA DE FLUJO DE CAJA (INGRESOS vs EGRESOS POR FECHA)
-    // ==========================================
-    async obtenerFlujoCaja(fechaInicio, fechaFin) {
-        // 1. Obtener Ingresos (Pagos) dentro del rango
-        const { data: pagos, error: errPagos } = await supabase
-            .from('pagos')
-            .select('*, ordenes_trabajo(folio, cliente)')
-            .gte('fecha', fechaInicio)
-            .lte('fecha', fechaFin);
 
-        if (errPagos) throw errPagos;
+            async obtenerFlujoCaja(fechaInicio, fechaFin) {
+                const { data: pagos, error: errPagos } = await supabaseClient
+                    .from('pagos')
+                    .select('*, ordenes_trabajo(id, cliente_nombre)')
+                    .gte('fecha', fechaInicio)
+                    .lte('fecha', fechaFin);
 
-        // 2. Obtener Egresos (Compras de Refacciones) dentro del rango
-        const { data: compras, error: errCompras } = await supabase
-            .from('compras_refacciones')
-            .select('*, ordenes_trabajo(folio, cliente)')
-            .gte('fecha_compra', fechaInicio)
-            .lte('fecha_compra', fechaFin);
+                if (errPagos) throw errPagos;
 
-        if (errCompras) throw errCompras;
+                const { data: compras, error: errCompras } = await supabaseClient
+                    .from('compras_refacciones')
+                    .select('*, ordenes_trabajo(id, cliente_nombre)')
+                    .gte('fecha_compra', fechaInicio)
+                    .lte('fecha_compra', fechaFin);
 
-        return {
-            ingresos: pagos || [],
-            egresos: compras || []
-        };
-    }
+                if (errCompras) throw errCompras;
+
+                return {
+                    ingresos: pagos || [],
+                    egresos: compras || []
+                };
+            }
         };
 
         const API_Service = {
@@ -1528,39 +1577,37 @@
             STALE_MS: 60000,
 
             async fetchOrders(force = false) {
-    const isFresh = !force && (Date.now() - this._lastSync.orders) < this.STALE_MS;
-    if (!isFresh && supabaseClient) {
-        try {
-            // 1. Cargar Órdenes
-            const { data: ordersData, error: ordersError } = await supabaseClient
-                .from('ordenes_trabajo')
-                .select('id, cliente_nombre, cliente_telefono, auto_marca, auto_modelo, auto_placas, kilometraje, tecnico_asignado, tecnico_user_id, estado, costo_mano_obra, costo_refacciones, total_cobrado, estado_pago, metodo_pago, fecha_ingreso, fecha_egreso, requiere_factura, total_iva, conceptos')
-                .order('id', { ascending: false });
-            if (ordersError) throw ordersError;
-            _orders = (ordersData || []).map(o => ({ ...o, conceptos: Array.isArray(o.conceptos) ? o.conceptos : JSON.parse(o.conceptos || '[]') }));
+                const isFresh = !force && (Date.now() - this._lastSync.orders) < this.STALE_MS;
+                if (!isFresh && supabaseClient) {
+                    try {
+                        const { data: ordersData, error: ordersError } = await supabaseClient
+                            .from('ordenes_trabajo')
+                            .select('id, cliente_nombre, cliente_telefono, auto_marca, auto_modelo, auto_placas, kilometraje, tecnico_asignado, tecnico_user_id, estado, costo_mano_obra, costo_refacciones, total_cobrado, estado_pago, metodo_pago, fecha_ingreso, fecha_egreso, requiere_factura, total_iva, conceptos')
+                            .order('id', { ascending: false });
+                        if (ordersError) throw ordersError;
+                        _orders = (ordersData || []).map(o => ({ ...o, conceptos: Array.isArray(o.conceptos) ? o.conceptos : JSON.parse(o.conceptos || '[]') }));
 
-            // 2. Cargar Pagos Históricos Sincronizados
-            const { data: pagosData, error: pagosError } = await supabaseClient
-                .from('pagos')
-                .select('*')
-                .order('fecha', { ascending: false });
-            if (!pagosError) {
-                _pagos = pagosData || [];
-            }
+                        const { data: pagosData, error: pagosError } = await supabaseClient
+                            .from('pagos')
+                            .select('*')
+                            .order('fecha', { ascending: false });
+                        if (!pagosError) {
+                            _pagos = pagosData || [];
+                        }
 
-            this._lastSync.orders = Date.now();
-        } catch (error) { 
-            _orders = []; 
-            showToast(`Error al sincronizar datos: ${error.message}`, true); 
-        }
-    }
-    
-    UI_Controller.renderOrdersList();
-    UI_Controller.populateQuoteOrdersDropdown();
-    UI_Controller.renderTreasuryData();
-    UI_Controller.renderMecanicosStats();
-    Financial_Engine.recalculate();
-},
+                        this._lastSync.orders = Date.now();
+                    } catch (error) { 
+                        _orders = []; 
+                        showToast(`Error al sincronizar datos: ${error.message}`, true); 
+                    }
+                }
+                
+                UI_Controller.renderOrdersList();
+                UI_Controller.populateQuoteOrdersDropdown();
+                UI_Controller.renderTreasuryData();
+                UI_Controller.renderMecanicosStats();
+                Financial_Engine.recalculate();
+            },
 
             async fetchPagos(force = false) {
                 const isFresh = !force && (Date.now() - this._lastSync.pagos) < this.STALE_MS;
@@ -1616,41 +1663,41 @@
             async refreshAll() {
                 await Promise.all([this.fetchOrders(true), this.fetchPersonal(true), this.fetchExpenses(true)]);
             },
-            // ==========================================
-    // MÓDULO DE COMPRAS / REFACCIONES
-    // ==========================================
-    async registrarCompraRefaccion(datosCompra) {
-        const { data, error } = await supabase
-            .from('compras_refacciones')
-            .insert([datosCompra])
-            .select();
-            
-        if (error) throw error;
-        return data[0];
-    },
 
-    async obtenerComprasPorOrden(ordenId) {
-        const { data, error } = await supabase
-            .from('compras_refacciones')
-            .select('*')
-            .eq('orden_id', ordenId)
-            .order('fecha_compra', { ascending: true });
-            
-        if (error) throw error;
-        return data;
-    },
+            async registrarCompraRefaccion(datosCompra) {
+                const { data, error } = await supabaseClient
+                    .from('compras_refacciones')
+                    .insert([datosCompra])
+                    .select();
+                    
+                if (error) throw error;
+                return data[0];
+            },
 
-    async eliminarCompraRefaccion(compraId) {
-        const { error } = await supabase
-            .from('compras_refacciones')
-            .delete()
-            .eq('id', compraId);
-            
-        if (error) throw error;
-    }
+            async obtenerComprasPorOrden(ordenId) {
+                const { data, error } = await supabaseClient
+                    .from('compras_refacciones')
+                    .select('*')
+                    .eq('orden_id', ordenId)
+                    .order('fecha_compra', { ascending: true });
+                    
+                if (error) throw error;
+                return data;
+            },
+
+            async eliminarCompraRefaccion(compraId) {
+                const { error } = await supabaseClient
+                    .from('compras_refacciones')
+                    .delete()
+                    .eq('id', compraId);
+                    
+                if (error) throw error;
+            }
         };
 
         const UI_Controller = {
+            ordenActivaId: null,
+
             switchTab(tabId) {
                 document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
                 document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('text-blue-600', 'bg-blue-50/80'));
@@ -2191,6 +2238,9 @@
                 document.getElementById('modal-edit-order').classList.remove('hidden');
                 this.applyRolePermissions();
                 this.toggleModalPaymentMethod();
+
+                // Cargar compras/refacciones asociadas a la orden
+                this.cargarRefaccionesModal(id);
             },
 
             closeModal() { document.getElementById('modal-edit-order').classList.add('hidden'); },
@@ -2236,6 +2286,100 @@
                         </div>`;
                 }).join('');
                 this.calculateModalTotals();
+            },
+
+            // LÓGICA DE COMPRAS Y REFACCIONES EN EL MODAL
+            async cargarRefaccionesModal(ordenId) {
+                this.ordenActivaId = ordenId;
+                
+                const now = new Date();
+                now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+                const inputFecha = document.getElementById('ref-fecha');
+                if (inputFecha) inputFecha.value = now.toISOString().slice(0, 16);
+
+                try {
+                    const compras = await API_Service.obtenerComprasPorOrden(ordenId);
+                    const tbody = document.getElementById('tbody-refacciones-orden');
+                    const lblTotal = document.getElementById('lbl-total-refacciones-orden');
+                    
+                    if (!tbody) return;
+                    tbody.innerHTML = '';
+                    let totalAcumulado = 0;
+
+                    if (!compras || compras.length === 0) {
+                        tbody.innerHTML = `<tr><td colspan="6" class="p-3 text-center text-slate-400">No hay compras registradas para esta orden.</td></tr>`;
+                    } else {
+                        compras.forEach(item => {
+                            totalAcumulado += parseFloat(item.costo_neto || 0);
+                            const fechaFormateada = new Date(item.fecha_compra).toLocaleString('es-MX', {
+                                day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'
+                            });
+
+                            tbody.innerHTML += `
+                                <tr class="hover:bg-slate-50 transition">
+                                    <td class="p-2 text-[10px] text-slate-500 font-medium">${fechaFormateada}</td>
+                                    <td class="p-2 font-semibold text-slate-800">${escapeHtml(item.descripcion)}</td>
+                                    <td class="p-2 text-slate-600">${escapeHtml(item.proveedor || '-')}</td>
+                                    <td class="p-2"><span class="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-600 border border-slate-200">${escapeHtml(item.metodo_pago)}</span></td>
+                                    <td class="p-2 text-right font-bold text-slate-800">${formatter.format(item.costo_neto)}</td>
+                                    <td class="p-2 text-center">
+                                        <button type="button" onclick="UI_Controller.borrarRefaccionModal(${item.id})" class="text-rose-500 hover:text-rose-700 transition" title="Eliminar">
+                                            <span class="material-icons text-sm">delete</span>
+                                        </button>
+                                    </td>
+                                </tr>
+                            `;
+                        });
+                    }
+
+                    if (lblTotal) lblTotal.innerText = formatter.format(totalAcumulado);
+                } catch (err) {
+                    console.error("Error al cargar refacciones:", err);
+                    showToast("Error al cargar el historial de refacciones", true);
+                }
+            },
+
+            async guardarRefaccionModal(event) {
+                event.preventDefault();
+
+                if (!this.ordenActivaId) return;
+
+                const datosCompra = {
+                    orden_id: this.ordenActivaId,
+                    descripcion: document.getElementById('ref-descripcion').value.trim(),
+                    proveedor: document.getElementById('ref-proveedor').value.trim() || null,
+                    costo_neto: parseFloat(document.getElementById('ref-costo').value),
+                    metodo_pago: document.getElementById('ref-metodo').value,
+                    folio_ticket_factura: document.getElementById('ref-folio').value.trim() || null,
+                    fecha_compra: new Date(document.getElementById('ref-fecha').value).toISOString()
+                };
+
+                try {
+                    await API_Service.registrarCompraRefaccion(datosCompra);
+                    showToast("Refacción registrada con éxito");
+                    
+                    document.getElementById('form-agregar-refaccion').reset();
+                    await this.cargarRefaccionesModal(this.ordenActivaId);
+                    
+                    API_Service.fetchOrders(true);
+                } catch (err) {
+                    console.error("Error al guardar refacción:", err);
+                    showToast("No se pudo registrar la compra", true);
+                }
+            },
+
+            async borrarRefaccionModal(compraId) {
+                customConfirm("¿Eliminar refacción?", "El costo total de la compra se actualizará automáticamente.", async () => {
+                    try {
+                        await API_Service.eliminarCompraRefaccion(compraId);
+                        showToast("Compra eliminada");
+                        await UI_Controller.cargarRefaccionesModal(UI_Controller.ordenActivaId);
+                        API_Service.fetchOrders(true);
+                    } catch (err) {
+                        console.error("Error al eliminar refacción:", err);
+                        showToast("Error al intentar borrar la compra", true);
+                    }
+                });
             },
 
             async handleSaveChanges() {
