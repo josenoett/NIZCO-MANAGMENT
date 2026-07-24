@@ -1302,7 +1302,7 @@
                 const totalDays = Math.max(1, Math.ceil(durationMs / (1000 * 60 * 60 * 24)));
 
                 let vehiculosAtendidos = 0;
-                let ingresos = 0; // Ventas Brutas Totales (Órdenes en el periodo)
+                let ingresos = 0; // Ventas Brutas Totales (Órdenes en el periodo con IVA incluido)
                 let pagado = 0;
                 let anticipo = 0;
                 let refaccionesCostBruto = 0; 
@@ -1312,17 +1312,16 @@
                 let montosPorCategoria = {};
                 _categories.forEach(cat => montosPorCategoria[cat] = 0);
 
-                // 1. VEHÍCULOS ATENDIDOS E INGRESOS REALES DE ÓRDENES (SIN DUPLICADOS POR FECHA)
+                // 1. VEHÍCULOS ATENDIDOS E INGRESOS REALES DE ÓRDENES
                 _orders.forEach(o => {
                     if (o.estado === 'Cancelada') return;
 
                     const oDate = new Date(o.fecha_ingreso || o.fecha_registro);
                     
-                    // Solo evaluar la orden UNA SOLA VEZ dentro del rango del filtro
                     if (oDate >= start && oDate <= end) {
                         vehiculosAtendidos++;
 
-                        // Suma de conceptos o costo base
+                        // Determinar el subtotal sin IVA de la orden
                         let subtotalBase = parseFloat(o.costo_mano_obra || 0) + parseFloat(o.costo_refacciones || 0);
                         
                         if (subtotalBase === 0 && o.conceptos && Array.isArray(o.conceptos) && o.conceptos.length > 0) {
@@ -1331,7 +1330,6 @@
                             });
                         }
 
-                        // Si no hay desglose, tomamos total_cobrado como subtotal base
                         if (subtotalBase === 0) {
                             subtotalBase = parseFloat(o.total_cobrado || 0);
                         }
@@ -1339,22 +1337,20 @@
                         let ivaOrden = 0;
                         let granTotalOrden = subtotalBase;
 
-                        // Si requiere factura, aseguramos el 16% de IVA sobre la orden
+                        // Si la orden requiere factura (Ej. Orden #76)
                         if (o.requiere_factura) {
+                            // Calcula el 16% sobre el subtotal ($5,069.20 * 0.16 = $811.07)
                             ivaOrden = parseFloat(o.total_iva || 0);
                             if (ivaOrden === 0) {
                                 ivaOrden = subtotalBase * 0.16;
                             }
-                            granTotalOrden = subtotalBase + ivaOrden;
+                            granTotalOrden = subtotalBase + ivaOrden; // $5,069.20 + $811.07 = $5,880.27
+                            totalIva16Cobrado += ivaOrden;
                         } else {
-                            granTotalOrden = parseFloat(o.total_cobrado || 0) || subtotalBase;
+                            granTotalOrden = subtotalBase;
                         }
 
                         ingresos += granTotalOrden;
-
-                        if (o.requiere_factura) {
-                            totalIva16Cobrado += ivaOrden;
-                        }
 
                         if (o.estado_pago === 'Anticipo') {
                             anticipo += granTotalOrden;
@@ -1364,7 +1360,7 @@
                     }
                 });
 
-                // 2. REFACCIONES REALES (Compras registradas en Supabase o Costos de Órdenes)
+                // 2. REFACCIONES REALES (Compras en Supabase o Costos de Órdenes)
                 if (supabaseClient) {
                     try {
                         const { data: comprasRango } = await supabaseClient
@@ -1416,7 +1412,7 @@
                     }
                 });
 
-                // 4. NÓMINA Y GASTOS FIJOS OPERATIVOS
+                // 4. NÓMINA Y FIJOS OPERATIVOS
                 let costoNominaPeriodo = 0;
                 _personal.forEach(p => {
                     const sueldoDiario = (parseFloat(p.sueldo) || 0) / 7;
