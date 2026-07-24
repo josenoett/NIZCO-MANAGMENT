@@ -1493,7 +1493,34 @@
                     },
                     options: { responsive: true, maintainAspectRatio: false }
                 });
-            }
+            },
+    // ==========================================
+    // CONSULTA DE FLUJO DE CAJA (INGRESOS vs EGRESOS POR FECHA)
+    // ==========================================
+    async obtenerFlujoCaja(fechaInicio, fechaFin) {
+        // 1. Obtener Ingresos (Pagos) dentro del rango
+        const { data: pagos, error: errPagos } = await supabase
+            .from('pagos')
+            .select('*, ordenes_trabajo(folio, cliente)')
+            .gte('fecha', fechaInicio)
+            .lte('fecha', fechaFin);
+
+        if (errPagos) throw errPagos;
+
+        // 2. Obtener Egresos (Compras de Refacciones) dentro del rango
+        const { data: compras, error: errCompras } = await supabase
+            .from('compras_refacciones')
+            .select('*, ordenes_trabajo(folio, cliente)')
+            .gte('fecha_compra', fechaInicio)
+            .lte('fecha_compra', fechaFin);
+
+        if (errCompras) throw errCompras;
+
+        return {
+            ingresos: pagos || [],
+            egresos: compras || []
+        };
+    }
         };
 
         const API_Service = {
@@ -1588,7 +1615,39 @@
 
             async refreshAll() {
                 await Promise.all([this.fetchOrders(true), this.fetchPersonal(true), this.fetchExpenses(true)]);
-            }
+            },
+            // ==========================================
+    // MÓDULO DE COMPRAS / REFACCIONES
+    // ==========================================
+    async registrarCompraRefaccion(datosCompra) {
+        const { data, error } = await supabase
+            .from('compras_refacciones')
+            .insert([datosCompra])
+            .select();
+            
+        if (error) throw error;
+        return data[0];
+    },
+
+    async obtenerComprasPorOrden(ordenId) {
+        const { data, error } = await supabase
+            .from('compras_refacciones')
+            .select('*')
+            .eq('orden_id', ordenId)
+            .order('fecha_compra', { ascending: true });
+            
+        if (error) throw error;
+        return data;
+    },
+
+    async eliminarCompraRefaccion(compraId) {
+        const { error } = await supabase
+            .from('compras_refacciones')
+            .delete()
+            .eq('id', compraId);
+            
+        if (error) throw error;
+    }
         };
 
         const UI_Controller = {
