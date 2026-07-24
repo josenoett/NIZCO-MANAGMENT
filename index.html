@@ -1302,7 +1302,7 @@
                 const totalDays = Math.max(1, Math.ceil(durationMs / (1000 * 60 * 60 * 24)));
 
                 let vehiculosAtendidos = 0;
-                let ingresos = 0; // Representa Ventas Brutas Totales (Cobrado al cliente con IVA)
+                let ingresos = 0; // Ventas Brutas Totales (Con IVA incluido)
                 let pagado = 0;
                 let anticipo = 0;
                 let refaccionesCostBruto = 0; 
@@ -1312,7 +1312,7 @@
                 let montosPorCategoria = {};
                 _categories.forEach(cat => montosPorCategoria[cat] = 0);
 
-                // 1 y 2. VEHÍCULOS ATENDIDOS E INGRESOS DIRECTOS DE ÓRDENES EN EL PERIODO
+                // 1 y 2. VEHÍCULOS ATENDIDOS E INGRESOS CORREGIDOS CON IVA
                 _orders.forEach(o => {
                     if (o.estado === 'Cancelada') return;
 
@@ -1320,12 +1320,27 @@
                     if (oDate >= start && oDate <= end) {
                         vehiculosAtendidos++;
 
-                        // Determinar el costo base (Mano de Obra + Refacciones)
-                        const subtotalBase = parseFloat(o.costo_mano_obra || 0) + parseFloat(o.costo_refacciones || 0);
-                        const ivaOrden = o.requiere_factura ? (parseFloat(o.total_iva || 0) || (subtotalBase * 0.16)) : 0;
-                        
-                        // Total cobrado real (Gran Total con IVA si requiere factura)
-                        const totalCobradoReal = parseFloat(o.total_cobrado || 0) || (subtotalBase + ivaOrden);
+                        // Suma real de conceptos de la orden
+                        let subtotalConceptos = 0;
+                        if (o.conceptos && Array.isArray(o.conceptos)) {
+                            o.conceptos.forEach(c => {
+                                subtotalConceptos += (parseFloat(c.cantidad || 0) * parseFloat(c.precio || 0));
+                            });
+                        }
+
+                        // Si no hay conceptos array, usar total_cobrado como subtotal
+                        if (subtotalConceptos === 0) {
+                            subtotalConceptos = parseFloat(o.total_cobrado || 0);
+                        }
+
+                        // Calcular el IVA real si la orden requiere factura
+                        let ivaOrden = 0;
+                        if (o.requiere_factura) {
+                            ivaOrden = parseFloat(o.total_iva || 0) || (subtotalConceptos * 0.16);
+                        }
+
+                        // Gran Total de la Orden (Bruto con IVA)
+                        let totalCobradoReal = subtotalConceptos + ivaOrden;
 
                         ingresos += totalCobradoReal;
 
@@ -1375,7 +1390,7 @@
                 let egresosManuales = 0;
                 let deduccionesNomina = 0; 
 
-                // 4. EGRESOS VARIOS (GASTOS EN CAJA)
+                // 4. EGRESOS VARIOS
                 _expenses.forEach(e => {
                     const eDate = new Date(e.fecha + 'T00:00:00');
                     if (eDate >= start && eDate <= end) {
@@ -1393,7 +1408,7 @@
                     }
                 });
 
-                // 5. NÓMINA Y GASTOS FIJOS OPERATIVOS
+                // 5. NÓMINA Y FIJOS
                 let costoNominaPeriodo = 0;
                 _personal.forEach(p => {
                     const sueldoDiario = (parseFloat(p.sueldo) || 0) / 7;
@@ -1427,8 +1442,6 @@
                 montosPorCategoria["Internet"] += serviciosFraccionados;
 
                 const totalGastos = refaccionesCostNeto + nominaFinalConDescuentos + costoFijosPeriodo + egresosManuales;
-                
-                // Las ventas netas son el Ingreso Bruto menos el IVA de facturación trasladado
                 const ventasNetasSinIva16 = ingresos - totalIva16Cobrado;
                 
                 const utilidadBruta = ventasNetasSinIva16 - refaccionesCostNeto; 
