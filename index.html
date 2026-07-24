@@ -1307,56 +1307,35 @@
                 let anticipo = 0;
                 let refaccionesCostBruto = 0; 
                 let refaccionesCostNeto = 0;  
+                let totalIva16Cobrado = 0;
 
                 let montosPorCategoria = {};
                 _categories.forEach(cat => montosPorCategoria[cat] = 0);
 
-                // 1. Vehículos Atendidos
+                // 1 y 2. VEHÍCULOS ATENDIDOS E INGRESOS DIRECTOS DE ÓRDENES EN EL PERIODO
                 _orders.forEach(o => {
                     if (o.estado === 'Cancelada') return;
-                    const oDateIngreso = new Date(o.fecha_ingreso || o.fecha_registro);
-                    if (oDateIngreso >= start && oDateIngreso <= end) {
-                        vehiculosAtendidos++; 
+
+                    const oDate = new Date(o.fecha_ingreso || o.fecha_registro);
+                    if (oDate >= start && oDate <= end) {
+                        vehiculosAtendidos++;
+
+                        const totalOrden = parseFloat(o.total_cobrado || 0);
+                        ingresos += totalOrden;
+
+                        if (o.estado_pago === 'Anticipo') {
+                            anticipo += totalOrden;
+                        } else {
+                            pagado += totalOrden;
+                        }
+
+                        if (o.requiere_factura) {
+                            totalIva16Cobrado += parseFloat(o.total_iva || 0);
+                        }
                     }
                 });
 
-                // 2. INGRESOS REALES (Consulta Directa a Tabla PAGOS por Rango de Fechas)
-                if (supabaseClient) {
-                    try {
-                        const { data: pagosRango } = await supabaseClient
-                            .from('pagos')
-                            .select('monto, tipo, fecha')
-                            .gte('fecha', start.toISOString())
-                            .lte('fecha', end.toISOString());
-
-                        if (pagosRango && pagosRango.length > 0) {
-                            pagosRango.forEach(p => {
-                                const monto = parseFloat(p.monto || 0);
-                                ingresos += monto;
-                                if (p.tipo === 'anticipo') {
-                                    anticipo += monto;
-                                } else {
-                                    pagado += monto;
-                                }
-                            });
-                        } else {
-                            // Respaldar con arreglo local si aplica
-                            _pagos.forEach(p => {
-                                const pDate = new Date(p.fecha);
-                                if (pDate >= start && pDate <= end) {
-                                    const monto = parseFloat(p.monto || 0);
-                                    ingresos += monto;
-                                    if (p.tipo === 'anticipo') anticipo += monto;
-                                    else pagado += monto;
-                                }
-                            });
-                        }
-                    } catch (e) {
-                        console.error("Error al obtener pagos:", e);
-                    }
-                }
-
-                // 3. REFACCIONES REALES
+                // 3. REFACCIONES REALES (Compras registradas en Supabase o Costos de Órdenes)
                 if (supabaseClient) {
                     try {
                         const { data: comprasRango } = await supabaseClient
@@ -1390,16 +1369,16 @@
                 let egresosManuales = 0;
                 let deduccionesNomina = 0; 
 
-                // 4. EGRESOS VARIOS
+                // 4. EGRESOS VARIOS (GASTOS EN CAJA)
                 _expenses.forEach(e => {
                     const eDate = new Date(e.fecha + 'T00:00:00');
-                    if(eDate >= start && eDate <= end) {
+                    if (eDate >= start && eDate <= end) {
                         const mAmt = parseFloat(e.monto || 0);
                         if (e.categoria === "Nómina" && mAmt < 0) {
                             deduccionesNomina += Math.abs(mAmt); 
                         } else {
                             egresosManuales += mAmt;
-                            if(montosPorCategoria[e.categoria] !== undefined) {
+                            if (montosPorCategoria[e.categoria] !== undefined) {
                                 montosPorCategoria[e.categoria] += mAmt;
                             } else {
                                 montosPorCategoria[e.categoria] = mAmt;
@@ -1408,7 +1387,7 @@
                     }
                 });
 
-                // 5. NÓMINA Y FIJOS
+                // 5. NÓMINA Y GASTOS FIJOS OPERATIVOS
                 let costoNominaPeriodo = 0;
                 _personal.forEach(p => {
                     const sueldoDiario = (parseFloat(p.sueldo) || 0) / 7;
@@ -1447,7 +1426,8 @@
                 const margenUtilidad = ingresos > 0 ? (utilidadNeta / ingresos) * 100 : 0;
                 const ticketPromedio = vehiculosAtendidos > 0 ? ingresos / vehiculosAtendidos : 0;
 
-                if(document.getElementById('dash-ingresos')) {
+                // RENDERIZADO EN PANTALLA
+                if (document.getElementById('dash-ingresos')) {
                     document.getElementById('dash-ingresos').innerText = formatter.format(ingresos);
                     document.getElementById('dash-utilidad-bruta').innerText = formatter.format(utilidadBruta);
                     document.getElementById('dash-egresos').innerText = formatter.format(totalGastos);
@@ -1456,23 +1436,14 @@
                     document.getElementById('dash-ticket-promedio').innerText = formatter.format(ticketPromedio);
                     document.getElementById('dash-margen').innerText = `${margenUtilidad.toFixed(1)}%`;
                     
-                    if(document.getElementById('caja-pagado')) document.getElementById('caja-pagado').innerText = formatter.format(pagado);
-                    if(document.getElementById('caja-anticipo')) document.getElementById('caja-anticipo').innerText = formatter.format(anticipo);
-                    if(document.getElementById('costo-ref-total')) document.getElementById('costo-ref-total').innerText = formatter.format(refaccionesCostNeto);
-                    if(document.getElementById('costo-fijos-total')) document.getElementById('costo-fijos-total').innerText = formatter.format(costoFijosPeriodo);
-                    if(document.getElementById('costo-nomina-total')) document.getElementById('costo-nomina-total').innerText = formatter.format(nominaFinalConDescuentos);
+                    if (document.getElementById('caja-pagado')) document.getElementById('caja-pagado').innerText = formatter.format(pagado);
+                    if (document.getElementById('caja-anticipo')) document.getElementById('caja-anticipo').innerText = formatter.format(anticipo);
+                    if (document.getElementById('costo-ref-total')) document.getElementById('costo-ref-total').innerText = formatter.format(refaccionesCostNeto);
+                    if (document.getElementById('costo-fijos-total')) document.getElementById('costo-fijos-total').innerText = formatter.format(costoFijosPeriodo);
+                    if (document.getElementById('costo-nomina-total')) document.getElementById('costo-nomina-total').innerText = formatter.format(nominaFinalConDescuentos);
 
                     const catContainer = document.getElementById('dashboard-categories-container');
                     
-                    let totalIva16Cobrado = 0;
-                    _orders.forEach(o => {
-                        if (o.estado === 'Cancelada') return;
-                        const oDate = new Date(o.fecha_ingreso || o.fecha_registro);
-                        if (oDate >= start && oDate <= end && o.requiere_factura) {
-                            totalIva16Cobrado += parseFloat(o.total_iva || 0);
-                        }
-                    });
-
                     let ventasNetasSinIva16 = ingresos - totalIva16Cobrado;
                     const iva8Total = refaccionesCostBruto - refaccionesCostNeto;
 
@@ -1482,7 +1453,7 @@
                                 <span class="material-icons text-xs">point_of_sale</span> 📊 Desglose de Ventas (Ingresos)
                             </span>
                             <div class="flex justify-between text-slate-600">
-                                <span>Ventas Brutas (Total en Caja):</span>
+                                <span>Ventas Brutas (Órdenes):</span>
                                 <span class="font-semibold text-slate-800">${formatter.format(ingresos)}</span>
                             </div>
                             <div class="flex justify-between text-slate-600">
