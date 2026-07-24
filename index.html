@@ -2442,6 +2442,11 @@
 
                     montoAbonoIngresado = parseFloat(document.getElementById('modal-monto-abono').value) || 0;
 
+                    // Si marca la orden como Pagado y no metió monto en la caja de abono, asume el total de la orden
+                    if (paymentState === 'Pagado' && montoAbonoIngresado === 0) {
+                        montoAbonoIngresado = granTotal;
+                    }
+
                     fields.estado_pago = paymentState;
                     fields.metodo_pago = (paymentState === 'Anticipo' || paymentState === 'Pagado') ? document.getElementById('modal-metodo-pago').value : '';
                     fields.requiere_factura = requiereFactura;
@@ -2464,12 +2469,14 @@
                         monto: montoAbonoIngresado,
                         metodo_pago: fields.metodo_pago || 'Efectivo',
                         tipo: fields.estado_pago === 'Anticipo' ? 'anticipo' : 'pago_final',
-                        observaciones: 'Abono registrado durante gestión de la orden'
+                        fecha: new Date().toISOString(),
+                        observaciones: 'Pago/Liquidación registrado desde el modal de orden'
                     }]);
                 }
 
                 showToast("Cambios guardados con éxito.");
-                this.closeModal(); API_Service.fetchOrders(true);
+                this.closeModal(); 
+                await API_Service.fetchOrders(true);
             },
 
             async handleDeleteOrder() {
