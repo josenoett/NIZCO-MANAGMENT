@@ -1294,112 +1294,85 @@
                 }
             },
 
-            async recalculate() {
+            recalculate() {
                 const preset = document.getElementById('erp-date-preset').value;
                 const { start, end } = this.getDateRange(preset);
+                if (!document.getElementById('chart-ingresos-gastos')) return;
 
                 const durationMs = end - start;
                 const totalDays = Math.max(1, Math.ceil(durationMs / (1000 * 60 * 60 * 24)));
 
                 let vehiculosAtendidos = 0;
-                let ingresos = 0; // Ventas Brutas Totales (Con IVA incluido)
+                let ingresos = 0;
                 let pagado = 0;
                 let anticipo = 0;
                 let refaccionesCostBruto = 0; 
                 let refaccionesCostNeto = 0;  
+                let erManoObra = 0;
                 let totalIva16Cobrado = 0;
 
                 let montosPorCategoria = {};
                 _categories.forEach(cat => montosPorCategoria[cat] = 0);
 
-                // 1 y 2. VEHÍCULOS ATENDIDOS E INGRESOS CORREGIDOS CON IVA
+                // 1. CÁLCULO DIRECTO DE INGRESOS (Lógica de tu versión estable)
                 _orders.forEach(o => {
                     if (o.estado === 'Cancelada') return;
 
-                    const oDate = new Date(o.fecha_ingreso || o.fecha_registro);
-                    if (oDate >= start && oDate <= end) {
-                        vehiculosAtendidos++;
+                    const oDateIngreso = new Date(o.fecha_ingreso || o.fecha_registro);
+                    const oDateEgreso = o.fecha_egreso ? new Date(o.fecha_egreso) : oDateIngreso;
+                    
+                    const tot = parseFloat(o.total_cobrado || 0);
+                    const abonoExacto = parseFloat(o.costo_diagnostico || 0); 
+                    const restoLiquidacion = tot - abonoExacto;
 
-                        // Suma real de conceptos de la orden
-                        let subtotalConceptos = 0;
-                        if (o.conceptos && Array.isArray(o.conceptos)) {
-                            o.conceptos.forEach(c => {
-                                subtotalConceptos += (parseFloat(c.cantidad || 0) * parseFloat(c.precio || 0));
-                            });
-                        }
-
-                        // Si no hay conceptos array, usar total_cobrado como subtotal
-                        if (subtotalConceptos === 0) {
-                            subtotalConceptos = parseFloat(o.total_cobrado || 0);
-                        }
-
-                        // Calcular el IVA real si la orden requiere factura
-                        let ivaOrden = 0;
-                        if (o.requiere_factura) {
-                            ivaOrden = parseFloat(o.total_iva || 0) || (subtotalConceptos * 0.16);
-                        }
-
-                        // Gran Total de la Orden (Bruto con IVA)
-                        let totalCobradoReal = subtotalConceptos + ivaOrden;
-
-                        ingresos += totalCobradoReal;
-
-                        if (o.requiere_factura) {
-                            totalIva16Cobrado += ivaOrden;
-                        }
+                    if (oDateIngreso >= start && oDateIngreso <= end) {
+                        vehiculosAtendidos++; 
+                        
+                        const costRef = parseFloat(o.costo_refacciones || 0);
+                        refaccionesCostBruto += costRef;
+                        refaccionesCostNeto += (costRef / 1.08); 
+                        erManoObra += parseFloat(o.costo_mano_obra || 0);
 
                         if (o.estado_pago === 'Anticipo') {
-                            anticipo += totalCobradoReal;
-                        } else {
-                            pagado += totalCobradoReal;
+                            ingresos += abonoExacto;
+                            anticipo += abonoExacto;
+                        } else if (o.estado_pago === 'Pagado' && abonoExacto > 0) {
+                            ingresos += abonoExacto;
+                            anticipo += abonoExacto;
                         }
+                    }
+
+                    if (oDateEgreso >= start && oDateEgreso <= end) {
+                        if (o.estado_pago === 'Pagado') {
+                            if (abonoExacto > 0) {
+                                ingresos += restoLiquidacion;
+                                pagado += restoLiquidacion;
+                            } else {
+                                ingresos += tot;
+                                pagado += tot;
+                            }
+                        }
+                    }
+
+                    // Cálculo de IVA 16% para el desglose
+                    if (o.requiere_factura && (oDateIngreso >= start && oDateIngreso <= end)) {
+                        totalIva16Cobrado += parseFloat(o.total_iva || 0) || (tot - (tot / 1.16));
                     }
                 });
 
-                // 3. REFACCIONES REALES (Compras registradas en Supabase o Costos de Órdenes)
-                if (supabaseClient) {
-                    try {
-                        const { data: comprasRango } = await supabaseClient
-                            .from('compras_refacciones')
-                            .select('costo_neto, fecha_compra')
-                            .gte('fecha_compra', start.toISOString())
-                            .lte('fecha_compra', end.toISOString());
-
-                        if (comprasRango && comprasRango.length > 0) {
-                            comprasRango.forEach(c => {
-                                const cTotal = parseFloat(c.costo_neto || 0);
-                                refaccionesCostBruto += cTotal;
-                                refaccionesCostNeto += (cTotal / 1.08);
-                            });
-                        } else {
-                            _orders.forEach(o => {
-                                if (o.estado === 'Cancelada') return;
-                                const oDate = new Date(o.fecha_ingreso || o.fecha_registro);
-                                if (oDate >= start && oDate <= end) {
-                                    const costRefTotal = parseFloat(o.costo_refacciones || 0);
-                                    refaccionesCostBruto += costRefTotal;
-                                    refaccionesCostNeto += (costRefTotal / 1.08);
-                                }
-                            });
-                        }
-                    } catch (e) {
-                        console.error("Error al obtener compras de refacciones:", e);
-                    }
-                }
-
+                // 2. EGRESOS VARIOS
                 let egresosManuales = 0;
                 let deduccionesNomina = 0; 
 
-                // 4. EGRESOS VARIOS
                 _expenses.forEach(e => {
                     const eDate = new Date(e.fecha + 'T00:00:00');
-                    if (eDate >= start && eDate <= end) {
+                    if(eDate >= start && eDate <= end) {
                         const mAmt = parseFloat(e.monto || 0);
                         if (e.categoria === "Nómina" && mAmt < 0) {
                             deduccionesNomina += Math.abs(mAmt); 
                         } else {
                             egresosManuales += mAmt;
-                            if (montosPorCategoria[e.categoria] !== undefined) {
+                            if(montosPorCategoria[e.categoria] !== undefined) {
                                 montosPorCategoria[e.categoria] += mAmt;
                             } else {
                                 montosPorCategoria[e.categoria] = mAmt;
@@ -1408,7 +1381,7 @@
                     }
                 });
 
-                // 5. NÓMINA Y FIJOS
+                // 3. NÓMINA Y FIJOS OPERATIVOS
                 let costoNominaPeriodo = 0;
                 _personal.forEach(p => {
                     const sueldoDiario = (parseFloat(p.sueldo) || 0) / 7;
@@ -1443,14 +1416,14 @@
 
                 const totalGastos = refaccionesCostNeto + nominaFinalConDescuentos + costoFijosPeriodo + egresosManuales;
                 const ventasNetasSinIva16 = ingresos - totalIva16Cobrado;
-                
-                const utilidadBruta = ventasNetasSinIva16 - refaccionesCostNeto; 
-                const utilidadNeta = ventasNetasSinIva16 - totalGastos;
-                const margenUtilidad = ventasNetasSinIva16 > 0 ? (utilidadNeta / ventasNetasSinIva16) * 100 : 0;
+
+                const utilidadBruta = ingresos - refaccionesCostNeto; 
+                const utilidadNeta = ingresos - totalGastos;
+                const margenUtilidad = ingresos > 0 ? (utilidadNeta / ingresos) * 100 : 0;
                 const ticketPromedio = vehiculosAtendidos > 0 ? ingresos / vehiculosAtendidos : 0;
 
-                // RENDERIZADO EN PANTALLA
-                if (document.getElementById('dash-ingresos')) {
+                // 4. RENDERIZADO EN PANTALLA
+                if(document.getElementById('dash-ingresos')) {
                     document.getElementById('dash-ingresos').innerText = formatter.format(ingresos);
                     document.getElementById('dash-utilidad-bruta').innerText = formatter.format(utilidadBruta);
                     document.getElementById('dash-egresos').innerText = formatter.format(totalGastos);
@@ -1459,22 +1432,23 @@
                     document.getElementById('dash-ticket-promedio').innerText = formatter.format(ticketPromedio);
                     document.getElementById('dash-margen').innerText = `${margenUtilidad.toFixed(1)}%`;
                     
-                    if (document.getElementById('caja-pagado')) document.getElementById('caja-pagado').innerText = formatter.format(pagado);
-                    if (document.getElementById('caja-anticipo')) document.getElementById('caja-anticipo').innerText = formatter.format(anticipo);
-                    if (document.getElementById('costo-ref-total')) document.getElementById('costo-ref-total').innerText = formatter.format(refaccionesCostNeto);
-                    if (document.getElementById('costo-fijos-total')) document.getElementById('costo-fijos-total').innerText = formatter.format(costoFijosPeriodo);
-                    if (document.getElementById('costo-nomina-total')) document.getElementById('costo-nomina-total').innerText = formatter.format(nominaFinalConDescuentos);
+                    if(document.getElementById('caja-pagado')) document.getElementById('caja-pagado').innerText = formatter.format(pagado);
+                    if(document.getElementById('caja-anticipo')) document.getElementById('caja-anticipo').innerText = formatter.format(anticipo);
+                    if(document.getElementById('costo-ref-total')) document.getElementById('costo-ref-total').innerText = formatter.format(refaccionesCostNeto);
+                    if(document.getElementById('costo-fijos-total')) document.getElementById('costo-fijos-total').innerText = formatter.format(costoFijosPeriodo);
+                    if(document.getElementById('costo-nomina-total')) document.getElementById('costo-nomina-total').innerText = formatter.format(nominaFinalConDescuentos);
 
                     const catContainer = document.getElementById('dashboard-categories-container');
+                    catContainer.innerHTML = '';
                     const iva8Total = refaccionesCostBruto - refaccionesCostNeto;
 
-                    let categoriesHtml = `
+                    catContainer.innerHTML += `
                         <div class="bg-emerald-50/60 p-2.5 rounded-xl border border-emerald-200 flex flex-col gap-1 mb-2 font-sans text-xs">
                             <span class="text-[10px] uppercase font-bold text-emerald-700 tracking-wider flex items-center gap-1">
                                 <span class="material-icons text-xs">point_of_sale</span> 📊 Desglose de Ventas (Ingresos)
                             </span>
                             <div class="flex justify-between text-slate-600">
-                                <span>Ventas Brutas (Órdenes):</span>
+                                <span>Ventas Brutas (Total en Caja):</span>
                                 <span class="font-semibold text-slate-800">${formatter.format(ingresos)}</span>
                             </div>
                             <div class="flex justify-between text-slate-600">
@@ -1486,6 +1460,9 @@
                                 <span class="font-bold">${formatter.format(totalIva16Cobrado)}</span>
                             </div>
                         </div>
+                    `;
+
+                    catContainer.innerHTML += `
                         <div class="bg-blue-50/60 p-2.5 rounded-xl border border-blue-200 flex flex-col gap-1 mb-2 font-sans text-xs">
                             <span class="text-[10px] uppercase font-bold text-blue-600 tracking-wider flex items-center gap-1">
                                 <span class="material-icons text-xs">inventory_2</span> 📦 Desglose Refacciones (Costos)
@@ -1505,30 +1482,28 @@
                         </div>
                     `;
 
-                    categoriesHtml += Object.keys(montosPorCategoria)
-                        .filter(cName => cName !== "Refacciones")
-                        .map(cName => `
+                    Object.keys(montosPorCategoria).forEach(cName => {
+                        if (cName === "Refacciones") return; 
+                        catContainer.innerHTML += `
                             <div class="flex justify-between items-center border-b border-slate-100 pb-1">
                                 <span class="text-slate-600 font-medium">${escapeHtml(cName)}:</span>
                                 <span class="font-bold text-slate-800">${formatter.format(montosPorCategoria[cName])}</span>
-                            </div>`)
-                        .join('');
+                            </div>`;
+                    });
 
-                    if (catContainer) catContainer.innerHTML = categoriesHtml;
-
-                    if (document.getElementById('er-ingresos')) document.getElementById('er-ingresos').innerText = formatter.format(ventasNetasSinIva16);
-                    if (document.getElementById('er-refacciones')) document.getElementById('er-refacciones').innerText = formatter.format(montosPorCategoria["Refacciones"]);
-                    if (document.getElementById('er-nomina')) document.getElementById('er-nomina').innerText = formatter.format(montosPorCategoria["Nómina"]);
-                    if (document.getElementById('er-gasolina')) document.getElementById('er-gasolina').innerText = formatter.format(montosPorCategoria["Gasolina"] + montosPorCategoria["Diesel"]);
-                    if (document.getElementById('er-consumibles')) document.getElementById('er-consumibles').innerText = formatter.format(montosPorCategoria["Consumibles"]);
+                    document.getElementById('er-ingresos').innerText = formatter.format(ventasNetasSinIva16);
+                    document.getElementById('er-refacciones').innerText = formatter.format(montosPorCategoria["Refacciones"]);
+                    document.getElementById('er-nomina').innerText = formatter.format(montosPorCategoria["Nómina"]);
+                    document.getElementById('er-gasolina').innerText = formatter.format(montosPorCategoria["Gasolina"] + montosPorCategoria["Diesel"]);
+                    document.getElementById('er-consumibles').innerText = formatter.format(montosPorCategoria["Consumibles"]);
                     
                     const sumServiciosAcumulados = montosPorCategoria["Renta"] + montosPorCategoria["Agua"] + montosPorCategoria["Luz"] + montosPorCategoria["Internet"];
-                    if (document.getElementById('er-servicios')) document.getElementById('er-servicios').innerText = formatter.format(sumServiciosAcumulados);
-                    if (document.getElementById('er-publicidad')) document.getElementById('er-publicidad').innerText = formatter.format(montosPorCategoria["Publicidad"]);
+                    document.getElementById('er-servicios').innerText = formatter.format(sumServiciosAcumulados);
+                    document.getElementById('er-publicidad').innerText = formatter.format(montosPorCategoria["Publicidad"]);
                     
                     const otrosAcumulados = totalGastos - (montosPorCategoria["Refacciones"] + montosPorCategoria["Nómina"] + montosPorCategoria["Gasolina"] + montosPorCategoria["Diesel"] + montosPorCategoria["Consumibles"] + sumServiciosAcumulados + montosPorCategoria["Publicidad"]);
-                    if (document.getElementById('er-otros')) document.getElementById('er-otros').innerText = formatter.format(otrosAcumulados > 0 ? otrosAcumulados : 0);
-                    if (document.getElementById('er-utilidad-neta')) document.getElementById('er-utilidad-neta').innerText = formatter.format(utilidadNeta);
+                    document.getElementById('er-otros').innerText = formatter.format(otrosAcumulados > 0 ? otrosAcumulados : 0);
+                    document.getElementById('er-utilidad-neta').innerText = formatter.format(utilidadNeta);
                 }
 
                 this.renderCharts(ingresos, totalGastos, montosPorCategoria);
