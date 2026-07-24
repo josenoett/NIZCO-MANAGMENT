@@ -1311,7 +1311,7 @@
                 let montosPorCategoria = {};
                 _categories.forEach(cat => montosPorCategoria[cat] = 0);
 
-                // 1. Vehículos Atendidos en el periodo
+                // 1. Vehículos Atendidos
                 _orders.forEach(o => {
                     if (o.estado === 'Cancelada') return;
                     const oDateIngreso = new Date(o.fecha_ingreso || o.fecha_registro);
@@ -1320,21 +1320,43 @@
                     }
                 });
 
-                // 2. INGRESOS REALES (Filtro por fecha de Pago)
-                _pagos.forEach(p => {
-                    const pDate = new Date(p.fecha);
-                    if (pDate >= start && pDate <= end) {
-                        const monto = parseFloat(p.monto || 0);
-                        ingresos += monto;
-                        if (p.tipo === 'anticipo') {
-                            anticipo += monto;
-                        } else {
-                            pagado += monto;
-                        }
-                    }
-                });
+                // 2. INGRESOS REALES (Consulta Directa a Tabla PAGOS por Rango de Fechas)
+                if (supabaseClient) {
+                    try {
+                        const { data: pagosRango } = await supabaseClient
+                            .from('pagos')
+                            .select('monto, tipo, fecha')
+                            .gte('fecha', start.toISOString())
+                            .lte('fecha', end.toISOString());
 
-                // 3. REFACCIONES REALES (Tratando el precio registrado como TOTAL FINAL con IVA)
+                        if (pagosRango && pagosRango.length > 0) {
+                            pagosRango.forEach(p => {
+                                const monto = parseFloat(p.monto || 0);
+                                ingresos += monto;
+                                if (p.tipo === 'anticipo') {
+                                    anticipo += monto;
+                                } else {
+                                    pagado += monto;
+                                }
+                            });
+                        } else {
+                            // Respaldar con arreglo local si aplica
+                            _pagos.forEach(p => {
+                                const pDate = new Date(p.fecha);
+                                if (pDate >= start && pDate <= end) {
+                                    const monto = parseFloat(p.monto || 0);
+                                    ingresos += monto;
+                                    if (p.tipo === 'anticipo') anticipo += monto;
+                                    else pagado += monto;
+                                }
+                            });
+                        }
+                    } catch (e) {
+                        console.error("Error al obtener pagos:", e);
+                    }
+                }
+
+                // 3. REFACCIONES REALES
                 if (supabaseClient) {
                     try {
                         const { data: comprasRango } = await supabaseClient
@@ -1345,12 +1367,11 @@
 
                         if (comprasRango && comprasRango.length > 0) {
                             comprasRango.forEach(c => {
-                                const cTotal = parseFloat(c.costo_neto || 0); // El costo capturado es el TOTAL que pagaste
+                                const cTotal = parseFloat(c.costo_neto || 0);
                                 refaccionesCostBruto += cTotal;
-                                refaccionesCostNeto += (cTotal / 1.08); // Desglosamos la base sin IVA
+                                refaccionesCostNeto += (cTotal / 1.08);
                             });
                         } else {
-                            // Respaldo de órdenes si no hay en compras_refacciones
                             _orders.forEach(o => {
                                 if (o.estado === 'Cancelada') return;
                                 const oDate = new Date(o.fecha_ingreso || o.fecha_registro);
@@ -1369,7 +1390,7 @@
                 let egresosManuales = 0;
                 let deduccionesNomina = 0; 
 
-                // 4. EGRESOS VARIOS DE CAJA
+                // 4. EGRESOS VARIOS
                 _expenses.forEach(e => {
                     const eDate = new Date(e.fecha + 'T00:00:00');
                     if(eDate >= start && eDate <= end) {
@@ -1387,7 +1408,7 @@
                     }
                 });
 
-                // 5. CÁLCULO DE NÓMINA Y FIJOS
+                // 5. NÓMINA Y FIJOS
                 let costoNominaPeriodo = 0;
                 _personal.forEach(p => {
                     const sueldoDiario = (parseFloat(p.sueldo) || 0) / 7;
@@ -2419,8 +2440,8 @@
                 const targetUserVal = document.getElementById('modal-tecnico').value || null;
                 const mecObj = _personal.find(p => (p.user_id && p.user_id === targetUserVal) || p.id == targetUserVal);
 
-                // Determinar la fecha representativa de la transacción
-                const fechaEfectiva = modalEgresoDate 
+                // Usar la fecha de egreso/ingreso para el pago en pruebas de fechas futuras
+                const fechaParaPago = modalEgresoDate 
                     ? new Date(modalEgresoDate + 'T12:00:00').toISOString() 
                     : (modalManualDate ? new Date(modalManualDate + 'T12:00:00').toISOString() : new Date().toISOString());
 
@@ -2451,7 +2472,6 @@
 
                     montoAbonoIngresado = parseFloat(document.getElementById('modal-monto-abono').value) || 0;
 
-                    // Si la orden está Entregada o marcó Pagado sin poner monto manual, toma el Total de la orden
                     if ((paymentState === 'Pagado' || fields.estado === 'Entregado') && montoAbonoIngresado === 0) {
                         montoAbonoIngresado = granTotal;
                         paymentState = 'Pagado';
@@ -2470,37 +2490,26 @@
                     }
                 }
 
-                // 1. Guardar cambios en la orden
+                // 1. Guardar orden
                 const { error } = await supabaseClient.from('ordenes_trabajo').update(fields).eq('id', currentEditingOrderId); 
                 if (error) { showToast("Error al guardar: " + error.message, true); return; }
 
-                // 2. Registrar el pago usando la FECHA DE LA ORDEN/EGRESO
+                // 2. Registrar el Pago con la FECHA DE LA ORDEN
                 if (montoAbonoIngresado > 0) {
-                    const nuevoPagoObj = {
+                    await supabaseClient.from('pagos').insert([{
                         orden_id: currentEditingOrderId,
                         monto: montoAbonoIngresado,
                         metodo_pago: fields.metodo_pago || 'Efectivo',
                         tipo: fields.estado_pago === 'Anticipo' ? 'anticipo' : 'pago_final',
-                        fecha: fechaEfectiva, // Usa la fecha asignada a la orden
-                        observaciones: 'Pago/Liquidación registrado desde el modal'
-                    };
-
-                    const { data: pagoInsertado, error: errorPago } = await supabaseClient
-                        .from('pagos')
-                        .insert([nuevoPagoObj])
-                        .select();
-
-                    if (!errorPago && pagoInsertado && pagoInsertado.length > 0) {
-                        _pagos.push(pagoInsertado[0]);
-                    } else {
-                        _pagos.push(nuevoPagoObj);
-                    }
+                        fecha: fechaParaPago,
+                        observaciones: 'Pago/Liquidación registrado desde el modal de orden'
+                    }]);
                 }
 
                 showToast("Cambios guardados con éxito.");
                 this.closeModal(); 
 
-                // 3. Recargar datos y recalcular métricas inmediatamente
+                // 3. Recargar órdenes y recalcular panel
                 await API_Service.fetchOrders(true);
                 if (typeof Financial_Engine !== 'undefined') {
                     await Financial_Engine.recalculate();
