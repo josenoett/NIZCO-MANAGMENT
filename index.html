@@ -2440,8 +2440,8 @@
                 const targetUserVal = document.getElementById('modal-tecnico').value || null;
                 const mecObj = _personal.find(p => (p.user_id && p.user_id === targetUserVal) || p.id == targetUserVal);
 
-                // Usar la fecha de egreso/ingreso para el pago en pruebas de fechas futuras
-                const fechaParaPago = modalEgresoDate 
+                // Determinar fecha representativa para el movimiento financiero
+                const fechaEfectiva = modalEgresoDate 
                     ? new Date(modalEgresoDate + 'T12:00:00').toISOString() 
                     : (modalManualDate ? new Date(modalManualDate + 'T12:00:00').toISOString() : new Date().toISOString());
 
@@ -2472,9 +2472,9 @@
 
                     montoAbonoIngresado = parseFloat(document.getElementById('modal-monto-abono').value) || 0;
 
-                    if ((paymentState === 'Pagado' || fields.estado === 'Entregado') && montoAbonoIngresado === 0) {
+                    // Si marca Pagado y no ingresó monto explícito en la caja, cobra el total
+                    if (paymentState === 'Pagado' && montoAbonoIngresado === 0) {
                         montoAbonoIngresado = granTotal;
-                        paymentState = 'Pagado';
                     }
 
                     fields.estado_pago = paymentState;
@@ -2490,30 +2490,40 @@
                     }
                 }
 
-                // 1. Guardar orden
+                // 1. Guardar la orden en Supabase
                 const { error } = await supabaseClient.from('ordenes_trabajo').update(fields).eq('id', currentEditingOrderId); 
                 if (error) { showToast("Error al guardar: " + error.message, true); return; }
 
-                // 2. Registrar el Pago con la FECHA DE LA ORDEN
+                // 2. Insertar Pago en Supabase Y actualizar la memoria local _pagos
                 if (montoAbonoIngresado > 0) {
-                    await supabaseClient.from('pagos').insert([{
+                    const nuevoPagoObj = {
                         orden_id: currentEditingOrderId,
                         monto: montoAbonoIngresado,
                         metodo_pago: fields.metodo_pago || 'Efectivo',
                         tipo: fields.estado_pago === 'Anticipo' ? 'anticipo' : 'pago_final',
-                        fecha: fechaParaPago,
-                        observaciones: 'Pago/Liquidación registrado desde el modal de orden'
-                    }]);
+                        fecha: fechaEfectiva,
+                        observaciones: 'Pago registrado desde el modal de orden'
+                    };
+
+                    const { data: pagoInsertado, error: errorPago } = await supabaseClient
+                        .from('pagos')
+                        .insert([nuevoPagoObj])
+                        .select();
+
+                    if (!errorPago && pagoInsertado && pagoInsertado.length > 0) {
+                        _pagos.unshift(pagoInsertado[0]);
+                    } else {
+                        _pagos.unshift(nuevoPagoObj);
+                    }
                 }
 
                 showToast("Cambios guardados con éxito.");
                 this.closeModal(); 
 
-                // 3. Recargar órdenes y recalcular panel
+                // 3. Forzar recarga completa de órdenes y pagos, y recalcular el panel
                 await API_Service.fetchOrders(true);
-                if (typeof Financial_Engine !== 'undefined') {
-                    await Financial_Engine.recalculate();
-                }
+                await API_Service.fetchPagos(true);
+                await Financial_Engine.recalculate();
             },
 
             async handleDeleteOrder() {
