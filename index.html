@@ -1302,7 +1302,7 @@
                 const totalDays = Math.max(1, Math.ceil(durationMs / (1000 * 60 * 60 * 24)));
 
                 let vehiculosAtendidos = 0;
-                let ingresos = 0;
+                let ingresos = 0; // Representa Ventas Brutas Totales (Cobrado al cliente con IVA)
                 let pagado = 0;
                 let anticipo = 0;
                 let refaccionesCostBruto = 0; 
@@ -1320,17 +1320,23 @@
                     if (oDate >= start && oDate <= end) {
                         vehiculosAtendidos++;
 
-                        const totalOrden = parseFloat(o.total_cobrado || 0);
-                        ingresos += totalOrden;
+                        // Determinar el costo base (Mano de Obra + Refacciones)
+                        const subtotalBase = parseFloat(o.costo_mano_obra || 0) + parseFloat(o.costo_refacciones || 0);
+                        const ivaOrden = o.requiere_factura ? (parseFloat(o.total_iva || 0) || (subtotalBase * 0.16)) : 0;
+                        
+                        // Total cobrado real (Gran Total con IVA si requiere factura)
+                        const totalCobradoReal = parseFloat(o.total_cobrado || 0) || (subtotalBase + ivaOrden);
 
-                        if (o.estado_pago === 'Anticipo') {
-                            anticipo += totalOrden;
-                        } else {
-                            pagado += totalOrden;
-                        }
+                        ingresos += totalCobradoReal;
 
                         if (o.requiere_factura) {
-                            totalIva16Cobrado += parseFloat(o.total_iva || 0);
+                            totalIva16Cobrado += ivaOrden;
+                        }
+
+                        if (o.estado_pago === 'Anticipo') {
+                            anticipo += totalCobradoReal;
+                        } else {
+                            pagado += totalCobradoReal;
                         }
                     }
                 });
@@ -1421,9 +1427,13 @@
                 montosPorCategoria["Internet"] += serviciosFraccionados;
 
                 const totalGastos = refaccionesCostNeto + nominaFinalConDescuentos + costoFijosPeriodo + egresosManuales;
-                const utilidadBruta = ingresos - refaccionesCostNeto; 
-                const utilidadNeta = ingresos - totalGastos;
-                const margenUtilidad = ingresos > 0 ? (utilidadNeta / ingresos) * 100 : 0;
+                
+                // Las ventas netas son el Ingreso Bruto menos el IVA de facturación trasladado
+                const ventasNetasSinIva16 = ingresos - totalIva16Cobrado;
+                
+                const utilidadBruta = ventasNetasSinIva16 - refaccionesCostNeto; 
+                const utilidadNeta = ventasNetasSinIva16 - totalGastos;
+                const margenUtilidad = ventasNetasSinIva16 > 0 ? (utilidadNeta / ventasNetasSinIva16) * 100 : 0;
                 const ticketPromedio = vehiculosAtendidos > 0 ? ingresos / vehiculosAtendidos : 0;
 
                 // RENDERIZADO EN PANTALLA
@@ -1443,8 +1453,6 @@
                     if (document.getElementById('costo-nomina-total')) document.getElementById('costo-nomina-total').innerText = formatter.format(nominaFinalConDescuentos);
 
                     const catContainer = document.getElementById('dashboard-categories-container');
-                    
-                    let ventasNetasSinIva16 = ingresos - totalIva16Cobrado;
                     const iva8Total = refaccionesCostBruto - refaccionesCostNeto;
 
                     let categoriesHtml = `
@@ -1495,7 +1503,7 @@
 
                     if (catContainer) catContainer.innerHTML = categoriesHtml;
 
-                    if (document.getElementById('er-ingresos')) document.getElementById('er-ingresos').innerText = formatter.format(ingresos);
+                    if (document.getElementById('er-ingresos')) document.getElementById('er-ingresos').innerText = formatter.format(ventasNetasSinIva16);
                     if (document.getElementById('er-refacciones')) document.getElementById('er-refacciones').innerText = formatter.format(montosPorCategoria["Refacciones"]);
                     if (document.getElementById('er-nomina')) document.getElementById('er-nomina').innerText = formatter.format(montosPorCategoria["Nómina"]);
                     if (document.getElementById('er-gasolina')) document.getElementById('er-gasolina').innerText = formatter.format(montosPorCategoria["Gasolina"] + montosPorCategoria["Diesel"]);
