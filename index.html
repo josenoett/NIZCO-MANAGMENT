@@ -1294,7 +1294,7 @@
                 }
             },
 
-            recalculate() {
+            async recalculate() {
                 const preset = document.getElementById('erp-date-preset').value;
                 const { start, end } = this.getDateRange(preset);
 
@@ -1307,24 +1307,20 @@
                 let anticipo = 0;
                 let refaccionesCostBruto = 0; 
                 let refaccionesCostNeto = 0;  
-                let erManoObra = 0;
 
                 let montosPorCategoria = {};
                 _categories.forEach(cat => montosPorCategoria[cat] = 0);
 
+                // 1. Vehículos Atendidos en el periodo
                 _orders.forEach(o => {
                     if (o.estado === 'Cancelada') return;
-
                     const oDateIngreso = new Date(o.fecha_ingreso || o.fecha_registro);
                     if (oDateIngreso >= start && oDateIngreso <= end) {
                         vehiculosAtendidos++; 
-                        const costRef = parseFloat(o.costo_refacciones || 0);
-                        refaccionesCostBruto += costRef;
-                        refaccionesCostNeto += (costRef / 1.08); 
-                        erManoObra += parseFloat(o.costo_mano_obra || 0);
                     }
                 });
 
+                // 2. INGRESOS REALES (Filtro por fecha de Pago)
                 _pagos.forEach(p => {
                     const pDate = new Date(p.fecha);
                     if (pDate >= start && pDate <= end) {
@@ -1338,9 +1334,42 @@
                     }
                 });
 
+                // 3. REFACCIONES REALES (Consulta directa a compras_refacciones por FECHA DE COMPRA)
+                if (supabaseClient) {
+                    try {
+                        const { data: comprasRango } = await supabaseClient
+                            .from('compras_refacciones')
+                            .select('costo_neto, fecha_compra')
+                            .gte('fecha_compra', start.toISOString())
+                            .lte('fecha_compra', end.toISOString());
+
+                        if (comprasRango && comprasRango.length > 0) {
+                            comprasRango.forEach(c => {
+                                const cNeto = parseFloat(c.costo_neto || 0);
+                                refaccionesCostNeto += cNeto;
+                                refaccionesCostBruto += (cNeto * 1.08); // IVA 8%
+                            });
+                        } else {
+                            // Si no hay compras registradas en la tabla nueva para esas fechas, toma como respaldo los conceptos
+                            _orders.forEach(o => {
+                                if (o.estado === 'Cancelada') return;
+                                const oDate = new Date(o.fecha_ingreso || o.fecha_registro);
+                                if (oDate >= start && oDate <= end) {
+                                    const costRef = parseFloat(o.costo_refacciones || 0);
+                                    refaccionesCostBruto += costRef;
+                                    refaccionesCostNeto += (costRef / 1.08);
+                                }
+                            });
+                        }
+                    } catch (e) {
+                        console.error("Error al obtener compras de refacciones:", e);
+                    }
+                }
+
                 let egresosManuales = 0;
                 let deduccionesNomina = 0; 
 
+                // 4. EGRESOS VARIOS DE CAJA
                 _expenses.forEach(e => {
                     const eDate = new Date(e.fecha + 'T00:00:00');
                     if(eDate >= start && eDate <= end) {
@@ -1358,6 +1387,7 @@
                     }
                 });
 
+                // 5. CÁLCULO DE NÓMINA Y FIJOS
                 let costoNominaPeriodo = 0;
                 _personal.forEach(p => {
                     const sueldoDiario = (parseFloat(p.sueldo) || 0) / 7;
@@ -1490,7 +1520,7 @@
 
                 this.renderCharts(ingresos, totalGastos, montosPorCategoria);
             },
-
+            
             renderCharts(ingresos, totalGastos, montosPorCategoria) {
                 if(chartInstance1) chartInstance1.destroy();
                 if(chartInstance2) chartInstance2.destroy();
