@@ -1393,320 +1393,316 @@
             },
 
             async recalculate() {
-                const preset = document.getElementById('erp-date-preset').value;
-                const { start, end } = this.getDateRange(preset);
+            const preset = document.getElementById('erp-date-preset').value;
+            const { start, end } = this.getDateRange(preset);
 
-                const durationMs = end - start;
-                const totalDays = Math.max(1, Math.ceil(durationMs / (1000 * 60 * 60 * 24)));
+            const durationMs = end - start;
+            const totalDays = Math.max(1, Math.ceil(durationMs / (1000 * 60 * 60 * 24)));
 
-                let vehiculosAtendidos = 0;
-                let ingresos = 0; 
-                let pagado = 0;
-                let anticipo = 0;
-                let refaccionesCostBruto = 0; 
-                let refaccionesCostNeto = 0;  
-                let totalIva16Cobrado = 0;
+            let vehiculosAtendidos = 0;
+            let ingresos = 0; 
+            let pagado = 0;
+            let anticipo = 0;
+            let refaccionesCostBruto = 0; 
+            let refaccionesCostNeto = 0;  
+            let totalIva16Cobrado = 0;
 
-                let montosPorCategoria = {};
-                State.categories.forEach(cat => montosPorCategoria[cat] = 0);
+            // 👈 DECLARACIÓN DE ARREGLOS Y SETS AL INICIO
+            let listaOrdenesIngreso = [];
+            let listaComprasRefacciones = [];
+            let refaccionesMap = new Set();
+            let pagosProcesadosIds = new Set();
 
-                State.orders.forEach(o => {
-                    if (o.estado === 'Cancelada') return;
-                    const oDate = Utils.parseFechaLocal(o.fecha_ingreso || o.fecha_registro);
-                    if (oDate >= start && oDate <= end) {
-                        vehiculosAtendidos++;
-                    }
-                });
+            let montosPorCategoria = {};
+            State.categories.forEach(cat => montosPorCategoria[cat] = 0);
 
-                // DENTRO DE Financial_Engine.recalculate():
-
-let listaOrdenesIngreso = [];
-let pagosProcesadosIds = new Set(); // 👈 Previene procesar el mismo pago dos veces
-
-State.pagos.forEach(p => {
-    // 1. Si el pago ya tiene ID y ya fue procesado en este ciclo, lo ignoramos
-    if (p.id && pagosProcesadosIds.has(p.id)) return;
-    if (p.id) pagosProcesadosIds.add(p.id);
-
-    const pDate = Utils.parseFechaLocal(p.fecha);
-    if (pDate >= start && pDate <= end) {
-        const pMonto = parseFloat(p.monto || 0);
-        ingresos += pMonto;
-
-        if (p.tipo === 'anticipo') {
-            anticipo += pMonto;
-        } else {
-            pagado += pMonto;
-        }
-
-        const ordenAsociada = State.orders.find(o => o.id === p.orden_id);
-        if (ordenAsociada && ordenAsociada.requiere_factura) {
-            const ivaEnEstePago = pMonto - (pMonto / 1.16);
-            totalIva16Cobrado += ivaEnEstePago;
-        }
-
-        listaOrdenesIngreso.push({
-            id: p.id,
-            ordenId: p.orden_id,
-            cliente: ordenAsociada ? ordenAsociada.cliente_nombre : 'Cliente Desconocido',
-            auto: ordenAsociada ? `${ordenAsociada.auto_marca} (${ordenAsociada.auto_placas})` : 'S/I',
-            monto: pMonto,
-            tipo: p.tipo,
-            metodo: p.metodo_pago,
-            fecha: pDate
-        });
-    }
-});
-
-                // DIBUJAR DESGLOSE DE INGRESO POR ÓRDENES EN EL DASHBOARD
-                const dashboardOrdersIncomeBody = document.getElementById('dashboard-orders-income-body');
-                if (dashboardOrdersIncomeBody) {
-                    if (listaOrdenesIngreso.length === 0) {
-                        dashboardOrdersIncomeBody.innerHTML = `<tr><td colspan="6" class="p-4 text-center text-slate-400">Sin ingresos registrados en este periodo.</td></tr>`;
-                    } else {
-                        dashboardOrdersIncomeBody.innerHTML = listaOrdenesIngreso.map(item => `
-                            <tr class="hover:bg-slate-50 transition border-b border-slate-100">
-                                <td class="py-2.5 px-4 text-slate-500 font-medium">${item.fecha.toLocaleDateString('es-MX', {day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit'})}</td>
-                                <td class="py-2.5 px-4 font-bold text-slate-900">#${item.ordenId}</td>
-                                <td class="py-2.5 px-4">
-                                    <span class="font-bold block text-slate-800">${Utils.escapeHtml(item.cliente)}</span>
-                                    <span class="text-[10px] text-slate-400">${Utils.escapeHtml(item.auto)}</span>
-                                </td>
-                                <td class="py-2.5 px-4">
-                                    <span class="px-2 py-0.5 text-[9px] font-bold rounded ${item.tipo === 'anticipo' ? 'bg-amber-50 text-amber-700 border border-amber-200' : 'bg-emerald-50 text-emerald-700 border border-emerald-200'} uppercase">
-                                        ${item.tipo === 'anticipo' ? '💰 Anticipo' : '✅ Pago Final'}
-                                    </span>
-                                </td>
-                                <td class="py-2.5 px-4 text-slate-600">${Utils.escapeHtml(item.metodo)}</td>
-                                <td class="py-2.5 px-4 text-right font-bold text-emerald-600">${Utils.formatter.format(item.monto)}</td>
-                            </tr>
-                        `).join('');
-                    }
+            State.orders.forEach(o => {
+                if (o.estado === 'Cancelada') return;
+                const oDate = Utils.parseFechaLocal(o.fecha_ingreso || o.fecha_registro);
+                if (oDate >= start && oDate <= end) {
+                    vehiculosAtendidos++;
                 }
+            });
 
-                // CÁLCULO Y TRAZABILIDAD DE REFACCIONES
-                refaccionesCostBruto = 0; 
-                refaccionesCostNeto = 0;  
-                refaccionesMap = new Set();
-                listaComprasRefacciones = []; 
+            // PROCESAR PAGOS E INGRESOS
+            State.pagos.forEach(p => {
+                if (p.id && pagosProcesadosIds.has(p.id)) return;
+                if (p.id) pagosProcesadosIds.add(p.id);
 
-                if (supabaseClient) {
-                    try {
-                        const { data: comprasRango } = await supabaseClient
-                            .from('compras_refacciones')
-                            .select('id, descripcion, proveedor, costo_neto, metodo_pago, fecha_compra, orden_id')
-                            .gte('fecha_compra', start.toISOString())
-                            .lte('fecha_compra', end.toISOString())
-                            .order('fecha_compra', { ascending: false });
+                const pDate = Utils.parseFechaLocal(p.fecha);
+                if (pDate >= start && pDate <= end) {
+                    const pMonto = parseFloat(p.monto || 0);
+                    ingresos += pMonto;
 
-                        if (comprasRango && comprasRango.length > 0) {
-                            comprasRango.forEach(c => {
-                                const cTotal = parseFloat(c.costo_neto || 0);
-                                refaccionesCostBruto += cTotal;
-                                refaccionesCostNeto += (cTotal / 1.08);
-                                if (c.orden_id) refaccionesMap.add(c.orden_id);
+                    if (p.tipo === 'anticipo') {
+                        anticipo += pMonto;
+                    } else {
+                        pagado += pMonto;
+                    }
 
-                                const ordenAsociada = State.orders.find(o => o.id === c.orden_id);
+                    const ordenAsociada = State.orders.find(o => o.id === p.orden_id);
+                    if (ordenAsociada && ordenAsociada.requiere_factura) {
+                        const ivaEnEstePago = pMonto - (pMonto / 1.16);
+                        totalIva16Cobrado += ivaEnEstePago;
+                    }
 
-                                listaComprasRefacciones.push({
-                                    id: c.id,
-                                    ordenId: c.orden_id ? `#${c.orden_id}` : 'Gasto General',
-                                    cliente: ordenAsociada ? `${ordenAsociada.cliente_nombre} (${ordenAsociada.auto_marca})` : 'S/I',
-                                    descripcion: c.descripcion,
-                                    proveedor: c.proveedor || 'No especificado',
-                                    metodo: c.metodo_pago,
-                                    costo: cTotal,
-                                    fecha: Utils.parseFechaLocal(c.fecha_compra)
-                                });
+                    listaOrdenesIngreso.push({
+                        id: p.id,
+                        ordenId: p.orden_id,
+                        cliente: ordenAsociada ? ordenAsociada.cliente_nombre : 'Cliente Desconocido',
+                        auto: ordenAsociada ? `${ordenAsociada.auto_marca} (${ordenAsociada.auto_placas})` : 'S/I',
+                        monto: pMonto,
+                        tipo: p.tipo,
+                        metodo: p.metodo_pago,
+                        fecha: pDate
+                    });
+                }
+            });
+
+            // DIBUJAR DESGLOSE DE INGRESO POR ÓRDENES EN EL DASHBOARD
+            const dashboardOrdersIncomeBody = document.getElementById('dashboard-orders-income-body');
+            if (dashboardOrdersIncomeBody) {
+                if (listaOrdenesIngreso.length === 0) {
+                    dashboardOrdersIncomeBody.innerHTML = `<tr><td colspan="6" class="p-4 text-center text-slate-400">Sin ingresos registrados en este periodo.</td></tr>`;
+                } else {
+                    dashboardOrdersIncomeBody.innerHTML = listaOrdenesIngreso.map(item => `
+                        <tr class="hover:bg-slate-50 transition border-b border-slate-100">
+                            <td class="py-2.5 px-4 text-slate-500 font-medium">${item.fecha.toLocaleDateString('es-MX', {day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit'})}</td>
+                            <td class="py-2.5 px-4 font-bold text-slate-900">#${item.ordenId}</td>
+                            <td class="py-2.5 px-4">
+                                <span class="font-bold block text-slate-800">${Utils.escapeHtml(item.cliente)}</span>
+                                <span class="text-[10px] text-slate-400">${Utils.escapeHtml(item.auto)}</span>
+                            </td>
+                            <td class="py-2.5 px-4">
+                                <span class="px-2 py-0.5 text-[9px] font-bold rounded ${item.tipo === 'anticipo' ? 'bg-amber-50 text-amber-700 border border-amber-200' : 'bg-emerald-50 text-emerald-700 border border-emerald-200'} uppercase">
+                                    ${item.tipo === 'anticipo' ? '💰 Anticipo' : '✅ Pago Final'}
+                                </span>
+                            </td>
+                            <td class="py-2.5 px-4 text-slate-600">${Utils.escapeHtml(item.metodo)}</td>
+                            <td class="py-2.5 px-4 text-right font-bold text-emerald-600">${Utils.formatter.format(item.monto)}</td>
+                        </tr>
+                    `).join('');
+                }
+            }
+
+            // CÁLCULO Y TRAZABILIDAD DE REFACCIONES
+            if (supabaseClient) {
+                try {
+                    const { data: comprasRango } = await supabaseClient
+                        .from('compras_refacciones')
+                        .select('id, descripcion, proveedor, costo_neto, metodo_pago, fecha_compra, orden_id')
+                        .gte('fecha_compra', start.toISOString())
+                        .lte('fecha_compra', end.toISOString())
+                        .order('fecha_compra', { ascending: false });
+
+                    if (comprasRango && comprasRango.length > 0) {
+                        comprasRango.forEach(c => {
+                            const cTotal = parseFloat(c.costo_neto || 0);
+                            refaccionesCostBruto += cTotal;
+                            refaccionesCostNeto += (cTotal / 1.08);
+                            if (c.orden_id) refaccionesMap.add(c.orden_id);
+
+                            const ordenAsociada = State.orders.find(o => o.id === c.orden_id);
+
+                            listaComprasRefacciones.push({
+                                id: c.id,
+                                ordenId: c.orden_id ? `#${c.orden_id}` : 'Gasto General',
+                                cliente: ordenAsociada ? `${ordenAsociada.cliente_nombre} (${ordenAsociada.auto_marca})` : 'S/I',
+                                descripcion: c.descripcion,
+                                proveedor: c.proveedor || 'No especificado',
+                                metodo: c.metodo_pago,
+                                costo: cTotal,
+                                fecha: Utils.parseFechaLocal(c.fecha_compra)
                             });
-                        }
-                    } catch (e) {
-                        console.error("Error al obtener compras de refacciones:", e);
+                        });
+                    }
+                } catch (e) {
+                    console.error("Error al obtener compras de refacciones:", e);
+                }
+            }
+
+            State.orders.forEach(o => {
+                if (o.estado === 'Cancelada') return;
+                const oDate = Utils.parseFechaLocal(o.fecha_ingreso || o.fecha_registro);
+                if (oDate >= start && oDate <= end) {
+                    if (!refaccionesMap.has(o.id)) {
+                        const costRefTotal = parseFloat(o.costo_refacciones || 0);
+                        refaccionesCostBruto += costRefTotal;
+                        refaccionesCostNeto += (costRefTotal / 1.08);
                     }
                 }
+            });
 
-                State.orders.forEach(o => {
-                    if (o.estado === 'Cancelada') return;
-                    const oDate = Utils.parseFechaLocal(o.fecha_ingreso || o.fecha_registro);
-                    if (oDate >= start && oDate <= end) {
-                        if (!refaccionesMap.has(o.id)) {
-                            const costRefTotal = parseFloat(o.costo_refacciones || 0);
-                            refaccionesCostBruto += costRefTotal;
-                            refaccionesCostNeto += (costRefTotal / 1.08);
-                        }
-                    }
-                });
+            // RENDERIZAR TABLA DE REFACCIONES EN EL DASHBOARD
+            const dashboardPartsBody = document.getElementById('dashboard-parts-cost-body');
+            if (dashboardPartsBody) {
+                if (listaComprasRefacciones.length === 0) {
+                    dashboardPartsBody.innerHTML = `<tr><td colspan="6" class="p-4 text-center text-slate-400">Sin registro de compras de refacciones en este periodo.</td></tr>`;
+                } else {
+                    dashboardPartsBody.innerHTML = listaComprasRefacciones.map(item => `
+                        <tr class="hover:bg-slate-50 transition border-b border-slate-100">
+                            <td class="py-2.5 px-4 text-slate-500 font-medium">${item.fecha.toLocaleDateString('es-MX', {day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit'})}</td>
+                            <td class="py-2.5 px-4 font-bold text-blue-600">${item.ordenId}</td>
+                            <td class="py-2.5 px-4">
+                                <span class="font-bold block text-slate-800">${Utils.escapeHtml(item.descripcion)}</span>
+                                <span class="text-[10px] text-slate-400">${Utils.escapeHtml(item.cliente)}</span>
+                            </td>
+                            <td class="py-2.5 px-4 font-semibold text-slate-600">${Utils.escapeHtml(item.proveedor)}</td>
+                            <td class="py-2.5 px-4">
+                                <span class="px-2 py-0.5 text-[9px] font-bold rounded bg-slate-100 text-slate-600 border border-slate-200">
+                                    ${Utils.escapeHtml(item.metodo)}
+                                </span>
+                            </td>
+                            <td class="py-2.5 px-4 text-right font-bold text-rose-600">${Utils.formatter.format(item.costo)}</td>
+                        </tr>
+                    `).join('');
+                }
+            }
 
-                // RENDERIZAR TABLA DE REFACCIONES EN EL DASHBOARD
-                const dashboardPartsBody = document.getElementById('dashboard-parts-cost-body');
-                if (dashboardPartsBody) {
-                    if (listaComprasRefacciones.length === 0) {
-                        dashboardPartsBody.innerHTML = `<tr><td colspan="6" class="p-4 text-center text-slate-400">Sin registro de compras de refacciones en este periodo.</td></tr>`;
+            let egresosManuales = 0;
+            let deduccionesNomina = 0; 
+
+            State.expenses.forEach(e => {
+                const eDate = Utils.parseFechaLocal(e.fecha);
+                if (eDate >= start && eDate <= end) {
+                    const mAmt = parseFloat(e.monto || 0);
+                    if (e.categoria === "Nómina" && mAmt < 0) {
+                        deduccionesNomina += Math.abs(mAmt); 
                     } else {
-                        dashboardPartsBody.innerHTML = listaComprasRefacciones.map(item => `
-                            <tr class="hover:bg-slate-50 transition border-b border-slate-100">
-                                <td class="py-2.5 px-4 text-slate-500 font-medium">${item.fecha.toLocaleDateString('es-MX', {day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit'})}</td>
-                                <td class="py-2.5 px-4 font-bold text-blue-600">${item.ordenId}</td>
-                                <td class="py-2.5 px-4">
-                                    <span class="font-bold block text-slate-800">${Utils.escapeHtml(item.descripcion)}</span>
-                                    <span class="text-[10px] text-slate-400">${Utils.escapeHtml(item.cliente)}</span>
-                                </td>
-                                <td class="py-2.5 px-4 font-semibold text-slate-600">${Utils.escapeHtml(item.proveedor)}</td>
-                                <td class="py-2.5 px-4">
-                                    <span class="px-2 py-0.5 text-[9px] font-bold rounded bg-slate-100 text-slate-600 border border-slate-200">
-                                        ${Utils.escapeHtml(item.metodo)}
-                                    </span>
-                                </td>
-                                <td class="py-2.5 px-4 text-right font-bold text-rose-600">${Utils.formatter.format(item.costo)}</td>
-                            </tr>
-                        `).join('');
-                    }
-                } // 👈 AQUÍ FALTABA CERRAR ESTA LLAVE
-
-                let egresosManuales = 0;
-                let deduccionesNomina = 0; 
-
-                State.expenses.forEach(e => {
-                    const eDate = Utils.parseFechaLocal(e.fecha);
-                    if (eDate >= start && eDate <= end) {
-                        const mAmt = parseFloat(e.monto || 0);
-                        if (e.categoria === "Nómina" && mAmt < 0) {
-                            deduccionesNomina += Math.abs(mAmt); 
+                        egresosManuales += mAmt;
+                        if (montosPorCategoria[e.categoria] !== undefined) {
+                            montosPorCategoria[e.categoria] += mAmt;
                         } else {
-                            egresosManuales += mAmt;
-                            if (montosPorCategoria[e.categoria] !== undefined) {
-                                montosPorCategoria[e.categoria] += mAmt;
-                            } else {
-                                montosPorCategoria[e.categoria] = mAmt;
-                            }
+                            montosPorCategoria[e.categoria] = mAmt;
                         }
                     }
-                });
-
-                let costoNominaPeriodo = 0;
-                State.personal.forEach(p => {
-                    const sueldoDiario = (parseFloat(p.sueldo) || 0) / 7;
-                    const empInicio = p.fecha_ingreso ? Utils.parseFechaLocal(p.fecha_ingreso) : new Date(0);
-                    const empFin = p.fecha_egreso ? Utils.parseFechaLocal(p.fecha_egreso) : new Date(8640000000000000);
-
-                    const inicioInterseccion = new Date(Math.max(start, empInicio));
-                    const finInterseccion = new Date(Math.min(end, empFin));
-
-                    if (inicioInterseccion <= finInterseccion) {
-                        const msDiferencia = finInterseccion - inicioInterseccion;
-                        const diasTrabajadosEnPeriodo = Math.ceil(msDiferencia / (1000 * 60 * 60 * 24));
-                        costoNominaPeriodo += diasTrabajadosEnPeriodo * sueldoDiario;
-                    }
-                });
-
-                const fijosMensuales = (State.fixedCosts.renta || 0) + (State.fixedCosts.servicios || 0) + (State.fixedCosts.impuestos || 0);
-                const fijosPorDia = fijosMensuales / 30.4;
-                const costoFijosPeriodo = fijosPorDia * totalDays;
-
-                let nominaFinalConDescuentos = costoNominaPeriodo - deduccionesNomina;
-                montosPorCategoria["Nómina"] = nominaFinalConDescuentos;
-                montosPorCategoria["Refacciones"] = refaccionesCostNeto; 
-                
-                montosPorCategoria["Renta"] += (State.fixedCosts.renta / 30.4) * totalDays;
-                montosPorCategoria["Impuestos"] += (State.fixedCosts.impuestos / 30.4) * totalDays;
-                
-                const serviciosFraccionados = ((State.fixedCosts.servicios || 0) / 3) / 30.4 * totalDays;
-                montosPorCategoria["Agua"] += serviciosFraccionados;
-                montosPorCategoria["Luz"] += serviciosFraccionados;
-                montosPorCategoria["Internet"] += serviciosFraccionados;
-
-                const totalGastos = refaccionesCostNeto + nominaFinalConDescuentos + costoFijosPeriodo + egresosManuales;
-                const ventasNetasSinIva16 = ingresos - totalIva16Cobrado;
-
-                const utilidadBruta = ventasNetasSinIva16 - refaccionesCostNeto; 
-                const utilidadNeta = ventasNetasSinIva16 - totalGastos;
-                
-                const margenUtilidad = ventasNetasSinIva16 > 0 ? (utilidadNeta / ventasNetasSinIva16) * 100 : 0;
-                const ticketPromedio = vehiculosAtendidos > 0 ? ingresos / vehiculosAtendidos : 0;
-
-                if (document.getElementById('dash-ingresos')) {
-                    document.getElementById('dash-ingresos').innerText = Utils.formatter.format(ingresos);
-                    document.getElementById('dash-utilidad-bruta').innerText = Utils.formatter.format(utilidadBruta);
-                    document.getElementById('dash-egresos').innerText = Utils.formatter.format(totalGastos);
-                    document.getElementById('dash-utilidad').innerText = Utils.formatter.format(utilidadNeta);
-                    document.getElementById('dash-vehiculos').innerText = vehiculosAtendidos;
-                    document.getElementById('dash-ticket-promedio').innerText = Utils.formatter.format(ticketPromedio);
-                    document.getElementById('dash-margen').innerText = `${margenUtilidad.toFixed(1)}%`;
-                    
-                    if (document.getElementById('caja-pagado')) document.getElementById('caja-pagado').innerText = Utils.formatter.format(pagado);
-                    if (document.getElementById('caja-anticipo')) document.getElementById('caja-anticipo').innerText = Utils.formatter.format(anticipo);
-                    if (document.getElementById('costo-ref-total')) document.getElementById('costo-ref-total').innerText = Utils.formatter.format(refaccionesCostNeto);
-                    if (document.getElementById('costo-fijos-total')) document.getElementById('costo-fijos-total').innerText = Utils.formatter.format(costoFijosPeriodo);
-                    if (document.getElementById('costo-nomina-total')) document.getElementById('costo-nomina-total').innerText = Utils.formatter.format(nominaFinalConDescuentos);
-
-                    const catContainer = document.getElementById('dashboard-categories-container');
-                    const iva8Total = refaccionesCostBruto - refaccionesCostNeto;
-
-                    let categoriesHtml = `
-                        <div class="bg-emerald-50/60 p-2.5 rounded-xl border border-emerald-200 flex flex-col gap-1 mb-2 font-sans text-xs">
-                            <span class="text-[10px] uppercase font-bold text-emerald-700 tracking-wider flex items-center gap-1">
-                                <span class="material-icons text-xs">point_of_sale</span> 📊 Desglose de Ventas (Ingresos Cobrados)
-                            </span>
-                            <div class="flex justify-between text-slate-600">
-                                <span>Ingresos Totales en Caja:</span>
-                                <span class="font-semibold text-slate-800">${Utils.formatter.format(ingresos)}</span>
-                            </div>
-                            <div class="flex justify-between text-slate-600">
-                                <span>Ingresos Netos (Sin IVA 16%):</span>
-                                <span class="font-bold text-slate-900">${Utils.formatter.format(ventasNetasSinIva16)}</span>
-                            </div>
-                            <div class="flex justify-between text-emerald-700 text-[10px] pt-0.5 border-t border-dashed border-emerald-300">
-                                <span>IVA 16% Cobrado Real:</span>
-                                <span class="font-bold">${Utils.formatter.format(totalIva16Cobrado)}</span>
-                            </div>
-                        </div>
-                        <div class="bg-blue-50/60 p-2.5 rounded-xl border border-blue-200 flex flex-col gap-1 mb-2 font-sans text-xs">
-                            <span class="text-[10px] uppercase font-bold text-blue-600 tracking-wider flex items-center gap-1">
-                                <span class="material-icons text-xs">inventory_2</span> 📦 Desglose Refacciones (Costos)
-                            </span>
-                            <div class="flex justify-between text-slate-600">
-                                <span>Refacciones Bruto (c/ IVA 8%):</span>
-                                <span class="font-semibold text-slate-800">${Utils.formatter.format(refaccionesCostBruto)}</span>
-                            </div>
-                            <div class="flex justify-between text-slate-600">
-                                <span>Refacciones Neto (s/ IVA):</span>
-                                <span class="font-bold text-slate-900">${Utils.formatter.format(refaccionesCostNeto)}</span>
-                            </div>
-                            <div class="flex justify-between text-blue-700 text-[10px] pt-0.5 border-t border-dashed border-blue-300">
-                                <span>IVA 8% Acreditable Pagado:</span>
-                                <span class="font-bold">${Utils.formatter.format(iva8Total)}</span>
-                            </div>
-                        </div>
-                    `;
-
-                    categoriesHtml += Object.keys(montosPorCategoria)
-                        .filter(cName => cName !== "Refacciones")
-                        .map(cName => `
-                            <div class="flex justify-between items-center border-b border-slate-100 pb-1">
-                                <span class="text-slate-600 font-medium">${Utils.escapeHtml(cName)}:</span>
-                                <span class="font-bold text-slate-800">${Utils.formatter.format(montosPorCategoria[cName])}</span>
-                            </div>`)
-                        .join('');
-
-                    if (catContainer) catContainer.innerHTML = categoriesHtml;
-
-                    if (document.getElementById('er-ingresos')) document.getElementById('er-ingresos').innerText = Utils.formatter.format(ventasNetasSinIva16);
-                    if (document.getElementById('er-refacciones')) document.getElementById('er-refacciones').innerText = Utils.formatter.format(montosPorCategoria["Refacciones"]);
-                    if (document.getElementById('er-nomina')) document.getElementById('er-nomina').innerText = Utils.formatter.format(montosPorCategoria["Nómina"]);
-                    if (document.getElementById('er-gasolina')) document.getElementById('er-gasolina').innerText = Utils.formatter.format(montosPorCategoria["Gasolina"] + montosPorCategoria["Diesel"]);
-                    if (document.getElementById('er-consumibles')) document.getElementById('er-consumibles').innerText = Utils.formatter.format(montosPorCategoria["Consumibles"]);
-                    
-                    const sumServiciosAcumulados = montosPorCategoria["Renta"] + montosPorCategoria["Agua"] + montosPorCategoria["Luz"] + montosPorCategoria["Internet"];
-                    if (document.getElementById('er-servicios')) document.getElementById('er-servicios').innerText = Utils.formatter.format(sumServiciosAcumulados);
-                    if (document.getElementById('er-publicidad')) document.getElementById('er-publicidad').innerText = Utils.formatter.format(montosPorCategoria["Publicidad"]);
-                    
-                    const otrosAcumulados = totalGastos - (montosPorCategoria["Refacciones"] + montosPorCategoria["Nómina"] + montosPorCategoria["Gasolina"] + montosPorCategoria["Diesel"] + montosPorCategoria["Consumibles"] + sumServiciosAcumulados + montosPorCategoria["Publicidad"]);
-                    if (document.getElementById('er-otros')) document.getElementById('er-otros').innerText = Utils.formatter.format(otrosAcumulados > 0 ? otrosAcumulados : 0);
-                    if (document.getElementById('er-utilidad-neta')) document.getElementById('er-utilidad-neta').innerText = Utils.formatter.format(utilidadNeta);
                 }
+            });
 
-                this.renderCharts(ingresos, totalGastos, montosPorCategoria);
-            },
+            let costoNominaPeriodo = 0;
+            State.personal.forEach(p => {
+                const sueldoDiario = (parseFloat(p.sueldo) || 0) / 7;
+                const empInicio = p.fecha_ingreso ? Utils.parseFechaLocal(p.fecha_ingreso) : new Date(0);
+                const empFin = p.fecha_egreso ? Utils.parseFechaLocal(p.fecha_egreso) : new Date(8640000000000000);
+
+                const inicioInterseccion = new Date(Math.max(start, empInicio));
+                const finInterseccion = new Date(Math.min(end, empFin));
+
+                if (inicioInterseccion <= finInterseccion) {
+                    const msDiferencia = finInterseccion - inicioInterseccion;
+                    const diasTrabajadosEnPeriodo = Math.ceil(msDiferencia / (1000 * 60 * 60 * 24));
+                    costoNominaPeriodo += diasTrabajadosEnPeriodo * sueldoDiario;
+                }
+            });
+
+            const fijosMensuales = (State.fixedCosts.renta || 0) + (State.fixedCosts.servicios || 0) + (State.fixedCosts.impuestos || 0);
+            const fijosPorDia = fijosMensuales / 30.4;
+            const costoFijosPeriodo = fijosPorDia * totalDays;
+
+            let nominaFinalConDescuentos = costoNominaPeriodo - deduccionesNomina;
+            montosPorCategoria["Nómina"] = nominaFinalConDescuentos;
+            montosPorCategoria["Refacciones"] = refaccionesCostNeto; 
+            
+            montosPorCategoria["Renta"] += (State.fixedCosts.renta / 30.4) * totalDays;
+            montosPorCategoria["Impuestos"] += (State.fixedCosts.impuestos / 30.4) * totalDays;
+            
+            const serviciosFraccionados = ((State.fixedCosts.servicios || 0) / 3) / 30.4 * totalDays;
+            montosPorCategoria["Agua"] += serviciosFraccionados;
+            montosPorCategoria["Luz"] += serviciosFraccionados;
+            montosPorCategoria["Internet"] += serviciosFraccionados;
+
+            const totalGastos = refaccionesCostNeto + nominaFinalConDescuentos + costoFijosPeriodo + egresosManuales;
+            const ventasNetasSinIva16 = ingresos - totalIva16Cobrado;
+
+            const utilidadBruta = ventasNetasSinIva16 - refaccionesCostNeto; 
+            const utilidadNeta = ventasNetasSinIva16 - totalGastos;
+            
+            const margenUtilidad = ventasNetasSinIva16 > 0 ? (utilidadNeta / ventasNetasSinIva16) * 100 : 0;
+            const ticketPromedio = vehiculosAtendidos > 0 ? ingresos / vehiculosAtendidos : 0;
+
+            if (document.getElementById('dash-ingresos')) {
+                document.getElementById('dash-ingresos').innerText = Utils.formatter.format(ingresos);
+                document.getElementById('dash-utilidad-bruta').innerText = Utils.formatter.format(utilidadBruta);
+                document.getElementById('dash-egresos').innerText = Utils.formatter.format(totalGastos);
+                document.getElementById('dash-utilidad').innerText = Utils.formatter.format(utilidadNeta);
+                document.getElementById('dash-vehiculos').innerText = vehiculosAtendidos;
+                document.getElementById('dash-ticket-promedio').innerText = Utils.formatter.format(ticketPromedio);
+                document.getElementById('dash-margen').innerText = `${margenUtilidad.toFixed(1)}%`;
+                
+                if (document.getElementById('caja-pagado')) document.getElementById('caja-pagado').innerText = Utils.formatter.format(pagado);
+                if (document.getElementById('caja-anticipo')) document.getElementById('caja-anticipo').innerText = Utils.formatter.format(anticipo);
+                if (document.getElementById('costo-ref-total')) document.getElementById('costo-ref-total').innerText = Utils.formatter.format(refaccionesCostNeto);
+                if (document.getElementById('costo-fijos-total')) document.getElementById('costo-fijos-total').innerText = Utils.formatter.format(costoFijosPeriodo);
+                if (document.getElementById('costo-nomina-total')) document.getElementById('costo-nomina-total').innerText = Utils.formatter.format(nominaFinalConDescuentos);
+
+                const catContainer = document.getElementById('dashboard-categories-container');
+                const iva8Total = refaccionesCostBruto - refaccionesCostNeto;
+
+                let categoriesHtml = `
+                    <div class="bg-emerald-50/60 p-2.5 rounded-xl border border-emerald-200 flex flex-col gap-1 mb-2 font-sans text-xs">
+                        <span class="text-[10px] uppercase font-bold text-emerald-700 tracking-wider flex items-center gap-1">
+                            <span class="material-icons text-xs">point_of_sale</span> 📊 Desglose de Ventas (Ingresos Cobrados)
+                        </span>
+                        <div class="flex justify-between text-slate-600">
+                            <span>Ingresos Totales en Caja:</span>
+                            <span class="font-semibold text-slate-800">${Utils.formatter.format(ingresos)}</span>
+                        </div>
+                        <div class="flex justify-between text-slate-600">
+                            <span>Ingresos Netos (Sin IVA 16%):</span>
+                            <span class="font-bold text-slate-900">${Utils.formatter.format(ventasNetasSinIva16)}</span>
+                        </div>
+                        <div class="flex justify-between text-emerald-700 text-[10px] pt-0.5 border-t border-dashed border-emerald-300">
+                            <span>IVA 16% Cobrado Real:</span>
+                            <span class="font-bold">${Utils.formatter.format(totalIva16Cobrado)}</span>
+                        </div>
+                    </div>
+                    <div class="bg-blue-50/60 p-2.5 rounded-xl border border-blue-200 flex flex-col gap-1 mb-2 font-sans text-xs">
+                        <span class="text-[10px] uppercase font-bold text-blue-600 tracking-wider flex items-center gap-1">
+                            <span class="material-icons text-xs">inventory_2</span> 📦 Desglose Refacciones (Costos)
+                        </span>
+                        <div class="flex justify-between text-slate-600">
+                            <span>Refacciones Bruto (c/ IVA 8%):</span>
+                            <span class="font-semibold text-slate-800">${Utils.formatter.format(refaccionesCostBruto)}</span>
+                        </div>
+                        <div class="flex justify-between text-slate-600">
+                            <span>Refacciones Neto (s/ IVA):</span>
+                            <span class="font-bold text-slate-900">${Utils.formatter.format(refaccionesCostNeto)}</span>
+                        </div>
+                        <div class="flex justify-between text-blue-700 text-[10px] pt-0.5 border-t border-dashed border-blue-300">
+                            <span>IVA 8% Acreditable Pagado:</span>
+                            <span class="font-bold">${Utils.formatter.format(iva8Total)}</span>
+                        </div>
+                    </div>
+                `;
+
+                categoriesHtml += Object.keys(montosPorCategoria)
+                    .filter(cName => cName !== "Refacciones")
+                    .map(cName => `
+                        <div class="flex justify-between items-center border-b border-slate-100 pb-1">
+                            <span class="text-slate-600 font-medium">${Utils.escapeHtml(cName)}:</span>
+                            <span class="font-bold text-slate-800">${Utils.formatter.format(montosPorCategoria[cName])}</span>
+                        </div>`)
+                    .join('');
+
+                if (catContainer) catContainer.innerHTML = categoriesHtml;
+
+                if (document.getElementById('er-ingresos')) document.getElementById('er-ingresos').innerText = Utils.formatter.format(ventasNetasSinIva16);
+                if (document.getElementById('er-refacciones')) document.getElementById('er-refacciones').innerText = Utils.formatter.format(montosPorCategoria["Refacciones"]);
+                if (document.getElementById('er-nomina')) document.getElementById('er-nomina').innerText = Utils.formatter.format(montosPorCategoria["Nómina"]);
+                if (document.getElementById('er-gasolina')) document.getElementById('er-gasolina').innerText = Utils.formatter.format(montosPorCategoria["Gasolina"] + montosPorCategoria["Diesel"]);
+                if (document.getElementById('er-consumibles')) document.getElementById('er-consumibles').innerText = Utils.formatter.format(montosPorCategoria["Consumibles"]);
+                
+                const sumServiciosAcumulados = montosPorCategoria["Renta"] + montosPorCategoria["Agua"] + montosPorCategoria["Luz"] + montosPorCategoria["Internet"];
+                if (document.getElementById('er-servicios')) document.getElementById('er-servicios').innerText = Utils.formatter.format(sumServiciosAcumulados);
+                if (document.getElementById('er-publicidad')) document.getElementById('er-publicidad').innerText = Utils.formatter.format(montosPorCategoria["Publicidad"]);
+                
+                const otrosAcumulados = totalGastos - (montosPorCategoria["Refacciones"] + montosPorCategoria["Nómina"] + montosPorCategoria["Gasolina"] + montosPorCategoria["Diesel"] + montosPorCategoria["Consumibles"] + sumServiciosAcumulados + montosPorCategoria["Publicidad"]);
+                if (document.getElementById('er-otros')) document.getElementById('er-otros').innerText = Utils.formatter.format(otrosAcumulados > 0 ? otrosAcumulados : 0);
+                if (document.getElementById('er-utilidad-neta')) document.getElementById('er-utilidad-neta').innerText = Utils.formatter.format(utilidadNeta);
+            }
+
+            this.renderCharts(ingresos, totalGastos, montosPorCategoria);
+        },
             
             renderCharts(ingresos, totalGastos, montosPorCategoria) {
                 if(chartInstance1) chartInstance1.destroy();
