@@ -148,7 +148,7 @@
                         </div>
                         <div>
                             <h3 class="font-bold text-slate-900 text-sm">Filtros de Reporte Consolidado</h3>
-                            <p class="text-xs text-slate-400">Todos los balances y gráficas se recalculan con el periodo seleccionado.</p>
+                            <p class="text-xs text-slate-400">Todos los balances y gráficas se recalculan según el flujo de efectivo del periodo.</p>
                         </div>
                     </div>
                     
@@ -183,13 +183,13 @@
                     <div class="bg-white border border-slate-200 p-5 rounded-2xl flex flex-col justify-between shadow-sm">
                         <div class="flex items-center justify-between">
                             <div>
-                                <p class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Ingresos Brutos</p>
+                                <p class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Ingresos Reales (Cobrado)</p>
                                 <h3 id="dash-ingresos" class="text-2xl font-extrabold text-slate-800 mt-1">$0.00</h3>
                             </div>
                             <div class="bg-emerald-50 text-emerald-600 p-3 rounded-xl"><span class="material-icons">trending_up</span></div>
                         </div>
                         <div class="text-[10px] text-slate-400 mt-3 pt-2 border-t border-slate-100">
-                            Pagado: <span id="caja-pagado" class="font-semibold text-slate-700">$0.00</span> | Anticipos: <span id="caja-anticipo" class="font-semibold text-slate-700">$0.00</span>
+                            Pagos Liquidados: <span id="caja-pagado" class="font-semibold text-slate-700">$0.00</span> | Anticipos: <span id="caja-anticipo" class="font-semibold text-slate-700">$0.00</span>
                         </div>
                     </div>
 
@@ -232,14 +232,14 @@
                     <div class="bg-white border border-slate-200 p-4 rounded-xl shadow-sm flex items-center gap-4">
                         <div class="bg-purple-50 text-purple-600 p-2 rounded-lg"><span class="material-icons">directions_car</span></div>
                         <div>
-                            <p class="text-[10px] font-bold text-slate-400 uppercase">Vehículos Atendidos</p>
+                            <p class="text-[10px] font-bold text-slate-400 uppercase">Vehículos Ingresados</p>
                             <h4 id="dash-vehiculos" class="text-lg font-bold text-slate-800">0</h4>
                         </div>
                     </div>
                     <div class="bg-white border border-slate-200 p-4 rounded-xl shadow-sm flex items-center gap-4">
                         <div class="bg-indigo-50 text-indigo-600 p-2 rounded-lg"><span class="material-icons">receipt</span></div>
                         <div>
-                            <p class="text-[10px] font-bold text-slate-400 uppercase">Ticket Promedio</p>
+                            <p class="text-[10px] font-bold text-slate-400 uppercase">Ticket Promedio (Ingresos/Vehículo)</p>
                             <h4 id="dash-ticket-promedio" class="text-lg font-bold text-slate-800">$0.00</h4>
                         </div>
                     </div>
@@ -274,12 +274,12 @@
                 <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
                     <div class="bg-white border border-slate-200 p-6 rounded-2xl lg:col-span-7 shadow-sm flex flex-col gap-4">
                         <div>
-                            <h4 class="font-bold text-slate-900 text-sm uppercase tracking-wider">Estado de Resultados Consolidado</h4>
-                            <p class="text-xs text-slate-400">Esquema financiero estructurado del periodo bajo normas contables básicas.</p>
+                            <h4 class="font-bold text-slate-900 text-sm uppercase tracking-wider">Estado de Flujo de Efectivo</h4>
+                            <p class="text-xs text-slate-400">Esquema financiero estructurado según cobros reales efectuados en el periodo.</p>
                         </div>
                         <div class="flex flex-col gap-2 text-xs font-medium text-slate-700 mt-2">
                             <div class="flex justify-between border-b pb-1.5 font-bold text-slate-900 text-sm">
-                                <span>INGRESOS BRUTOS (Ventas)</span> <span id="er-ingresos" class="text-emerald-600">$0.00</span>
+                                <span>INGRESOS COBRADOS REALES</span> <span id="er-ingresos" class="text-emerald-600">$0.00</span>
                             </div>
                             <div class="flex justify-between border-b pb-1.5 pl-4 text-slate-600">
                                 <span>(-) Refacciones (Costo Neto Real)</span> <span id="er-refacciones" class="text-rose-600">$0.00</span>
@@ -337,8 +337,8 @@
                                     <th class="py-4 px-6">Cliente & Auto</th>
                                     <th class="py-4 px-6">Técnico Asignado</th>
                                     <th class="py-4 px-6">Estado / Estadía</th>
-                                    <th class="py-4 px-6">Método Pago</th>
-                                    <th class="py-4 px-6 text-left section-finance-view">Total Cobrado</th>
+                                    <th class="py-4 px-6">Estado Pago</th>
+                                    <th class="py-4 px-6 text-left section-finance-view">Total Orden</th>
                                     <th class="py-4 px-6 text-right">Acción</th>
                                 </tr>
                             </thead>
@@ -484,7 +484,7 @@
                         <div class="grid grid-cols-1 md:grid-cols-3 gap-4 bg-slate-50 p-4 rounded-2xl border border-slate-200 text-sm">
                             <div class="flex flex-col gap-1.5">
                                 <label class="text-xs font-semibold text-slate-500 uppercase">Estado de Pago Inicial</label>
-                                <select id="form-estado-pago" onchange="const isPend = this.value === 'Pendiente'; document.getElementById('form-anticipo-monto-container').style.display = (this.value === 'Anticipo' ? 'flex' : 'none'); document.getElementById('form-metodo-pago-container').style.display = (isPend ? 'none' : 'flex');" class="border rounded-xl px-4 py-2.5 bg-white focus:outline-none cursor-pointer">
+                                <select id="form-estado-pago" onchange="const isPend = this.value === 'Pendiente'; document.getElementById('form-anticipo-monto-container').style.display = (this.value === 'Anticipo' ? 'flex' : 'none'); document.getElementById('form-metodo-pago-container').style.display = (isPend ? 'none' : 'flex'); document.getElementById('form-fecha-pago-container').style.display = (isPend ? 'none' : 'flex'); if (!isPend && !document.getElementById('form-fecha-pago').value) { UI_Controller.setDefaultFechaPago('form-fecha-pago'); }" class="border rounded-xl px-4 py-2.5 bg-white focus:outline-none cursor-pointer">
                                     <option value="Pendiente" selected>❌ Pendiente (Sin abono)</option>
                                     <option value="Anticipo">💰 Anticipo (Abono parcial)</option>
                                     <option value="Pagado">✅ Pagado Total</option>
@@ -501,6 +501,11 @@
                                     <option value="Transferencia">🏦 Transferencia SPEI</option>
                                     <option value="Tarjeta">💳 Tarjeta Débito/Crédito</option>
                                 </select>
+                            </div>
+                            <div id="form-fecha-pago-container" class="flex flex-col gap-1.5" style="display: none;">
+                                <label class="text-xs font-semibold text-slate-500 uppercase">Fecha del Pago</label>
+                                <input type="datetime-local" id="form-fecha-pago" class="border rounded-xl px-4 py-2.5 bg-white focus:outline-none cursor-pointer">
+                                <span class="text-[10px] text-slate-400">Déjalo así si el cliente pagó justo ahora. Cámbialo si el pago fue en otro momento (ej. pago retroactivo).</span>
                             </div>
                         </div>
 
@@ -992,6 +997,11 @@
                                     <input type="number" id="modal-monto-abono" step="0.01" placeholder="0.00" class="w-full border rounded-xl px-3 py-2 text-sm bg-white focus:outline-none">
                                 </div>
                             </div>
+                            <div>
+                                <label class="text-xs font-semibold text-slate-500 uppercase">Fecha del Pago</label>
+                                <input type="datetime-local" id="modal-fecha-pago" class="w-full border rounded-xl px-3 py-2 text-sm bg-white focus:outline-none cursor-pointer">
+                                <p class="text-[10px] text-slate-400 mt-0.5">Por defecto es ahora mismo. Cámbiala si el pago fue retroactivo (ej. "el cliente pagó ayer por transferencia").</p>
+                            </div>
                             <p class="text-[10px] text-slate-500">* Los abonos registrados se asentarán de forma inmutable en el historial de pagos.</p>
                         </div>
 
@@ -1130,6 +1140,20 @@
         const escapeHtml = (value) => String(value ?? '').replace(/[&<>'"]/g, character => ({
             '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'
         })[character]);
+
+        // Parsea cualquier fecha (ISO, timestamp o fecha corta YYYY-MM-DD) de forma uniforme:
+        // - Si viene como fecha corta "YYYY-MM-DD", se ancla al mediodía LOCAL para evitar desfases UTC.
+        // - Si viene como timestamp o ISO completa, se procesa de manera estándar.
+        const parseFechaLocal = (fechaValor) => {
+            if (!fechaValor) return new Date(NaN);
+            if (typeof fechaValor === 'string') {
+                const soloFecha = fechaValor.split('T')[0];
+                if (/^\d{4}-\d{2}-\d{2}$/.test(soloFecha) && !fechaValor.includes('T')) {
+                    return new Date(soloFecha + 'T12:00:00');
+                }
+            }
+            return new Date(fechaValor);
+        };
 
         let modalEditingConcepts = [];
         let quoteItems = [];
@@ -1273,7 +1297,7 @@
                     case 'custom':
                         const sInput = document.getElementById(customStartId) ? document.getElementById(customStartId).value : '';
                         const eInput = document.getElementById(customEndId) ? document.getElementById(customEndId).value : '';
-                        start = sInput ? new Date(sInput + 'T00:00:00') : new Date(0);
+                        start = sInput ? parseFechaLocal(sInput) : new Date(0);
                         end = eInput ? new Date(eInput + 'T23:59:59.999') : new Date();
                         break;
                     default:
@@ -1302,7 +1326,7 @@
                 const totalDays = Math.max(1, Math.ceil(durationMs / (1000 * 60 * 60 * 24)));
 
                 let vehiculosAtendidos = 0;
-                let ingresos = 0; // Ventas Brutas Totales (Órdenes en el periodo con IVA incluido)
+                let ingresos = 0; // FLUJO DE EFECTIVO REAL: Suma de pagos recibidos en el periodo
                 let pagado = 0;
                 let anticipo = 0;
                 let refaccionesCostBruto = 0; 
@@ -1312,55 +1336,39 @@
                 let montosPorCategoria = {};
                 _categories.forEach(cat => montosPorCategoria[cat] = 0);
 
-                // 1. VEHÍCULOS ATENDIDOS E INGRESOS REALES DE ÓRDENES
+                // 1. VEHÍCULOS ATENDIDOS (Filtrados por la FECHA DE INGRESO del auto)
                 _orders.forEach(o => {
                     if (o.estado === 'Cancelada') return;
-
-                    const oDate = new Date(o.fecha_ingreso || o.fecha_registro);
-                    
+                    const oDate = parseFechaLocal(o.fecha_ingreso || o.fecha_registro);
                     if (oDate >= start && oDate <= end) {
                         vehiculosAtendidos++;
+                    }
+                });
 
-                        // Determinar el subtotal sin IVA de la orden
-                        let subtotalBase = parseFloat(o.costo_mano_obra || 0) + parseFloat(o.costo_refacciones || 0);
-                        
-                        if (subtotalBase === 0 && o.conceptos && Array.isArray(o.conceptos) && o.conceptos.length > 0) {
-                            o.conceptos.forEach(c => {
-                                subtotalBase += (parseFloat(c.cantidad || 0) * parseFloat(c.precio || 0));
-                            });
-                        }
+                // 2. INGRESOS REALES / FLUJO DE CAJA (Filtrados por la FECHA DE PAGO REAL de la tabla _pagos)
+                _pagos.forEach(p => {
+                    const pDate = parseFechaLocal(p.fecha);
+                    if (pDate >= start && pDate <= end) {
+                        const pMonto = parseFloat(p.monto || 0);
+                        ingresos += pMonto;
 
-                        if (subtotalBase === 0) {
-                            subtotalBase = parseFloat(o.total_cobrado || 0);
-                        }
-
-                        let ivaOrden = 0;
-                        let granTotalOrden = subtotalBase;
-
-                        // Si la orden requiere factura (Ej. Orden #76)
-                        if (o.requiere_factura) {
-                            // Calcula el 16% sobre el subtotal ($5,069.20 * 0.16 = $811.07)
-                            ivaOrden = parseFloat(o.total_iva || 0);
-                            if (ivaOrden === 0) {
-                                ivaOrden = subtotalBase * 0.16;
-                            }
-                            granTotalOrden = subtotalBase + ivaOrden; // $5,069.20 + $811.07 = $5,880.27
-                            totalIva16Cobrado += ivaOrden;
+                        if (p.tipo === 'anticipo') {
+                            anticipo += pMonto;
                         } else {
-                            granTotalOrden = subtotalBase;
+                            pagado += pMonto;
                         }
 
-                        ingresos += granTotalOrden;
-
-                        if (o.estado_pago === 'Anticipo') {
-                            anticipo += granTotalOrden;
-                        } else {
-                            pagado += granTotalOrden;
+                        // Buscar si la orden ligada requiere factura para desglose de IVA real del pago
+                        const ordenAsociada = _orders.find(o => o.id === p.orden_id);
+                        if (ordenAsociada && ordenAsociada.requiere_factura) {
+                            // Desglose del IVA cobrado en este pago específico
+                            const ivaEnEstePago = pMonto - (pMonto / 1.16);
+                            totalIva16Cobrado += ivaEnEstePago;
                         }
                     }
                 });
 
-                // 2. REFACCIONES REALES (Compras en Supabase o Costos de Órdenes)
+                // 3. REFACCIONES REALES (Compras en Supabase o Costos de Órdenes)
                 if (supabaseClient) {
                     try {
                         const { data: comprasRango } = await supabaseClient
@@ -1378,7 +1386,7 @@
                         } else {
                             _orders.forEach(o => {
                                 if (o.estado === 'Cancelada') return;
-                                const oDate = new Date(o.fecha_ingreso || o.fecha_registro);
+                                const oDate = parseFechaLocal(o.fecha_ingreso || o.fecha_registro);
                                 if (oDate >= start && oDate <= end) {
                                     const costRefTotal = parseFloat(o.costo_refacciones || 0);
                                     refaccionesCostBruto += costRefTotal;
@@ -1394,9 +1402,9 @@
                 let egresosManuales = 0;
                 let deduccionesNomina = 0; 
 
-                // 3. EGRESOS VARIOS (GASTOS EN CAJA)
+                // 4. EGRESOS VARIOS (GASTOS EN CAJA)
                 _expenses.forEach(e => {
-                    const eDate = new Date(e.fecha + 'T00:00:00');
+                    const eDate = parseFechaLocal(e.fecha);
                     if (eDate >= start && eDate <= end) {
                         const mAmt = parseFloat(e.monto || 0);
                         if (e.categoria === "Nómina" && mAmt < 0) {
@@ -1412,12 +1420,12 @@
                     }
                 });
 
-                // 4. NÓMINA Y FIJOS OPERATIVOS
+                // 5. NÓMINA Y FIJOS OPERATIVOS
                 let costoNominaPeriodo = 0;
                 _personal.forEach(p => {
                     const sueldoDiario = (parseFloat(p.sueldo) || 0) / 7;
-                    const empInicio = p.fecha_ingreso ? new Date(p.fecha_ingreso + 'T00:00:00') : new Date(0);
-                    const empFin = p.fecha_egreso ? new Date(p.fecha_egreso + 'T23:59:59') : new Date(8640000000000000);
+                    const empInicio = p.fecha_ingreso ? parseFechaLocal(p.fecha_ingreso) : new Date(0);
+                    const empFin = p.fecha_egreso ? parseFechaLocal(p.fecha_egreso) : new Date(8640000000000000);
 
                     const inicioInterseccion = new Date(Math.max(start, empInicio));
                     const finInterseccion = new Date(Math.min(end, empFin));
@@ -1453,7 +1461,7 @@
                 const margenUtilidad = ventasNetasSinIva16 > 0 ? (utilidadNeta / ventasNetasSinIva16) * 100 : 0;
                 const ticketPromedio = vehiculosAtendidos > 0 ? ingresos / vehiculosAtendidos : 0;
 
-                // 5. RENDERIZADO EN PANTALLA
+                // 6. RENDERIZADO EN PANTALLA
                 if (document.getElementById('dash-ingresos')) {
                     document.getElementById('dash-ingresos').innerText = formatter.format(ingresos);
                     document.getElementById('dash-utilidad-bruta').innerText = formatter.format(utilidadBruta);
@@ -1475,18 +1483,18 @@
                     let categoriesHtml = `
                         <div class="bg-emerald-50/60 p-2.5 rounded-xl border border-emerald-200 flex flex-col gap-1 mb-2 font-sans text-xs">
                             <span class="text-[10px] uppercase font-bold text-emerald-700 tracking-wider flex items-center gap-1">
-                                <span class="material-icons text-xs">point_of_sale</span> 📊 Desglose de Ventas (Ingresos)
+                                <span class="material-icons text-xs">point_of_sale</span> 📊 Desglose de Ventas (Ingresos Cobrados)
                             </span>
                             <div class="flex justify-between text-slate-600">
-                                <span>Ventas Brutas (Órdenes):</span>
+                                <span>Ingresos Totales en Caja:</span>
                                 <span class="font-semibold text-slate-800">${formatter.format(ingresos)}</span>
                             </div>
                             <div class="flex justify-between text-slate-600">
-                                <span>Ventas Netas (Sin IVA 16%):</span>
+                                <span>Ingresos Netos (Sin IVA 16%):</span>
                                 <span class="font-bold text-slate-900">${formatter.format(ventasNetasSinIva16)}</span>
                             </div>
                             <div class="flex justify-between text-emerald-700 text-[10px] pt-0.5 border-t border-dashed border-emerald-300">
-                                <span>Puro IVA 16% por Trasladar/Pagar:</span>
+                                <span>IVA 16% Cobrado Real:</span>
                                 <span class="font-bold">${formatter.format(totalIva16Cobrado)}</span>
                             </div>
                         </div>
@@ -1797,7 +1805,7 @@
                                        o.auto_placas.toLowerCase().includes(query) || 
                                        (o.tecnico_asignado && o.tecnico_asignado.toLowerCase().includes(query));
                     
-                    const oDate = new Date(o.fecha_ingreso || o.fecha_registro);
+                    const oDate = parseFechaLocal(o.fecha_ingreso || o.fecha_registro);
                     const matchFecha = oDate >= start && oDate <= end;
                     
                     return matchQuery && matchFecha;
@@ -1811,12 +1819,12 @@
                 document.getElementById('no-orders-message').classList.add('hidden');
 
                 const rowsHtml = filtered.map(o => {
-                    const dIngreso = new Date(o.fecha_ingreso || o.fecha_registro);
+                    const dIngreso = parseFechaLocal(o.fecha_ingreso || o.fecha_registro);
                     const dateFormatted = dIngreso.toLocaleDateString('es-MX', {day: '2-digit', month: 'short'});
                     
                     let estadiaTexto = "En taller";
                     if (o.fecha_egreso) {
-                        const dEgreso = new Date(o.fecha_egreso);
+                        const dEgreso = parseFechaLocal(o.fecha_egreso);
                         const diffTime = Math.abs(dEgreso - dIngreso);
                         const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
                         estadiaTexto = `${diffDays} ${diffDays === 1 ? 'día' : 'días'}`;
@@ -1837,13 +1845,11 @@
                     
                     const nombreTecnico = o.tecnico_asignado && o.tecnico_asignado.trim() !== '' ? o.tecnico_asignado : 'Sin Asignar';
                     
-                    let metodoPagoBadge = '<span class="text-xs text-slate-400 font-medium">-</span>';
-                    if (o.estado === 'Terminado' || o.estado === 'Entregado') {
-                        if (o.metodo_pago) {
-                            metodoPagoBadge = `<span class="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-bold bg-slate-100 text-slate-700 rounded-lg border border-slate-200">${escapeHtml(o.metodo_pago)}</span>`;
-                        } else {
-                            metodoPagoBadge = `<span class="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-semibold bg-amber-50 text-amber-700 rounded-lg border border-amber-200">Pendiente</span>`;
-                        }
+                    let estadoPagoBadge = '<span class="px-2 py-0.5 text-xs font-semibold bg-rose-50 text-rose-700 rounded-lg border border-rose-200">❌ Pendiente</span>';
+                    if (o.estado_pago === 'Pagado') {
+                        estadoPagoBadge = `<span class="px-2 py-0.5 text-xs font-bold bg-emerald-50 text-emerald-700 rounded-lg border border-emerald-200">✅ Pagado</span>`;
+                    } else if (o.estado_pago === 'Anticipo') {
+                        estadoPagoBadge = `<span class="px-2 py-0.5 text-xs font-bold bg-amber-50 text-amber-700 rounded-lg border border-amber-200">💰 Anticipo</span>`;
                     }
 
                     return `
@@ -1866,7 +1872,7 @@
                                 </span>
                                 <span class="text-[10px] text-slate-500 font-semibold flex items-center gap-1"><span class="material-icons text-[11px]">schedule</span> ${estadiaTexto}</span>
                             </td>
-                            <td class="py-3 px-6">${metodoPagoBadge}</td>
+                            <td class="py-3 px-6">${estadoPagoBadge}</td>
                             <td class="py-3 px-6 section-finance-view font-bold text-slate-700">${formatter.format(o.total_cobrado)}</td>
                             <td class="py-3 px-6 text-right"><button onclick="UI_Controller.openEditModal(${o.id})" class="text-xs font-bold text-blue-600 hover:underline">Gestionar</button></td>
                         </tr>
@@ -1915,7 +1921,7 @@
                 mecanicos.forEach(m => {
                     const ordenesAsignadas = _orders.filter(o => {
                         if (o.estado === 'Cancelada') return false;
-                        const oDate = new Date(o.fecha_ingreso || o.fecha_registro);
+                        const oDate = parseFechaLocal(o.fecha_ingreso || o.fecha_registro);
                         const isMec = (o.tecnico_user_id && o.tecnico_user_id === m.user_id) || (o.tecnico_asignado && o.tecnico_asignado.toLowerCase() === m.nombre.toLowerCase());
                         return isMec && (oDate >= start && oDate <= end);
                     });
@@ -1998,8 +2004,8 @@
             renderPersonalList() {
                 const tbody = document.getElementById('personal-table-body'); if(!tbody) return;
                 const rowsHtml = _personal.map(p => {
-                    const fIngreso = p.fecha_ingreso ? new Date(p.fecha_ingreso + 'T00:00:00').toLocaleDateString('es-MX', {day:'2-digit', month:'short', year:'numeric'}) : 'No reg.';
-                    const fEgreso = p.fecha_egreso ? new Date(p.fecha_egreso + 'T00:00:00').toLocaleDateString('es-MX', {day:'2-digit', month:'short', year:'numeric'}) : 'Presente';
+                    const fIngreso = p.fecha_ingreso ? parseFechaLocal(p.fecha_ingreso).toLocaleDateString('es-MX', {day:'2-digit', month:'short', year:'numeric'}) : 'No reg.';
+                    const fEgreso = p.fecha_egreso ? parseFechaLocal(p.fecha_egreso).toLocaleDateString('es-MX', {day:'2-digit', month:'short', year:'numeric'}) : 'Presente';
                     const activo = !p.fecha_egreso;
 
                     return `
@@ -2064,7 +2070,7 @@
                 if(incomeBody) {
                     incomeBody.innerHTML = _pagos.map(p => {
                         const amt = parseFloat(p.monto || 0);
-                        const pFecha = new Date(p.fecha).toLocaleDateString('es-MX', {day:'2-digit', month:'short'});
+                        const pFecha = parseFechaLocal(p.fecha).toLocaleDateString('es-MX', {day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit'});
                         return `
                             <tr class="border-b">
                                 <td class="py-2 text-slate-500 font-medium">${pFecha}</td>
@@ -2157,7 +2163,7 @@
                 e.preventDefault();
                 let m=0, r=0; newOrderConcepts.forEach(c=>{ if(c.categoria==='mano-obra') m+=c.cantidad*c.precio; else r+=c.cantidad*c.precio; });
                 const manualDate = document.getElementById('form-fecha-ingreso').value;
-                const isoDate = manualDate ? new Date(manualDate + 'T12:00:00').toISOString() : new Date().toISOString();
+                const isoDate = manualDate ? parseFechaLocal(manualDate).toISOString() : new Date().toISOString();
 
                 let subtotal = m + r;
                 let requiereFactura = document.getElementById('form-requiere-factura').checked;
@@ -2207,13 +2213,23 @@
                 if (error) { showToast("Error Supabase: " + error.message, true); return; }
 
                 if (montoAbonado > 0 && createdOrder) {
-                    await supabaseClient.from('pagos').insert([{
+                    const fechaPagoInput = document.getElementById('form-fecha-pago').value;
+                    const fechaPago = fechaPagoInput ? new Date(fechaPagoInput).toISOString() : new Date().toISOString();
+
+                    const { error: errorPago } = await supabaseClient.from('pagos').insert([{
                         orden_id: createdOrder.id,
                         monto: montoAbonado,
                         metodo_pago: initMetodoPago || 'Efectivo',
                         tipo: initEstadoPago === 'Anticipo' ? 'anticipo' : 'pago_final',
+                        fecha: fechaPago,
                         observaciones: 'Pago registrado al ingresar orden'
                     }]);
+
+                    if (errorPago) {
+                        showToast("Orden creada, pero el pago no se pudo registrar: " + errorPago.message, true);
+                    } else {
+                        await API_Service.fetchPagos(true);
+                    }
                 }
 
                 showToast("Orden de trabajo registrada correctamente."); 
@@ -2223,6 +2239,8 @@
                 document.getElementById('form-estado-pago').value = 'Pendiente';
                 document.getElementById('form-anticipo-monto-container').style.display = 'none';
                 document.getElementById('form-metodo-pago-container').style.display = 'none';
+                document.getElementById('form-fecha-pago-container').style.display = 'none';
+                document.getElementById('form-fecha-pago').value = '';
                 document.getElementById('form-fecha-ingreso').value = new Date().toISOString().split('T')[0];
                 API_Service.fetchOrders(true); this.switchTab('ordenes');
             },
@@ -2281,6 +2299,7 @@
                 if(mSel) mSel.value = o.metodo_pago || "Efectivo";
 
                 document.getElementById('modal-monto-abono').value = '';
+                this.setDefaultFechaPago('modal-fecha-pago');
 
                 document.getElementById('modal-edit-order').classList.remove('hidden');
                 this.applyRolePermissions();
@@ -2297,6 +2316,17 @@
                 const container = document.getElementById('modal-payment-method-container');
                 if(!container) return;
                 if(state === 'Anticipo' || state === 'Pagado') { container.classList.remove('hidden'); } else { container.classList.add('hidden'); }
+            },
+
+            // Precarga un input datetime-local con la fecha/hora LOCAL actual (no UTC),
+            // en el formato que espera el input: YYYY-MM-DDTHH:mm
+            setDefaultFechaPago(inputId) {
+                const el = document.getElementById(inputId);
+                if (!el) return;
+                const now = new Date();
+                const pad = (n) => String(n).padStart(2, '0');
+                const local = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}`;
+                el.value = local;
             },
 
             addModalConceptRow() { modalEditingConcepts.push({ descripcion: '', cantidad: 1, precio: 0, categoria: 'refacciones' }); this.renderModalConcepts(); },
@@ -2358,7 +2388,7 @@
                     } else {
                         compras.forEach(item => {
                             totalAcumulado += parseFloat(item.costo_neto || 0);
-                            const fechaFormateada = new Date(item.fecha_compra).toLocaleString('es-MX', {
+                            const fechaFormateada = parseFechaLocal(item.fecha_compra).toLocaleString('es-MX', {
                                 day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'
                             });
 
@@ -2436,17 +2466,12 @@
                 const targetUserVal = document.getElementById('modal-tecnico').value || null;
                 const mecObj = _personal.find(p => (p.user_id && p.user_id === targetUserVal) || p.id == targetUserVal);
 
-                // Determinar fecha representativa para el movimiento financiero
-                const fechaEfectiva = modalEgresoDate 
-                    ? new Date(modalEgresoDate + 'T12:00:00').toISOString() 
-                    : (modalManualDate ? new Date(modalManualDate + 'T12:00:00').toISOString() : new Date().toISOString());
-
                 let fields = {
                     estado: document.getElementById('modal-estado-trabajo').value,
                     diagnostico_tecnico: document.getElementById('modal-diagnostico').value,
                     kilometraje: parseInt(document.getElementById('modal-kilometraje').value) || 0,
-                    fecha_ingreso: modalManualDate ? new Date(modalManualDate + 'T12:00:00').toISOString() : new Date().toISOString(),
-                    fecha_egreso: modalEgresoDate ? new Date(modalEgresoDate + 'T12:00:00').toISOString() : null,
+                    fecha_ingreso: modalManualDate ? parseFechaLocal(modalManualDate).toISOString() : new Date().toISOString(),
+                    fecha_egreso: modalEgresoDate ? parseFechaLocal(modalEgresoDate).toISOString() : null,
                     tecnico_user_id: mecObj ? (mecObj.user_id || null) : null,
                     tecnico_asignado: mecObj ? mecObj.nombre : 'Sin Asignar'
                 };
@@ -2460,18 +2485,13 @@
                     let m = 0, r = 0; 
                     modalEditingConcepts.forEach(c => { 
                         if (c.categoria === 'mano-obra') m += c.cantidad * c.precio; 
-                        else r += c.cantidad * c.precio; 
+                        else r += c.categoria === 'refacciones' ? c.cantidad * c.precio : 0; 
                     });
                     let subtotal = m + r;
                     let ivaCalculado = requiereFactura ? subtotal * 0.16 : 0;
                     let granTotal = subtotal + ivaCalculado;
 
                     montoAbonoIngresado = parseFloat(document.getElementById('modal-monto-abono').value) || 0;
-
-                    // Si marca Pagado y no ingresó monto explícito en la caja, cobra el total
-                    if (paymentState === 'Pagado' && montoAbonoIngresado === 0) {
-                        montoAbonoIngresado = granTotal;
-                    }
 
                     fields.estado_pago = paymentState;
                     fields.metodo_pago = (paymentState === 'Anticipo' || paymentState === 'Pagado') ? (document.getElementById('modal-metodo-pago').value || 'Efectivo') : '';
@@ -2490,33 +2510,33 @@
                 const { error } = await supabaseClient.from('ordenes_trabajo').update(fields).eq('id', currentEditingOrderId); 
                 if (error) { showToast("Error al guardar: " + error.message, true); return; }
 
-                // 2. Insertar Pago en Supabase Y actualizar la memoria local _pagos
+                // 2. Insertar Pago en Supabase con la fecha real capturada (o "ahora" si no se especificó otra)
+                let errorPago = null;
                 if (montoAbonoIngresado > 0) {
+                    const fechaPagoInput = document.getElementById('modal-fecha-pago').value;
+                    const fechaPago = fechaPagoInput ? new Date(fechaPagoInput).toISOString() : new Date().toISOString();
+
                     const nuevoPagoObj = {
                         orden_id: currentEditingOrderId,
                         monto: montoAbonoIngresado,
                         metodo_pago: fields.metodo_pago || 'Efectivo',
                         tipo: fields.estado_pago === 'Anticipo' ? 'anticipo' : 'pago_final',
-                        fecha: fechaEfectiva,
+                        fecha: fechaPago,
                         observaciones: 'Pago registrado desde el modal de orden'
                     };
 
-                    const { data: pagoInsertado, error: errorPago } = await supabaseClient
-                        .from('pagos')
-                        .insert([nuevoPagoObj])
-                        .select();
-
-                    if (!errorPago && pagoInsertado && pagoInsertado.length > 0) {
-                        _pagos.unshift(pagoInsertado[0]);
-                    } else {
-                        _pagos.unshift(nuevoPagoObj);
-                    }
+                    const insertResult = await supabaseClient.from('pagos').insert([nuevoPagoObj]);
+                    errorPago = insertResult.error;
                 }
 
-                showToast("Cambios guardados con éxito.");
+                if (errorPago) {
+                    showToast("Cambios guardados, pero el pago no se pudo registrar: " + errorPago.message, true);
+                } else {
+                    showToast("Cambios guardados con éxito.");
+                }
                 this.closeModal(); 
 
-                // 3. Forzar recarga completa de órdenes y pagos, y recalcular el panel
+                // 3. Forzar recarga completa de órdenes y pagos
                 await API_Service.fetchOrders(true);
                 await API_Service.fetchPagos(true);
                 await Financial_Engine.recalculate();
