@@ -2398,33 +2398,49 @@
             },
 
             async guardarRefaccionModal(event) {
-                event.preventDefault();
+    event.preventDefault();
 
-                if (!this.ordenActivaId) return;
+    if (!this.ordenActivaId) return;
 
-                const datosCompra = {
-                    orden_id: this.ordenActivaId,
-                    descripcion: document.getElementById('ref-descripcion').value.trim(),
-                    proveedor: document.getElementById('ref-proveedor').value.trim() || null,
-                    costo_neto: parseFloat(document.getElementById('ref-costo').value),
-                    metodo_pago: document.getElementById('ref-metodo').value,
-                    folio_ticket_factura: document.getElementById('ref-folio').value.trim() || null,
-                    fecha_compra: new Date(document.getElementById('ref-fecha').value).toISOString()
-                };
+    const desc = document.getElementById('ref-descripcion').value.trim();
+    const costo = parseFloat(document.getElementById('ref-costo').value) || 0;
 
-                try {
-                    await API_Service.registrarCompraRefaccion(datosCompra);
-                    showToast("Refacción registrada con éxito");
-                    
-                    document.getElementById('form-agregar-refaccion').reset();
-                    await this.cargarRefaccionesModal(this.ordenActivaId);
-                    
-                    API_Service.fetchOrders(true);
-                } catch (err) {
-                    console.error("Error al guardar refacción:", err);
-                    showToast("No se pudo registrar la compra", true);
-                }
-            },
+    const datosCompra = {
+        orden_id: this.ordenActivaId,
+        descripcion: desc,
+        proveedor: document.getElementById('ref-proveedor').value.trim() || null,
+        costo_neto: costo,
+        metodo_pago: document.getElementById('ref-metodo').value,
+        folio_ticket_factura: document.getElementById('ref-folio').value.trim() || null,
+        fecha_compra: new Date(document.getElementById('ref-fecha').value).toISOString()
+    };
+
+    try {
+        // 1. Guardar compra real en base de datos
+        await API_Service.registrarCompraRefaccion(datosCompra);
+        showToast("Refacción registrada en compras");
+
+        // 2. AUTOMATIZACIÓN: Agregar como concepto para cobro al cliente abajo
+        State.modalEditingConcepts.push({
+            descripcion: desc,
+            cantidad: 1,
+            precio: costo,
+            categoria: 'refacciones'
+        });
+
+        // 3. Re-renderizar la lista de conceptos y actualizar el Total Final
+        this.renderModalConcepts();
+
+        // Limpiar formulario de compra
+        document.getElementById('form-agregar-refaccion').reset();
+        await this.cargarRefaccionesModal(this.ordenActivaId);
+        
+        API_Service.fetchOrders(true);
+    } catch (err) {
+        console.error("Error al guardar refacción:", err);
+        showToast("No se pudo registrar la compra", true);
+    }
+},
 
             async borrarRefaccionModal(compraId) {
                 customConfirm("¿Eliminar refacción?", "El costo total de la compra se actualizará automáticamente.", async () => {
