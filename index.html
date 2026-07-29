@@ -1368,12 +1368,14 @@
                     }
                 });
 
-                // 3. REFACCIONES REALES (Compras en Supabase o Costos de Órdenes)
+                // 3. REFACCIONES REALES (Suma compras registradas + conceptos de refacciones de órdenes)
+                let refaccionesMap = new Set();
+
                 if (supabaseClient) {
                     try {
                         const { data: comprasRango } = await supabaseClient
                             .from('compras_refacciones')
-                            .select('costo_neto, fecha_compra')
+                            .select('costo_neto, fecha_compra, orden_id')
                             .gte('fecha_compra', start.toISOString())
                             .lte('fecha_compra', end.toISOString());
 
@@ -1382,17 +1384,27 @@
                                 const cTotal = parseFloat(c.costo_neto || 0);
                                 refaccionesCostBruto += cTotal;
                                 refaccionesCostNeto += (cTotal / 1.08);
+                                if (c.orden_id) refaccionesMap.add(c.orden_id);
                             });
-                        } else {
-                            _orders.forEach(o => {
-                                if (o.estado === 'Cancelada') return;
-                                const oDate = parseFechaLocal(o.fecha_ingreso || o.fecha_registro);
-                                if (oDate >= start && oDate <= end) {
-                                    const costRefTotal = parseFloat(o.costo_refacciones || 0);
-                                    refaccionesCostBruto += costRefTotal;
-                                    refaccionesCostNeto += (costRefTotal / 1.08);
-                                }
-                            });
+                        }
+                    } catch (e) {
+                        console.error("Error al obtener compras de refacciones:", e);
+                    }
+                }
+
+                // Sumar refacciones registradas en los conceptos de las órdenes del periodo (si no provienen de compras_refacciones)
+                _orders.forEach(o => {
+                    if (o.estado === 'Cancelada') return;
+                    const oDate = parseFechaLocal(o.fecha_ingreso || o.fecha_registro);
+                    if (oDate >= start && oDate <= end) {
+                        // Solo suma el costo_refacciones de la orden si esta orden no registró sus compras en la tabla detallada
+                        if (!refaccionesMap.has(o.id)) {
+                            const costRefTotal = parseFloat(o.costo_refacciones || 0);
+                            refaccionesCostBruto += costRefTotal;
+                            refaccionesCostNeto += (costRefTotal / 1.08);
+                        }
+                    }
+                });
                         }
                     } catch (e) {
                         console.error("Error al obtener compras de refacciones:", e);
