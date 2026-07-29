@@ -1460,10 +1460,10 @@
             });
 
             // DIBUJAR DESGLOSE DE INGRESO POR ÓRDENES EN EL DASHBOARD
-            const dashboardOrdersIncomeBody = document.getElementById('dashboard-orders-income-body');
+            const dashboardOrdersIncomeBody = document.getElementById('dashboard-income-orders-body'); // 👈 CORREGIDO AQUÍ
             if (dashboardOrdersIncomeBody) {
                 if (listaOrdenesIngreso.length === 0) {
-                    dashboardOrdersIncomeBody.innerHTML = `<tr><td colspan="6" class="p-4 text-center text-slate-400">Sin ingresos registrados en este periodo.</td></tr>`;
+                    dashboardOrdersIncomeBody.innerHTML = `<tr><td colspan="5" class="p-4 text-center text-slate-400">Sin ingresos registrados en este periodo.</td></tr>`;
                 } else {
                     dashboardOrdersIncomeBody.innerHTML = listaOrdenesIngreso.map(item => `
                         <tr class="hover:bg-slate-50 transition border-b border-slate-100">
@@ -1478,7 +1478,7 @@
                                     ${item.tipo === 'anticipo' ? '💰 Anticipo' : '✅ Pago Final'}
                                 </span>
                             </td>
-                            <td class="py-2.5 px-4 text-slate-600">${Utils.escapeHtml(item.metodo)}</td>
+                            <td class="py-2.5 px-4 font-semibold text-slate-600">${Utils.escapeHtml(item.metodo)}</td>
                             <td class="py-2.5 px-4 text-right font-bold text-emerald-600">${Utils.formatter.format(item.monto)}</td>
                         </tr>
                     `).join('');
