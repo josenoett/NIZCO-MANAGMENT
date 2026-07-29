@@ -1484,12 +1484,11 @@ State.pagos.forEach(p => {
                     }
                 }
 
-                let refaccionesMap = new Set();
-
+                // CÁLCULO Y TRAZABILIDAD DE REFACCIONES
                 let refaccionesCostBruto = 0; 
                 let refaccionesCostNeto = 0;  
                 let refaccionesMap = new Set();
-                let listaComprasRefacciones = []; // Guardará las compras para la tabla visual
+                let listaComprasRefacciones = []; 
 
                 if (supabaseClient) {
                     try {
@@ -1562,7 +1561,7 @@ State.pagos.forEach(p => {
                             </tr>
                         `).join('');
                     }
-                },               
+                }               
 
                 let egresosManuales = 0;
                 let deduccionesNomina = 0; 
