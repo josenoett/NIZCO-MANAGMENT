@@ -1485,10 +1485,10 @@ State.pagos.forEach(p => {
                 }
 
                 // CÁLCULO Y TRAZABILIDAD DE REFACCIONES
-                let refaccionesCostBruto = 0; 
-                let refaccionesCostNeto = 0;  
-                let refaccionesMap = new Set();
-                let listaComprasRefacciones = []; 
+                refaccionesCostBruto = 0; 
+                refaccionesCostNeto = 0;  
+                refaccionesMap = new Set();
+                listaComprasRefacciones = []; 
 
                 if (supabaseClient) {
                     try {
