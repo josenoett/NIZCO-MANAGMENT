@@ -314,35 +314,63 @@
                     </div>
                 </div>
 
-                <!-- NUEVO CONTENEDOR: TRAZABILIDAD DE ÓRDENES QUE GENERARON INGRESO -->
-                <div class="bg-white border border-slate-200 p-6 rounded-2xl shadow-sm flex flex-col gap-4">
-                    <div>
-                        <h4 class="font-bold text-slate-900 text-sm uppercase tracking-wider flex items-center gap-2">
-                            <span class="material-icons text-emerald-600">receipt_long</span> Desglose de Órdenes que Generaron Ingresos
-                        </h4>
-                        <p class="text-xs text-slate-400">Listado detallado de cobros y anticipos recibidos dentro del periodo seleccionado.</p>
-                    </div>
-                    
-                    <div class="overflow-x-auto max-h-72 no-scrollbar">
-                        <table class="w-full text-left border-collapse text-xs">
-                            <thead>
-                                <tr class="bg-slate-50 text-slate-500 uppercase text-[10px] tracking-wider font-bold border-b border-slate-200">
-                                    <th class="py-3 px-4">Fecha Pago</th>
-                                    <th class="py-3 px-4">Orden</th>
-                                    <th class="py-3 px-4">Cliente & Vehículo</th>
-                                    <th class="py-3 px-4">Tipo Abono</th>
-                                    <th class="py-3 px-4">Método</th>
-                                    <th class="py-3 px-4 text-right">Monto Recibido</th>
-                                </tr>
-                            </thead>
-                            <tbody id="dashboard-orders-income-body" class="divide-y divide-slate-100 text-slate-700 font-medium">
-                                <tr><td colspan="6" class="p-4 text-center text-slate-400">Cargando desglose...</td></tr>
-                            </tbody>
-                        </table>
-                    </div>
+                <!-- CONTENEDOR 1: TRAZABILIDAD DE ÓRDENES QUE GENERARON INGRESO -->
+            <div class="bg-white border border-slate-200 p-6 rounded-2xl shadow-sm flex flex-col gap-4 mt-6">
+                <div>
+                    <h4 class="font-bold text-slate-900 text-sm uppercase tracking-wider flex items-center gap-2">
+                        <span class="material-icons text-emerald-600">receipt_long</span> Desglose de Órdenes que Generaron Ingresos
+                    </h4>
+                    <p class="text-xs text-slate-400">Listado detallado de cobros y anticipos recibidos dentro del periodo seleccionado.</p>
                 </div>
-            </section>
+                
+                <div class="overflow-x-auto max-h-72 no-scrollbar">
+                    <table class="w-full text-left border-collapse text-xs">
+                        <thead>
+                            <tr class="bg-slate-50 text-slate-500 uppercase text-[10px] tracking-wider font-bold border-b border-slate-200">
+                                <th class="py-3 px-4">Fecha Pago</th>
+                                <th class="py-3 px-4">Orden</th>
+                                <th class="py-3 px-4">Cliente / Vehículo</th>
+                                <th class="py-3 px-4">Método</th>
+                                <th class="py-3 px-4 text-right">Monto Recibido</th>
+                            </tr>
+                        </thead>
+                        <tbody id="dashboard-income-orders-body" class="divide-y divide-slate-100 text-slate-700 font-medium">
+                            <tr><td colspan="5" class="p-4 text-center text-slate-400">Cargando desglose de ingresos...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
 
+            <!-- CONTENEDOR 2: TRAZABILIDAD DE REFACCIONES Y COMPRAS -->
+            <div class="bg-white border border-slate-200 p-6 rounded-2xl shadow-sm flex flex-col gap-4 mt-6">
+                <div>
+                    <h4 class="font-bold text-slate-900 text-sm uppercase tracking-wider flex items-center gap-2">
+                        <span class="material-icons text-blue-600">build_circle</span> Desglose de Refacciones y Compras Realizadas
+                    </h4>
+                    <p class="text-xs text-slate-400">Listado detallado de piezas adquiridas para las órdenes dentro del periodo seleccionado.</p>
+                </div>
+                
+                <div class="overflow-x-auto max-h-72 no-scrollbar">
+                    <table class="w-full text-left border-collapse text-xs">
+                        <thead>
+                            <tr class="bg-slate-50 text-slate-500 uppercase text-[10px] tracking-wider font-bold border-b border-slate-200">
+                                <th class="py-3 px-4">Fecha Compra</th>
+                                <th class="py-3 px-4">Orden</th>
+                                <th class="py-3 px-4">Descripción Pieza / Refacción</th>
+                                <th class="py-3 px-4">Proveedor</th>
+                                <th class="py-3 px-4">Método</th>
+                                <th class="py-3 px-4 text-right">Costo Neto</th>
+                            </tr>
+                        </thead>
+                        <tbody id="dashboard-parts-cost-body" class="divide-y divide-slate-100 text-slate-700 font-medium">
+                            <tr><td colspan="6" class="p-4 text-center text-slate-400">Cargando compras de refacciones...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+        </section>
+            
             <!-- PESTAÑA 2: LISTA DE ÓRDENES -->
             <section id="tab-ordenes" class="tab-content hidden flex flex-col gap-6">
                 <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -355,7 +383,7 @@
                         <input type="text" id="search-bar" placeholder="Buscar cliente, placa o mecánico..." class="text-sm focus:outline-none w-full text-slate-600">
                     </div>
                 </div>
-
+                
                 <div class="bg-white border border-slate-200 rounded-3xl overflow-hidden shadow-sm">
                     <div class="overflow-x-auto">
                         <table class="w-full text-left border-collapse">
@@ -1458,13 +1486,19 @@ State.pagos.forEach(p => {
 
                 let refaccionesMap = new Set();
 
+                let refaccionesCostBruto = 0; 
+                let refaccionesCostNeto = 0;  
+                let refaccionesMap = new Set();
+                let listaComprasRefacciones = []; // Guardará las compras para la tabla visual
+
                 if (supabaseClient) {
                     try {
                         const { data: comprasRango } = await supabaseClient
                             .from('compras_refacciones')
-                            .select('costo_neto, fecha_compra, orden_id')
+                            .select('id, descripcion, proveedor, costo_neto, metodo_pago, fecha_compra, orden_id')
                             .gte('fecha_compra', start.toISOString())
-                            .lte('fecha_compra', end.toISOString());
+                            .lte('fecha_compra', end.toISOString())
+                            .order('fecha_compra', { ascending: false });
 
                         if (comprasRango && comprasRango.length > 0) {
                             comprasRango.forEach(c => {
@@ -1472,6 +1506,19 @@ State.pagos.forEach(p => {
                                 refaccionesCostBruto += cTotal;
                                 refaccionesCostNeto += (cTotal / 1.08);
                                 if (c.orden_id) refaccionesMap.add(c.orden_id);
+
+                                const ordenAsociada = State.orders.find(o => o.id === c.orden_id);
+
+                                listaComprasRefacciones.push({
+                                    id: c.id,
+                                    ordenId: c.orden_id ? `#${c.orden_id}` : 'Gasto General',
+                                    cliente: ordenAsociada ? `${ordenAsociada.cliente_nombre} (${ordenAsociada.auto_marca})` : 'S/I',
+                                    descripcion: c.descripcion,
+                                    proveedor: c.proveedor || 'No especificado',
+                                    metodo: c.metodo_pago,
+                                    costo: cTotal,
+                                    fecha: Utils.parseFechaLocal(c.fecha_compra)
+                                });
                             });
                         }
                     } catch (e) {
@@ -1489,6 +1536,33 @@ State.pagos.forEach(p => {
                             refaccionesCostNeto += (costRefTotal / 1.08);
                         }
                     }
+                });
+
+                // RENDERIZAR TABLA DE REFACCIONES EN EL DASHBOARD
+                const dashboardPartsBody = document.getElementById('dashboard-parts-cost-body');
+                if (dashboardPartsBody) {
+                    if (listaComprasRefacciones.length === 0) {
+                        dashboardPartsBody.innerHTML = `<tr><td colspan="6" class="p-4 text-center text-slate-400">Sin registro de compras de refacciones en este periodo.</td></tr>`;
+                    } else {
+                        dashboardPartsBody.innerHTML = listaComprasRefacciones.map(item => `
+                            <tr class="hover:bg-slate-50 transition border-b border-slate-100">
+                                <td class="py-2.5 px-4 text-slate-500 font-medium">${item.fecha.toLocaleDateString('es-MX', {day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit'})}</td>
+                                <td class="py-2.5 px-4 font-bold text-blue-600">${item.ordenId}</td>
+                                <td class="py-2.5 px-4">
+                                    <span class="font-bold block text-slate-800">${Utils.escapeHtml(item.descripcion)}</span>
+                                    <span class="text-[10px] text-slate-400">${Utils.escapeHtml(item.cliente)}</span>
+                                </td>
+                                <td class="py-2.5 px-4 font-semibold text-slate-600">${Utils.escapeHtml(item.proveedor)}</td>
+                                <td class="py-2.5 px-4">
+                                    <span class="px-2 py-0.5 text-[9px] font-bold rounded bg-slate-100 text-slate-600 border border-slate-200">
+                                        ${Utils.escapeHtml(item.metodo)}
+                                    </span>
+                                </td>
+                                <td class="py-2.5 px-4 text-right font-bold text-rose-600">${Utils.formatter.format(item.costo)}</td>
+                            </tr>
+                        `).join('');
+                    }
+                }
                 });                   
 
                 let egresosManuales = 0;
