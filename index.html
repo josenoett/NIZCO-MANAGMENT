@@ -1390,38 +1390,45 @@
                     }
                 });
 
-                // RASTREO Y DESGLOSE DE ÓRDENES QUE GENERARON INGRESO EN EL DASHBOARD
-                let listaOrdenesIngreso = [];
+                // DENTRO DE Financial_Engine.recalculate():
 
-                State.pagos.forEach(p => {
-                    const pDate = Utils.parseFechaLocal(p.fecha);
-                    if (pDate >= start && pDate <= end) {
-                        const pMonto = parseFloat(p.monto || 0);
-                        ingresos += pMonto;
+let listaOrdenesIngreso = [];
+let pagosProcesadosIds = new Set(); // 👈 Previene procesar el mismo pago dos veces
 
-                        if (p.tipo === 'anticipo') {
-                            anticipo += pMonto;
-                        } else {
-                            pagado += pMonto;
-                        }
+State.pagos.forEach(p => {
+    // 1. Si el pago ya tiene ID y ya fue procesado en este ciclo, lo ignoramos
+    if (p.id && pagosProcesadosIds.has(p.id)) return;
+    if (p.id) pagosProcesadosIds.add(p.id);
 
-                        const ordenAsociada = State.orders.find(o => o.id === p.orden_id);
-                        if (ordenAsociada && ordenAsociada.requiere_factura) {
-                            const ivaEnEstePago = pMonto - (pMonto / 1.16);
-                            totalIva16Cobrado += ivaEnEstePago;
-                        }
+    const pDate = Utils.parseFechaLocal(p.fecha);
+    if (pDate >= start && pDate <= end) {
+        const pMonto = parseFloat(p.monto || 0);
+        ingresos += pMonto;
 
-                        listaOrdenesIngreso.push({
-                            ordenId: p.orden_id,
-                            cliente: ordenAsociada ? ordenAsociada.cliente_nombre : 'Cliente Desconocido',
-                            auto: ordenAsociada ? `${ordenAsociada.auto_marca} (${ordenAsociada.auto_placas})` : 'S/I',
-                            monto: pMonto,
-                            tipo: p.tipo,
-                            metodo: p.metodo_pago,
-                            fecha: pDate
-                        });
-                    }
-                });
+        if (p.tipo === 'anticipo') {
+            anticipo += pMonto;
+        } else {
+            pagado += pMonto;
+        }
+
+        const ordenAsociada = State.orders.find(o => o.id === p.orden_id);
+        if (ordenAsociada && ordenAsociada.requiere_factura) {
+            const ivaEnEstePago = pMonto - (pMonto / 1.16);
+            totalIva16Cobrado += ivaEnEstePago;
+        }
+
+        listaOrdenesIngreso.push({
+            id: p.id,
+            ordenId: p.orden_id,
+            cliente: ordenAsociada ? ordenAsociada.cliente_nombre : 'Cliente Desconocido',
+            auto: ordenAsociada ? `${ordenAsociada.auto_marca} (${ordenAsociada.auto_placas})` : 'S/I',
+            monto: pMonto,
+            tipo: p.tipo,
+            metodo: p.metodo_pago,
+            fecha: pDate
+        });
+    }
+});
 
                 // DIBUJAR DESGLOSE DE INGRESO POR ÓRDENES EN EL DASHBOARD
                 const dashboardOrdersIncomeBody = document.getElementById('dashboard-orders-income-body');
@@ -1692,37 +1699,43 @@
             STALE_MS: 60000,
 
             async fetchOrders(force = false) {
-                const isFresh = !force && (Date.now() - this._lastSync.orders) < this.STALE_MS;
-                if (!isFresh && supabaseClient) {
-                    try {
-                        const { data: ordersData, error: ordersError } = await supabaseClient
-                            .from('ordenes_trabajo')
-                            .select('id, cliente_nombre, cliente_telefono, auto_marca, auto_modelo, auto_placas, kilometraje, tecnico_asignado, tecnico_user_id, estado, costo_mano_obra, costo_refacciones, total_cobrado, estado_pago, metodo_pago, fecha_ingreso, fecha_egreso, requiere_factura, total_iva, conceptos')
-                            .order('id', { ascending: false });
-                        if (ordersError) throw ordersError;
-                        State.orders = (ordersData || []).map(o => ({ ...o, conceptos: Array.isArray(o.conceptos) ? o.conceptos : JSON.parse(o.conceptos || '[]') }));
+    const isFresh = !force && (Date.now() - this._lastSync.orders) < this.STALE_MS;
+    if (!isFresh && supabaseClient) {
+        try {
+            const { data: ordersData, error: ordersError } = await supabaseClient
+                .from('ordenes_trabajo')
+                .select('id, cliente_nombre, cliente_telefono, auto_marca, auto_modelo, auto_placas, kilometraje, tecnico_asignado, tecnico_user_id, estado, costo_mano_obra, costo_refacciones, total_cobrado, estado_pago, metodo_pago, fecha_ingreso, fecha_egreso, requiere_factura, total_iva, conceptos')
+                .order('id', { ascending: false });
+            
+            if (ordersError) throw ordersError;
+            State.orders = (ordersData || []).map(o => ({ 
+                ...o, 
+                conceptos: Array.isArray(o.conceptos) ? o.conceptos : JSON.parse(o.conceptos || '[]') 
+            }));
 
-                        const { data: pagosData, error: pagosError } = await supabaseClient
-                            .from('pagos')
-                            .select('*')
-                            .order('fecha', { ascending: false });
-                        if (!pagosError) {
-                            State.pagos = pagosData || [];
-                        }
-
-                        this._lastSync.orders = Date.now();
-                    } catch (error) { 
-                        State.orders = []; 
-                        showToast(`Error al sincronizar datos: ${error.message}`, true); 
-                    }
-                }
+            // IMPORTANTE: Limpiamos State.pagos antes de asignarle los nuevos datos para evitar duplicación
+            const { data: pagosData, error: pagosError } = await supabaseClient
+                .from('pagos')
+                .select('*')
+                .order('fecha', { ascending: false });
                 
-                UI_Controller.renderOrdersList();
-                UI_Controller.populateQuoteOrdersDropdown();
-                UI_Controller.renderTreasuryData();
-                UI_Controller.renderMecanicosStats();
-                Financial_Engine.recalculate();
-            },
+            if (!pagosError) {
+                State.pagos = pagosData || [];
+            }
+
+            this._lastSync.orders = Date.now();
+        } catch (error) { 
+            State.orders = []; 
+            showToast(`Error al sincronizar datos: ${error.message}`, true); 
+        }
+    }
+    
+    UI_Controller.renderOrdersList();
+    UI_Controller.populateQuoteOrdersDropdown();
+    UI_Controller.renderTreasuryData();
+    UI_Controller.renderMecanicosStats();
+    Financial_Engine.recalculate();
+},
 
             async fetchPagos(force = false) {
                 const isFresh = !force && (Date.now() - this._lastSync.pagos) < this.STALE_MS;
