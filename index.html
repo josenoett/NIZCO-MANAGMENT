@@ -25,7 +25,7 @@
 </head>
 <body class="bg-slate-50 text-slate-800 flex flex-col h-screen overflow-hidden">
 
-    <!-- PANTALLA DE CONTROL DE ACCESO (LOGIN OBLIGATORIO) -->
+    <!-- PANTALLA DE CONTROL DE ACCESO -->
     <div id="erp-login-screen" class="fixed inset-0 bg-slate-900 z-[100] flex items-center justify-center p-4">
         <div class="bg-white rounded-3xl p-8 max-w-sm w-full shadow-2xl flex flex-col gap-6">
             <div class="text-center">
@@ -311,6 +311,34 @@
                     <div class="bg-white border border-slate-200 p-6 rounded-2xl lg:col-span-5 shadow-sm flex flex-col gap-4">
                         <h4 class="font-bold text-slate-900 text-sm uppercase tracking-wider">Montos Totales por Categoría</h4>
                         <div class="overflow-y-auto max-h-64 no-scrollbar text-xs flex flex-col gap-2" id="dashboard-categories-container"></div>
+                    </div>
+                </div>
+
+                <!-- NUEVO CONTENEDOR: TRAZABILIDAD DE ÓRDENES QUE GENERARON INGRESO -->
+                <div class="bg-white border border-slate-200 p-6 rounded-2xl shadow-sm flex flex-col gap-4">
+                    <div>
+                        <h4 class="font-bold text-slate-900 text-sm uppercase tracking-wider flex items-center gap-2">
+                            <span class="material-icons text-emerald-600">receipt_long</span> Desglose de Órdenes que Generaron Ingresos
+                        </h4>
+                        <p class="text-xs text-slate-400">Listado detallado de cobros y anticipos recibidos dentro del periodo seleccionado.</p>
+                    </div>
+                    
+                    <div class="overflow-x-auto max-h-72 no-scrollbar">
+                        <table class="w-full text-left border-collapse text-xs">
+                            <thead>
+                                <tr class="bg-slate-50 text-slate-500 uppercase text-[10px] tracking-wider font-bold border-b border-slate-200">
+                                    <th class="py-3 px-4">Fecha Pago</th>
+                                    <th class="py-3 px-4">Orden</th>
+                                    <th class="py-3 px-4">Cliente & Vehículo</th>
+                                    <th class="py-3 px-4">Tipo Abono</th>
+                                    <th class="py-3 px-4">Método</th>
+                                    <th class="py-3 px-4 text-right">Monto Recibido</th>
+                                </tr>
+                            </thead>
+                            <tbody id="dashboard-orders-income-body" class="divide-y divide-slate-100 text-slate-700 font-medium">
+                                <tr><td colspan="6" class="p-4 text-center text-slate-400">Cargando desglose...</td></tr>
+                            </tbody>
+                        </table>
                     </div>
                 </div>
             </section>
@@ -1362,6 +1390,9 @@
                     }
                 });
 
+                // RASTREO Y DESGLOSE DE ÓRDENES QUE GENERARON INGRESO EN EL DASHBOARD
+                let listaOrdenesIngreso = [];
+
                 State.pagos.forEach(p => {
                     const pDate = Utils.parseFechaLocal(p.fecha);
                     if (pDate >= start && pDate <= end) {
@@ -1379,8 +1410,44 @@
                             const ivaEnEstePago = pMonto - (pMonto / 1.16);
                             totalIva16Cobrado += ivaEnEstePago;
                         }
+
+                        listaOrdenesIngreso.push({
+                            ordenId: p.orden_id,
+                            cliente: ordenAsociada ? ordenAsociada.cliente_nombre : 'Cliente Desconocido',
+                            auto: ordenAsociada ? `${ordenAsociada.auto_marca} (${ordenAsociada.auto_placas})` : 'S/I',
+                            monto: pMonto,
+                            tipo: p.tipo,
+                            metodo: p.metodo_pago,
+                            fecha: pDate
+                        });
                     }
                 });
+
+                // DIBUJAR DESGLOSE DE INGRESO POR ÓRDENES EN EL DASHBOARD
+                const dashboardOrdersIncomeBody = document.getElementById('dashboard-orders-income-body');
+                if (dashboardOrdersIncomeBody) {
+                    if (listaOrdenesIngreso.length === 0) {
+                        dashboardOrdersIncomeBody.innerHTML = `<tr><td colspan="6" class="p-4 text-center text-slate-400">Sin ingresos registrados en este periodo.</td></tr>`;
+                    } else {
+                        dashboardOrdersIncomeBody.innerHTML = listaOrdenesIngreso.map(item => `
+                            <tr class="hover:bg-slate-50 transition border-b border-slate-100">
+                                <td class="py-2.5 px-4 text-slate-500 font-medium">${item.fecha.toLocaleDateString('es-MX', {day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit'})}</td>
+                                <td class="py-2.5 px-4 font-bold text-slate-900">#${item.ordenId}</td>
+                                <td class="py-2.5 px-4">
+                                    <span class="font-bold block text-slate-800">${Utils.escapeHtml(item.cliente)}</span>
+                                    <span class="text-[10px] text-slate-400">${Utils.escapeHtml(item.auto)}</span>
+                                </td>
+                                <td class="py-2.5 px-4">
+                                    <span class="px-2 py-0.5 text-[9px] font-bold rounded ${item.tipo === 'anticipo' ? 'bg-amber-50 text-amber-700 border border-amber-200' : 'bg-emerald-50 text-emerald-700 border border-emerald-200'} uppercase">
+                                        ${item.tipo === 'anticipo' ? '💰 Anticipo' : '✅ Pago Final'}
+                                    </span>
+                                </td>
+                                <td class="py-2.5 px-4 text-slate-600">${Utils.escapeHtml(item.metodo)}</td>
+                                <td class="py-2.5 px-4 text-right font-bold text-emerald-600">${Utils.formatter.format(item.monto)}</td>
+                            </tr>
+                        `).join('');
+                    }
+                }
 
                 let refaccionesMap = new Set();
 
@@ -1475,7 +1542,6 @@
                 const utilidadBruta = ventasNetasSinIva16 - refaccionesCostNeto; 
                 const utilidadNeta = ventasNetasSinIva16 - totalGastos;
                 
-                // CONTROL DE NaN / DIVISIÓN POR CERO
                 const margenUtilidad = ventasNetasSinIva16 > 0 ? (utilidadNeta / ventasNetasSinIva16) * 100 : 0;
                 const ticketPromedio = vehiculosAtendidos > 0 ? ingresos / vehiculosAtendidos : 0;
 
@@ -2397,50 +2463,51 @@
                 }
             },
 
+            // FUNCIÓN AUTOMATIZADA: AGREGA COMPRA Y CONCEPTO AL MISMO TIEMPO
             async guardarRefaccionModal(event) {
-    event.preventDefault();
+                event.preventDefault();
 
-    if (!this.ordenActivaId) return;
+                if (!this.ordenActivaId) return;
 
-    const desc = document.getElementById('ref-descripcion').value.trim();
-    const costo = parseFloat(document.getElementById('ref-costo').value) || 0;
+                const desc = document.getElementById('ref-descripcion').value.trim();
+                const costo = parseFloat(document.getElementById('ref-costo').value) || 0;
 
-    const datosCompra = {
-        orden_id: this.ordenActivaId,
-        descripcion: desc,
-        proveedor: document.getElementById('ref-proveedor').value.trim() || null,
-        costo_neto: costo,
-        metodo_pago: document.getElementById('ref-metodo').value,
-        folio_ticket_factura: document.getElementById('ref-folio').value.trim() || null,
-        fecha_compra: new Date(document.getElementById('ref-fecha').value).toISOString()
-    };
+                const datosCompra = {
+                    orden_id: this.ordenActivaId,
+                    descripcion: desc,
+                    proveedor: document.getElementById('ref-proveedor').value.trim() || null,
+                    costo_neto: costo,
+                    metodo_pago: document.getElementById('ref-metodo').value,
+                    folio_ticket_factura: document.getElementById('ref-folio').value.trim() || null,
+                    fecha_compra: new Date(document.getElementById('ref-fecha').value).toISOString()
+                };
 
-    try {
-        // 1. Guardar compra real en base de datos
-        await API_Service.registrarCompraRefaccion(datosCompra);
-        showToast("Refacción registrada en compras");
+                try {
+                    // 1. Guardar compra real en base de datos
+                    await API_Service.registrarCompraRefaccion(datosCompra);
+                    showToast("Refacción registrada en compras");
 
-        // 2. AUTOMATIZACIÓN: Agregar como concepto para cobro al cliente abajo
-        State.modalEditingConcepts.push({
-            descripcion: desc,
-            cantidad: 1,
-            precio: costo,
-            categoria: 'refacciones'
-        });
+                    // 2. AUTOMATIZACIÓN: Inyectar automáticamente en los conceptos de cobro al cliente
+                    State.modalEditingConcepts.push({
+                        descripcion: desc,
+                        cantidad: 1,
+                        precio: costo,
+                        categoria: 'refacciones'
+                    });
 
-        // 3. Re-renderizar la lista de conceptos y actualizar el Total Final
-        this.renderModalConcepts();
+                    // 3. Re-renderizar los conceptos del modal y recalcular sumas
+                    this.renderModalConcepts();
 
-        // Limpiar formulario de compra
-        document.getElementById('form-agregar-refaccion').reset();
-        await this.cargarRefaccionesModal(this.ordenActivaId);
-        
-        API_Service.fetchOrders(true);
-    } catch (err) {
-        console.error("Error al guardar refacción:", err);
-        showToast("No se pudo registrar la compra", true);
-    }
-},
+                    // Limpiar campos del formulario de compra
+                    document.getElementById('form-agregar-refaccion').reset();
+                    await this.cargarRefaccionesModal(this.ordenActivaId);
+                    
+                    API_Service.fetchOrders(true);
+                } catch (err) {
+                    console.error("Error al guardar refacción:", err);
+                    showToast("No se pudo registrar la compra", true);
+                }
+            },
 
             async borrarRefaccionModal(compraId) {
                 customConfirm("¿Eliminar refacción?", "El costo total de la compra se actualizará automáticamente.", async () => {
@@ -2561,7 +2628,6 @@
                 
                 document.getElementById('pdf-km-view').innerText = `| KM: ${o.kilometraje || 0}`;
                 
-                // DEEP COPY PARA PREVENIR MUTACIÓN
                 State.quoteItems = o.conceptos ? structuredClone(o.conceptos) : [];
                 document.getElementById('quote-discount').value = 0;
                 document.getElementById('quote-tax').value = o.requiere_factura ? 16 : 0; 
@@ -2733,7 +2799,6 @@
             }
             UI_Controller.applyRolePermissions();
 
-            // CONEXIÓN DE BÚSQUEDA SUAVE (DEBOUNCE)
             const searchInput = document.getElementById('search-bar');
             if (searchInput) {
                 const handleSearchDebounced = Utils.debounce(() => {
