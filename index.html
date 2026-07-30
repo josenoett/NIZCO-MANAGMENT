@@ -1825,17 +1825,28 @@
                 const isFresh = !force && (Date.now() - this._lastSync.personal) < this.STALE_MS;
                 if (!isFresh && supabaseClient) {
                     try {
-                        if (State.currentRole === 'Administrador') {
-                            const { data, error } = await supabaseClient.from('personal').select('*').order('nombre', { ascending: true });
+                        // Permitir ver a todo el personal si es Administrador o Contabilidad/Finanzas
+                        if (State.currentRole === 'Administrador' || State.currentRole === 'Contabilidad/Finanzas') {
+                            const { data, error } = await supabaseClient
+                                .from('personal')
+                                .select('*')
+                                .order('nombre', { ascending: true });
                             if (error) throw error;
                             State.personal = data || [];
                         } else {
-                            const { data, error } = await supabaseClient.from('directorio_tecnicos').select('*').order('nombre', { ascending: true });
+                            // Si es otro rol, carga el directorio de técnicos para asignación de órdenes
+                            const { data, error } = await supabaseClient
+                                .from('directorio_tecnicos')
+                                .select('*')
+                                .order('nombre', { ascending: true });
                             if (error) throw error;
                             State.personal = data || [];
                         }
                         this._lastSync.personal = Date.now();
-                    } catch (error) { State.personal = []; showToast(`No fue posible cargar el personal: ${error.message}`, true); }
+                    } catch (error) { 
+                        State.personal = []; 
+                        showToast(`No fue posible cargar el personal: ${error.message}`, true); 
+                    }
                 }
                 UI_Controller.renderPersonalList();
                 UI_Controller.populateTecnicosDropdowns();
