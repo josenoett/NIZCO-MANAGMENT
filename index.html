@@ -2926,20 +2926,30 @@
 
             try {
                 supabaseClient = supabase.createClient(url, key);
+                
                 document.getElementById('connection-status').className = "px-3 py-1.5 bg-emerald-50 text-emerald-700 rounded-full text-xs font-semibold flex items-center gap-1";
                 document.getElementById('connection-status').innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span><span>🟢 ERP Producción</span>`;
-                Auth_Engine.checkExistingSession();
-            } catch (err) { 
+                
+                // Esperar a validar sesión antes de aplicar permisos y traer la lista de personal
+                Auth_Engine.checkExistingSession().then(async () => {
+                    UI_Controller.applyRolePermissions();
+                    if (typeof API_Service !== 'undefined' && API_Service.fetchPersonal) {
+                        await API_Service.fetchPersonal(true);
+                    }
+                });
+            
+            } catch (err) {
                 document.getElementById('connection-status').innerHTML = `<span>⚠️ Falla de Inicialización</span>`;
             }
+            
             UI_Controller.applyRolePermissions();
-
+            
             const searchInput = document.getElementById('search-bar');
             if (searchInput) {
                 const handleSearchDebounced = Utils.debounce(() => {
                     UI_Controller.renderOrdersList();
                 }, 250);
-
+            
                 searchInput.addEventListener('input', handleSearchDebounced);
             }
         }
