@@ -2442,25 +2442,45 @@
 
             async handleCreatePersonal(e) {
                 e.preventDefault();
+                
                 const nombre = document.getElementById('personal-nombre').value;
                 const rol = document.getElementById('personal-rol').value;
                 const sueldo = parseFloat(document.getElementById('personal-sueldo').value) || 0;
-                const telephone = document.getElementById('personal-telefono').value;
+                const telefono = document.getElementById('personal-telefono').value;
                 const email = document.getElementById('personal-email').value;
                 const password = document.getElementById('personal-password').value;
-                const fechaIngreso = document.getElementById('personal-fecha-ingreso').value;
-                const fechaEgreso = document.getElementById('personal-fecha-egreso').value || null;
-
+                const fecha_ingreso = document.getElementById('personal-fecha-ingreso').value || new Date().toISOString().split('T')[0];
+                const fecha_egreso = document.getElementById('personal-fecha-egreso').value || null;
+            
                 showToast("Registrando accesos en la nube...");
-                const { error: functionError } = await supabaseClient.functions.invoke('admin-create-user', {
-                    body: { nombre, rol, sueldo, telephone, email, password, fechaIngreso, fechaEgreso }
+                
+                // Invocación a la Edge Function
+                const { data, error: functionError } = await supabaseClient.functions.invoke('admin-create-user', {
+                    body: { 
+                        nombre, 
+                        rol, 
+                        sueldo, 
+                        telefono, 
+                        email, 
+                        password, 
+                        fecha_ingreso, 
+                        fecha_egreso 
+                    }
                 });
-                if (functionError) { showToast("No fue posible crear el empleado: " + functionError.message, true); return; }
-
+            
+                if (functionError) { 
+                    showToast("No fue posible crear el empleado: " + functionError.message, true); 
+                    return; 
+                }
+            
                 document.getElementById('new-personal-form').reset(); 
                 document.getElementById('personal-fecha-ingreso').value = new Date().toISOString().split('T')[0];
                 showToast("Empleado y accesos creados con éxito."); 
-                API_Service.fetchPersonal(true);
+                
+                // Recargar la lista en la UI
+                if (typeof API_Service !== 'undefined' && API_Service.fetchPersonal) {
+                    API_Service.fetchPersonal(true);
+                }
             },
 
             async handleDeletePersonal(id) {
