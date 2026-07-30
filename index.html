@@ -1922,9 +1922,20 @@
                     elms.forEach(id => document.getElementById(id).classList.add('hidden'));
                     document.querySelectorAll('.section-finance-view').forEach(el => el.classList.add('hidden'));
                 } else if (State.currentRole === 'Recepcionista') {
-                    ['btn-dashboard', 'btn-config'].forEach(id => document.getElementById(id).classList.add('hidden'));
-                    ['btn-personal', 'btn-cotizaciones', 'btn-tesoreria', 'btn-rendimiento-mecanicos'].forEach(id => document.getElementById(id).classList.remove('hidden'));
-                    document.querySelectorAll('.section-finance-view').forEach(el => el.classList.add('hidden'));
+                    // 1. Ocultar únicamente lo que no debe configurar ni ver a nivel gerencial
+                    ['btn-dashboard', 'btn-config', 'btn-rendimiento-mecanicos'].forEach(id => 
+                        document.getElementById(id).classList.add('hidden')
+                    );
+                
+                    // 2. Mostrar los módulos operativos, tesorería y gestión
+                    ['btn-personal', 'btn-cotizaciones', 'btn-tesoreria'].forEach(id => 
+                        document.getElementById(id).classList.remove('hidden')
+                    );
+                
+                    // 3. HABILITAR el panel financiero para consolidación de caja
+                    document.querySelectorAll('.section-finance-view').forEach(el => 
+                        el.classList.remove('hidden')
+                    );
                 } else {
                     elms.forEach(id => document.getElementById(id).classList.remove('hidden'));
                     document.querySelectorAll('.section-finance-view').forEach(el => el.classList.remove('hidden'));
