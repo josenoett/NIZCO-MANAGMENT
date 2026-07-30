@@ -1919,28 +1919,59 @@
 
             applyRolePermissions() {
                 const elms = ['btn-dashboard', 'btn-personal', 'btn-config', 'btn-cotizaciones', 'btn-tesoreria', 'btn-rendimiento-mecanicos'];
-                if(State.currentRole === 'Mecánico') {
-                    elms.forEach(id => document.getElementById(id).classList.add('hidden'));
+                
+                // 1. Caso Mecánico (Soporta 'Mecánico' y 'Mecánico Specialist')
+                if (State.currentRole === 'Mecánico' || State.currentRole === 'Mecánico Specialist') {
+                    elms.forEach(id => {
+                        const el = document.getElementById(id);
+                        if (el) el.classList.add('hidden');
+                    });
                     document.querySelectorAll('.section-finance-view').forEach(el => el.classList.add('hidden'));
+            
+                // 2. Caso Recepcionista
                 } else if (State.currentRole === 'Recepcionista') {
-                    // 1. Ocultar únicamente lo que no debe configurar ni ver a nivel gerencial
-                    ['btn-dashboard', 'btn-config', 'btn-rendimiento-mecanicos'].forEach(id => 
-                        document.getElementById(id).classList.add('hidden')
-                    );
-                
-                    // 2. Mostrar los módulos operativos, tesorería y gestión
-                    ['btn-personal', 'btn-cotizaciones', 'btn-tesoreria'].forEach(id => 
-                        document.getElementById(id).classList.remove('hidden')
-                    );
-                
-                    // 3. HABILITAR el panel financiero para consolidación de caja
-                    document.querySelectorAll('.section-finance-view').forEach(el => 
-                        el.classList.remove('hidden')
-                    );
+                    // Ocultar configuración, rendimiento técnico y dashboard gerencial
+                    ['btn-dashboard', 'btn-config', 'btn-rendimiento-mecanicos'].forEach(id => {
+                        const el = document.getElementById(id);
+                        if (el) el.classList.add('hidden');
+                    });
+                    
+                    // Mostrar personal, cotizaciones y tesorería
+                    ['btn-personal', 'btn-cotizaciones', 'btn-tesoreria'].forEach(id => {
+                        const el = document.getElementById(id);
+                        if (el) el.classList.remove('hidden');
+                    });
+            
+                    // Habilitar vistas financieras para arqueos y caja
+                    document.querySelectorAll('.section-finance-view').forEach(el => el.classList.remove('hidden'));
+            
+                // 3. Caso Contabilidad / Finanzas (NUEVO ROL)
+                } else if (State.currentRole === 'Contabilidad/Finanzas') {
+                    // Ocultar configuración del sistema y rendimiento operativo de mecánicos
+                    ['btn-config', 'btn-rendimiento-mecanicos'].forEach(id => {
+                        const el = document.getElementById(id);
+                        if (el) el.classList.add('hidden');
+                    });
+            
+                    // Mostrar dashboard, personal (para nóminas/consulta), cotizaciones y tesorería
+                    ['btn-dashboard', 'btn-personal', 'btn-cotizaciones', 'btn-tesoreria'].forEach(id => {
+                        const el = document.getElementById(id);
+                        if (el) el.classList.remove('hidden');
+                    });
+            
+                    // Habilitar panel financiero para reportes de IVA e impuestos
+                    document.querySelectorAll('.section-finance-view').forEach(el => el.classList.remove('hidden'));
+            
+                // 4. Caso Administrador u otros roles superiores
                 } else {
-                    elms.forEach(id => document.getElementById(id).classList.remove('hidden'));
+                    elms.forEach(id => {
+                        const el = document.getElementById(id);
+                        if (el) el.classList.remove('hidden');
+                    });
                     document.querySelectorAll('.section-finance-view').forEach(el => el.classList.remove('hidden'));
                 }
+            
+                // Re-renderizar módulos internos
                 this.renderNewOrderConcepts();
                 this.renderModalConcepts();
                 this.renderOrdersList();
