@@ -2086,7 +2086,8 @@
                 let entradasEfectivo = 0, entradasBanco = 0;
                 let salidasEfectivo = 0, salidasBanco = 0;
             
-                // 1. Obtener Ingresos Reales
+                // 1. Obtener Ingresos y Calcular IVA 16% Cobrado
+                let totalIva16Cobrado = 0;
                 const ingresosPeriodo = State.pagos.filter(p => {
                     const pDate = Utils.parseFechaLocal(p.fecha);
                     return pDate >= start && pDate <= end;
@@ -2096,11 +2097,18 @@
                     const m = parseFloat(p.monto || 0);
                     if ((p.metodo_pago || '').toLowerCase() === 'efectivo') entradasEfectivo += m;
                     else entradasBanco += m;
+            
+                    const ordenAsociada = State.orders.find(o => o.id === p.orden_id);
+                    if (ordenAsociada && ordenAsociada.requiere_factura) {
+                        totalIva16Cobrado += (m - (m / 1.16));
+                    }
                 });
             
-                // 2. Obtener Refacciones
+                // 2. Obtener Refacciones y Calcular IVA Acreditable Pagado
                 let refaccionesPeriodo = [];
                 let comprasPorProveedor = {};
+                let refaccionesCostBruto = 0;
+                let refaccionesCostNeto = 0;
             
                 if (supabaseClient) {
                     try {
@@ -2116,6 +2124,9 @@
             
                 refaccionesPeriodo.forEach(r => {
                     const m = parseFloat(r.costo_neto || 0);
+                    refaccionesCostBruto += m;
+                    refaccionesCostNeto += (m / 1.08); // Desglose neto frontera (8%)
+            
                     if ((r.metodo_pago || '').toLowerCase() === 'efectivo') salidasEfectivo += m;
                     else salidasBanco += m;
             
@@ -2123,7 +2134,10 @@
                     comprasPorProveedor[prov] = (comprasPorProveedor[prov] || 0) + m;
                 });
             
-                // 3. Gastos Varios
+                const totalIvaAcreditablePagado = refaccionesCostBruto - refaccionesCostNeto;
+            
+                // 3. Gastos Varios de Tesorería
+                let egresosManuales = 0;
                 const gastosPeriodo = State.expenses.filter(e => {
                     const eDate = Utils.parseFechaLocal(e.fecha);
                     return eDate >= start && eDate <= end;
@@ -2131,6 +2145,7 @@
             
                 gastosPeriodo.forEach(g => {
                     const m = parseFloat(g.monto || 0);
+                    egresosManuales += m;
                     if ((g.metodo_pago || '').toLowerCase() === 'efectivo') salidasEfectivo += m;
                     else salidasBanco += m;
                 });
@@ -2164,7 +2179,7 @@
                     }
                 });
             
-                // 5. CÁLCULO DE RENTA Y GASTOS ESTRUCTURALES DEL PERIODO (INFORMATIVO)
+                // 5. Gastos Fijos Prorrateados
                 const totalDays = Math.max(1, Math.ceil((end - start) / (1000 * 60 * 60 * 24)));
                 const rentaMensual = parseFloat(State.fixedCosts.renta) || 0;
                 const serviciosMensuales = parseFloat(State.fixedCosts.servicios) || 0;
@@ -2175,7 +2190,7 @@
                 const impuestosProrrateados = (impuestosMensuales / 30.4) * totalDays;
                 const totalGastosFijosProrrateados = rentaProrrateada + serviciosProrrateados + impuestosProrrateados;
             
-                // 6. Cuentas por Cobrar (Pendientes del Periodo)
+                // 6. Cuentas por Cobrar Pendientes
                 let cuentasPorCobrar = [];
                 let totalPendienteCobro = 0;
             
@@ -2184,7 +2199,6 @@
                     const oDate = Utils.parseFechaLocal(o.fecha_ingreso || o.fecha_registro);
                     if (oDate >= start && oDate <= end) {
                         const totalOrden = parseFloat(o.total_cobrado || 0);
-                        
                         const abonosOrden = State.pagos
                             .filter(p => Number(p.orden_id) === Number(o.id))
                             .reduce((acc, p) => acc + (parseFloat(p.monto) || 0), 0);
@@ -2204,7 +2218,7 @@
                     }
                 });
             
-                // 7. Métricas de Productividad por Mecánico
+                // 7. Productividad de Mecánicos
                 let listaProductividad = [];
                 const mecanicos = State.personal.filter(p => p.rol && p.rol.includes('Mecánico'));
             
@@ -2229,10 +2243,16 @@
                     });
                 });
             
-                // 8. P&L Express
+                // 8. Cálculos P&L y Balance de IVA de la Operación
                 const totalIngresosCobrados = entradasEfectivo + entradasBanco;
-                const totalGastosDirectos = salidasEfectivo + salidasBanco;
-                const utilidadNetaPL = totalIngresosCobrados - (totalGastosDirectos + costoNominaPeriodo + totalGastosFijosProrrateados);
+                const ventasNetasSinIva16 = totalIngresosCobrados - totalIva16Cobrado;
+                
+                // Utilidad Neta Real idéntica al Dashboard
+                const utilidadNetaPL = ventasNetasSinIva16 - (refaccionesCostNeto + egresosManuales + costoNominaPeriodo + totalGastosFijosProrrateados);
+            
+                // Balance entre IVA Cobrado e IVA Pagado
+                const balanceIvaNeto = totalIva16Cobrado - totalIvaAcreditablePagado;
+                const esIvaPorPagar = balanceIvaNeto >= 0;
             
                 const balEfectivo = entradasEfectivo - salidasEfectivo;
                 const balBanco = entradasBanco - salidasBanco;
@@ -2372,19 +2392,23 @@
                             </span>
                         </div>
             
-                        <!-- ESTADO DE PÉRDIDAS Y GANANCIAS (P&L EXPRESS) -->
+                        <!-- ESTADO DE PÉRDIDAS Y GANANCIAS (P&L EXPRESS) ALINEADO -->
                         <div class="bg-blue-50/60 border border-blue-200 p-4 rounded-2xl mb-5">
                             <h3 class="font-extrabold text-blue-900 text-xs border-b border-blue-200 pb-1 mb-2 uppercase">
-                                📊 ESTADO DE RESULTADOS REAL (ESTIMACIÓN DE UTILIDAD REPARTIBLE)
+                                📊 ESTADO DE RESULTADOS REAL (UTILIDAD NETA REPARTIBLE)
                             </h3>
                             <div class="flex flex-col gap-1.5 text-[11px]">
                                 <div class="flex justify-between font-bold text-slate-800">
-                                    <span>(+) Ingresos Totales Cobrados (Caja + Banco):</span>
-                                    <span class="text-emerald-600">${Utils.formatter.format(totalIngresosCobrados)}</span>
+                                    <span>(+) Ventas Netas Cobradas (Sin IVA 16%):</span>
+                                    <span class="text-emerald-600">${Utils.formatter.format(ventasNetasSinIva16)}</span>
                                 </div>
                                 <div class="flex justify-between text-slate-600 pl-3">
-                                    <span>(-) Costo de Refacciones y Gastos Directos:</span>
-                                    <span class="text-rose-600">${Utils.formatter.format(totalGastosDirectos)}</span>
+                                    <span>(-) Costo Neto de Refacciones (Sin IVA 8%):</span>
+                                    <span class="text-rose-600">${Utils.formatter.format(refaccionesCostNeto)}</span>
+                                </div>
+                                <div class="flex justify-between text-slate-600 pl-3">
+                                    <span>(-) Gastos Directos de Tesorería:</span>
+                                    <span class="text-rose-600">${Utils.formatter.format(egresosManuales)}</span>
                                 </div>
                                 <div class="flex justify-between text-slate-600 pl-3">
                                     <span>(-) Costo Total de Nómina Devengada:</span>
@@ -2394,9 +2418,16 @@
                                     <span>(-) Gastos Fijos Operativos Prorrateados (Renta/Servicios):</span>
                                     <span class="text-rose-600">${Utils.formatter.format(totalGastosFijosProrrateados)}</span>
                                 </div>
+                                
                                 <div class="flex justify-between font-black text-xs pt-2 border-t border-blue-200 text-slate-900">
                                     <span>(=) UTILIDAD NETA REAL REPARTIBLE:</span>
                                     <span class="${utilidadNetaPL >= 0 ? 'text-emerald-700' : 'text-rose-700'}">${Utils.formatter.format(utilidadNetaPL)}</span>
+                                </div>
+            
+                                <!-- RENGLÓN DE BALANCE DE IVA -->
+                                <div class="flex justify-between text-[10px] pt-1.5 border-t border-dashed border-blue-300 ${esIvaPorPagar ? 'text-amber-800' : 'text-emerald-800'} font-semibold">
+                                    <span>🏛️ ${esIvaPorPagar ? 'IVA Estimado a Pagar (Cobrado 16% - Pagado 8%):' : 'IVA Estimado a Favor / Acreditable:'}</span>
+                                    <span class="font-bold">${Utils.formatter.format(Math.abs(balanceIvaNeto))}</span>
                                 </div>
                             </div>
                         </div>
