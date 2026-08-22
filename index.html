@@ -1680,10 +1680,51 @@
                     if (document.getElementById('costo-fijos-total')) document.getElementById('costo-fijos-total').innerText = Utils.formatter.format(costoFijosPeriodo);
                     if (document.getElementById('costo-nomina-total')) document.getElementById('costo-nomina-total').innerText = Utils.formatter.format(nominaFinalConDescuentos);
             
+                    // Mapeo a la tabla "Estado de Flujo de Efectivo"
                     if (document.getElementById('er-ingresos')) document.getElementById('er-ingresos').innerText = Utils.formatter.format(ventasNetasSinIva16);
                     if (document.getElementById('er-refacciones')) document.getElementById('er-refacciones').innerText = Utils.formatter.format(montosPorCategoria["Refacciones"]);
                     if (document.getElementById('er-nomina')) document.getElementById('er-nomina').innerText = Utils.formatter.format(montosPorCategoria["Nómina"]);
+                    if (document.getElementById('er-gasolina')) document.getElementById('er-gasolina').innerText = Utils.formatter.format(montosPorCategoria["Gasolina"] + montosPorCategoria["Diesel"]);
+                    if (document.getElementById('er-consumibles')) document.getElementById('er-consumibles').innerText = Utils.formatter.format(montosPorCategoria["Consumibles"]);
+                    
+                    const sumServiciosAcumulados = montosPorCategoria["Renta"] + montosPorCategoria["Agua"] + montosPorCategoria["Luz"] + montosPorCategoria["Internet"];
+                    if (document.getElementById('er-servicios')) document.getElementById('er-servicios').innerText = Utils.formatter.format(sumServiciosAcumulados);
+                    if (document.getElementById('er-publicidad')) document.getElementById('er-publicidad').innerText = Utils.formatter.format(montosPorCategoria["Publicidad"]);
+                    
+                    const otrosAcumulados = totalGastos - (montosPorCategoria["Refacciones"] + montosPorCategoria["Nómina"] + montosPorCategoria["Gasolina"] + montosPorCategoria["Diesel"] + montosPorCategoria["Consumibles"] + sumServiciosAcumulados + montosPorCategoria["Publicidad"]);
+                    if (document.getElementById('er-otros')) document.getElementById('er-otros').innerText = Utils.formatter.format(otrosAcumulados > 0 ? otrosAcumulados : 0);
                     if (document.getElementById('er-utilidad-neta')) document.getElementById('er-utilidad-neta').innerText = Utils.formatter.format(utilidadNeta);
+            
+                    // CORRECCIÓN: CONSTRUCCIÓN DINÁMICA DE LA TARJETA "MONTOS TOTALES POR CATEGORÍA"
+                    const catContainer = document.getElementById('dashboard-categories-container');
+                    if (catContainer) {
+                        let categoriesHtml = `
+                            <div class="bg-blue-50/80 p-3 rounded-xl border border-blue-200 flex flex-col gap-1 mb-3 font-sans text-xs">
+                                <span class="text-[10px] uppercase font-extrabold text-blue-700 tracking-wider flex items-center gap-1">
+                                    <span class="material-icons text-xs">account_balance_wallet</span> 📊 BALANCES PARA SOCIOS
+                                </span>
+                                <div class="flex justify-between text-slate-700 pt-1">
+                                    <span>💵 Efectivo en Caja Chica:</span>
+                                    <span class="font-black text-emerald-600">${Utils.formatter.format(balanceEfectivoCaja)}</span>
+                                </div>
+                                <div class="flex justify-between text-slate-700">
+                                    <span>🏦 Banco (Transferencias / Tarjeta):</span>
+                                    <span class="font-black text-blue-600">${Utils.formatter.format(balanceCuentaBanco)}</span>
+                                </div>
+                            </div>
+                        `;
+            
+                        categoriesHtml += Object.keys(montosPorCategoria)
+                            .filter(cName => cName !== "Refacciones")
+                            .map(cName => `
+                                <div class="flex justify-between items-center border-b border-slate-100 pb-1">
+                                    <span class="text-slate-600 font-medium">${Utils.escapeHtml(cName)}:</span>
+                                    <span class="font-bold text-slate-800">${Utils.formatter.format(montosPorCategoria[cName])}</span>
+                                </div>`)
+                            .join('');
+            
+                        catContainer.innerHTML = categoriesHtml;
+                    }
                 }
             
                 this.renderCharts(ingresos, totalGastos, montosPorCategoria);
