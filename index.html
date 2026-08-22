@@ -1486,23 +1486,28 @@
                 const totalDays = Math.max(1, Math.ceil(durationMs / (1000 * 60 * 60 * 24)));
             
                 let vehiculosAtendidos = 0;
-                let pagosProcesadosIds = new Set();
+                let ingresos = 0; 
+                let pagado = 0;
+                let anticipo = 0;
+                let refaccionesCostBruto = 0; 
+                let refaccionesCostNeto = 0;  
+                let totalIva16Cobrado = 0;
             
-                // VARIABLES DE CONTROL DE BANCO Y CAJA
+                // CONTADORES DE CAJA Y BANCO
                 let entradasEfectivo = 0;
                 let salidasEfectivo = 0;
                 let entradasBanco = 0;
                 let salidasBanco = 0;
             
-                let totalIva16Cobrado = 0;
                 let listaOrdenesIngreso = [];
                 let listaComprasRefacciones = [];
                 let refaccionesMap = new Set();
+                let pagosProcesadosIds = new Set();
             
                 let montosPorCategoria = {};
                 State.categories.forEach(cat => montosPorCategoria[cat] = 0);
             
-                // 1. Conteo de Vehículos
+                // 1. Vehículos atendidos
                 State.orders.forEach(o => {
                     if (o.estado === 'Cancelada') return;
                     const oDate = Utils.parseFechaLocal(o.fecha_ingreso || o.fecha_registro);
@@ -1511,7 +1516,7 @@
                     }
                 });
             
-                // 2. Procesar ENTRADAS (Pagos y Anticipos) por Método de Pago
+                // 2. Procesar Pagos (Entradas)
                 State.pagos.forEach(p => {
                     if (p.id && pagosProcesadosIds.has(p.id)) return;
                     if (p.id) pagosProcesadosIds.add(p.id);
@@ -1519,18 +1524,25 @@
                     const pDate = Utils.parseFechaLocal(p.fecha);
                     if (pDate >= start && pDate <= end) {
                         const pMonto = parseFloat(p.monto || 0);
-                        const metodo = (p.metodo_pago || '').trim().toLowerCase();
+                        ingresos += pMonto;
             
-                        // Clasificación del dinero recibido
+                        const metodo = (p.metodo_pago || '').trim().toLowerCase();
                         if (metodo === 'efectivo') {
                             entradasEfectivo += pMonto;
-                        } else { // Transferencia o Tarjeta
+                        } else {
                             entradasBanco += pMonto;
+                        }
+            
+                        if (p.tipo === 'anticipo') {
+                            anticipo += pMonto;
+                        } else {
+                            pagado += pMonto;
                         }
             
                         const ordenAsociada = State.orders.find(o => o.id === p.orden_id);
                         if (ordenAsociada && ordenAsociada.requiere_factura) {
-                            totalIva16Cobrado += (pMonto - (pMonto / 1.16));
+                            const ivaEnEstePago = pMonto - (pMonto / 1.16);
+                            totalIva16Cobrado += ivaEnEstePago;
                         }
             
                         listaOrdenesIngreso.push({
@@ -1546,10 +1558,33 @@
                     }
                 });
             
-                // 3. Procesar SALIDAS (Compras de Refacciones) por Método de Pago
-                let refaccionesCostBruto = 0;
-                let refaccionesCostNeto = 0;
+                // Renderizar tabla de órdenes en Dashboard
+                const dashboardOrdersIncomeBody = document.getElementById('dashboard-income-orders-body');
+                if (dashboardOrdersIncomeBody) {
+                    if (listaOrdenesIngreso.length === 0) {
+                        dashboardOrdersIncomeBody.innerHTML = `<tr><td colspan="5" class="p-4 text-center text-slate-400">Sin ingresos registrados en este periodo.</td></tr>`;
+                    } else {
+                        dashboardOrdersIncomeBody.innerHTML = listaOrdenesIngreso.map(item => `
+                            <tr class="hover:bg-slate-50 transition border-b border-slate-100">
+                                <td class="py-2.5 px-4 text-slate-500 font-medium">${item.fecha.toLocaleDateString('es-MX', {day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit'})}</td>
+                                <td class="py-2.5 px-4 font-bold text-slate-900">#${item.ordenId}</td>
+                                <td class="py-2.5 px-4">
+                                    <span class="font-bold block text-slate-800">${Utils.escapeHtml(item.cliente)}</span>
+                                    <span class="text-[10px] text-slate-400">${Utils.escapeHtml(item.auto)}</span>
+                                </td>
+                                <td class="py-2.5 px-4">
+                                    <span class="px-2 py-0.5 text-[9px] font-bold rounded ${item.tipo === 'anticipo' ? 'bg-amber-50 text-amber-700 border border-amber-200' : 'bg-emerald-50 text-emerald-700 border border-emerald-200'} uppercase">
+                                        ${item.tipo === 'anticipo' ? '💰 Anticipo' : '✅ Pago Final'}
+                                    </span>
+                                </td>
+                                <td class="py-2.5 px-4 font-semibold text-slate-600">${Utils.escapeHtml(item.metodo)}</td>
+                                <td class="py-2.5 px-4 text-right font-bold text-emerald-600">${Utils.formatter.format(item.monto)}</td>
+                            </tr>
+                        `).join('');
+                    }
+                }
             
+                // 3. Compras Refacciones (Salidas)
                 if (supabaseClient) {
                     try {
                         const { data: comprasRango } = await supabaseClient
@@ -1562,19 +1597,19 @@
                         if (comprasRango && comprasRango.length > 0) {
                             comprasRango.forEach(c => {
                                 const cTotal = parseFloat(c.costo_neto || 0);
-                                const metodo = (c.metodo_pago || '').trim().toLowerCase();
-            
                                 refaccionesCostBruto += cTotal;
                                 refaccionesCostNeto += (cTotal / 1.08);
                                 if (c.orden_id) refaccionesMap.add(c.orden_id);
             
+                                const metodo = (c.metodo_pago || '').trim().toLowerCase();
                                 if (metodo === 'efectivo') {
                                     salidasEfectivo += cTotal;
-                                } else { // Transferencia, Tarjeta o Crédito Proveedor
+                                } else {
                                     salidasBanco += cTotal;
                                 }
             
                                 const ordenAsociada = State.orders.find(o => o.id === c.orden_id);
+            
                                 listaComprasRefacciones.push({
                                     id: c.id,
                                     ordenId: c.orden_id ? `#${c.orden_id}` : 'Gasto General',
@@ -1592,9 +1627,46 @@
                     }
                 }
             
-                // 4. Procesar SALIDAS (Gastos Operativos) por Método de Pago
+                State.orders.forEach(o => {
+                    if (o.estado === 'Cancelada') return;
+                    const oDate = Utils.parseFechaLocal(o.fecha_ingreso || o.fecha_registro);
+                    if (oDate >= start && oDate <= end) {
+                        if (!refaccionesMap.has(o.id)) {
+                            const costRefTotal = parseFloat(o.costo_refacciones || 0);
+                            refaccionesCostBruto += costRefTotal;
+                            refaccionesCostNeto += (costRefTotal / 1.08);
+                        }
+                    }
+                });
+            
+                const dashboardPartsBody = document.getElementById('dashboard-parts-cost-body');
+                if (dashboardPartsBody) {
+                    if (listaComprasRefacciones.length === 0) {
+                        dashboardPartsBody.innerHTML = `<tr><td colspan="6" class="p-4 text-center text-slate-400">Sin registro de compras de refacciones en este periodo.</td></tr>`;
+                    } else {
+                        dashboardPartsBody.innerHTML = listaComprasRefacciones.map(item => `
+                            <tr class="hover:bg-slate-50 transition border-b border-slate-100">
+                                <td class="py-2.5 px-4 text-slate-500 font-medium">${item.fecha.toLocaleDateString('es-MX', {day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit'})}</td>
+                                <td class="py-2.5 px-4 font-bold text-blue-600">${item.ordenId}</td>
+                                <td class="py-2.5 px-4">
+                                    <span class="font-bold block text-slate-800">${Utils.escapeHtml(item.descripcion)}</span>
+                                    <span class="text-[10px] text-slate-400">${Utils.escapeHtml(item.cliente)}</span>
+                                </td>
+                                <td class="py-2.5 px-4 font-semibold text-slate-600">${Utils.escapeHtml(item.proveedor)}</td>
+                                <td class="py-2.5 px-4">
+                                    <span class="px-2 py-0.5 text-[9px] font-bold rounded bg-slate-100 text-slate-600 border border-slate-200">
+                                        ${Utils.escapeHtml(item.metodo)}
+                                    </span>
+                                </td>
+                                <td class="py-2.5 px-4 text-right font-bold text-rose-600">${Utils.formatter.format(item.costo)}</td>
+                            </tr>
+                        `).join('');
+                    }
+                }
+            
+                // 4. Gastos Generales (Salidas)
                 let egresosManuales = 0;
-                let deduccionesNomina = 0;
+                let deduccionesNomina = 0; 
             
                 State.expenses.forEach(e => {
                     const eDate = Utils.parseFechaLocal(e.fecha);
@@ -1603,7 +1675,7 @@
                         const metodo = (e.metodo_pago || '').trim().toLowerCase();
             
                         if (e.categoria === "Nómina" && mAmt < 0) {
-                            deduccionesNomina += Math.abs(mAmt);
+                            deduccionesNomina += Math.abs(mAmt); 
                         } else {
                             egresosManuales += mAmt;
                             if (metodo === 'efectivo') {
@@ -1621,29 +1693,116 @@
                     }
                 });
             
-                // 5. Cálculos Finales de Saldos
-                const totalIngresos = entradasEfectivo + entradasBanco;
-                const totalEgresos = salidasEfectivo + salidasBanco;
+                // 5. Nómina fija y Costos fijos prorrateados
+                let costoNominaPeriodo = 0;
+                State.personal.forEach(p => {
+                    const sueldoDiario = (parseFloat(p.sueldo) || 0) / 7;
+                    const empInicio = p.fecha_ingreso ? Utils.parseFechaLocal(p.fecha_ingreso) : new Date(0);
+                    const empFin = p.fecha_egreso ? Utils.parseFechaLocal(p.fecha_egreso) : new Date(8640000000000000);
+            
+                    const inicioInterseccion = new Date(Math.max(start, empInicio));
+                    const finInterseccion = new Date(Math.min(end, empFin));
+            
+                    if (inicioInterseccion <= finInterseccion) {
+                        const msDiferencia = finInterseccion - inicioInterseccion;
+                        const diasTrabajadosEnPeriodo = Math.ceil(msDiferencia / (1000 * 60 * 60 * 24));
+                        costoNominaPeriodo += diasTrabajadosEnPeriodo * sueldoDiario;
+                    }
+                });
+            
+                const fijosMensuales = (State.fixedCosts.renta || 0) + (State.fixedCosts.servicios || 0) + (State.fixedCosts.impuestos || 0);
+                const fijosPorDia = fijosMensuales / 30.4;
+                const costoFijosPeriodo = fijosPorDia * totalDays;
+            
+                let nominaFinalConDescuentos = costoNominaPeriodo - deduccionesNomina;
+                montosPorCategoria["Nómina"] = nominaFinalConDescuentos;
+                montosPorCategoria["Refacciones"] = refaccionesCostNeto; 
+                
+                montosPorCategoria["Renta"] += (State.fixedCosts.renta / 30.4) * totalDays;
+                montosPorCategoria["Impuestos"] += (State.fixedCosts.impuestos / 30.4) * totalDays;
+                
+                const serviciosFraccionados = ((State.fixedCosts.servicios || 0) / 3) / 30.4 * totalDays;
+                montosPorCategoria["Agua"] += serviciosFraccionados;
+                montosPorCategoria["Luz"] += serviciosFraccionados;
+                montosPorCategoria["Internet"] += serviciosFraccionados;
+            
+                const totalGastos = refaccionesCostNeto + nominaFinalConDescuentos + costoFijosPeriodo + egresosManuales;
+                const ventasNetasSinIva16 = ingresos - totalIva16Cobrado;
+            
+                const utilidadBruta = ventasNetasSinIva16 - refaccionesCostNeto; 
+                const utilidadNeta = ventasNetasSinIva16 - totalGastos;
+                
+                const margenUtilidad = ventasNetasSinIva16 > 0 ? (utilidadNeta / ventasNetasSinIva16) * 100 : 0;
+                const ticketPromedio = vehiculosAtendidos > 0 ? ingresos / vehiculosAtendidos : 0;
+            
+                // BALANCES DE CAJA Y BANCO
                 const balanceEfectivoCaja = entradasEfectivo - salidasEfectivo;
                 const balanceCuentaBanco = entradasBanco - salidasBanco;
-                const utilidadNeta = totalIngresos - totalEgresos;
             
-                // Actualización de Tarjetas en la Interfaz (Dashboard)
+                // RE-ASIGNACIÓN DE VALORES A LA INTERFAZ Y TABLA DE ESTADO DE FLUJO
                 if (document.getElementById('dash-ingresos')) {
-                    document.getElementById('dash-ingresos').innerText = Utils.formatter.format(totalIngresos);
-                    document.getElementById('dash-egresos').innerText = Utils.formatter.format(totalEgresos);
+                    document.getElementById('dash-ingresos').innerText = Utils.formatter.format(ingresos);
+                    document.getElementById('dash-utilidad-bruta').innerText = Utils.formatter.format(utilidadBruta);
+                    document.getElementById('dash-egresos').innerText = Utils.formatter.format(totalGastos);
                     document.getElementById('dash-utilidad').innerText = Utils.formatter.format(utilidadNeta);
+                    document.getElementById('dash-vehiculos').innerText = vehiculosAtendidos;
+                    document.getElementById('dash-ticket-promedio').innerText = Utils.formatter.format(ticketPromedio);
+                    document.getElementById('dash-margen').innerText = `${margenUtilidad.toFixed(1)}%`;
+                    
+                    if (document.getElementById('caja-pagado')) document.getElementById('caja-pagado').innerText = Utils.formatter.format(pagado);
+                    if (document.getElementById('caja-anticipo')) document.getElementById('caja-anticipo').innerText = Utils.formatter.format(anticipo);
+                    if (document.getElementById('costo-ref-total')) document.getElementById('costo-ref-total').innerText = Utils.formatter.format(refaccionesCostNeto);
+                    if (document.getElementById('costo-fijos-total')) document.getElementById('costo-fijos-total').innerText = Utils.formatter.format(costoFijosPeriodo);
+                    if (document.getElementById('costo-nomina-total')) document.getElementById('costo-nomina-total').innerText = Utils.formatter.format(nominaFinalConDescuentos);
             
-                    // Desglose visual para entrega de cuentas a tu socio
-                    if (document.getElementById('caja-pagado')) {
-                        document.getElementById('caja-pagado').innerText = Utils.formatter.format(balanceEfectivoCaja);
-                    }
-                    if (document.getElementById('caja-anticipo')) {
-                        document.getElementById('caja-anticipo').innerText = Utils.formatter.format(balanceCuentaBanco);
+                    // Mapeo directo a la tabla de "Estado de Flujo de Efectivo"
+                    if (document.getElementById('er-ingresos')) document.getElementById('er-ingresos').innerText = Utils.formatter.format(ventasNetasSinIva16);
+                    if (document.getElementById('er-refacciones')) document.getElementById('er-refacciones').innerText = Utils.formatter.format(montosPorCategoria["Refacciones"]);
+                    if (document.getElementById('er-nomina')) document.getElementById('er-nomina').innerText = Utils.formatter.format(montosPorCategoria["Nómina"]);
+                    if (document.getElementById('er-gasolina')) document.getElementById('er-gasolina').innerText = Utils.formatter.format(montosPorCategoria["Gasolina"] + montosPorCategoria["Diesel"]);
+                    if (document.getElementById('er-consumibles')) document.getElementById('er-consumibles').innerText = Utils.formatter.format(montosPorCategoria["Consumibles"]);
+                    
+                    const sumServiciosAcumulados = montosPorCategoria["Renta"] + montosPorCategoria["Agua"] + montosPorCategoria["Luz"] + montosPorCategoria["Internet"];
+                    if (document.getElementById('er-servicios')) document.getElementById('er-servicios').innerText = Utils.formatter.format(sumServiciosAcumulados);
+                    if (document.getElementById('er-publicidad')) document.getElementById('er-publicidad').innerText = Utils.formatter.format(montosPorCategoria["Publicidad"]);
+                    
+                    const otrosAcumulados = totalGastos - (montosPorCategoria["Refacciones"] + montosPorCategoria["Nómina"] + montosPorCategoria["Gasolina"] + montosPorCategoria["Diesel"] + montosPorCategoria["Consumibles"] + sumServiciosAcumulados + montosPorCategoria["Publicidad"]);
+                    if (document.getElementById('er-otros')) document.getElementById('er-otros').innerText = Utils.formatter.format(otrosAcumulados > 0 ? otrosAcumulados : 0);
+                    if (document.getElementById('er-utilidad-neta')) document.getElementById('er-utilidad-neta').innerText = Utils.formatter.format(utilidadNeta);
+            
+                    // Actualizar tarjetas dinámicas con saldo en efectivo y banco
+                    const catContainer = document.getElementById('dashboard-categories-container');
+                    if (catContainer) {
+                        let categoriesHtml = `
+                            <div class="bg-blue-50/80 p-3 rounded-xl border border-blue-200 flex flex-col gap-1 mb-3 font-sans text-xs">
+                                <span class="text-[10px] uppercase font-extrabold text-blue-700 tracking-wider flex items-center gap-1">
+                                    <span class="material-icons text-xs">account_balance_wallet</span> 📊 BALANCES PARA SOCIOS
+                                </span>
+                                <div class="flex justify-between text-slate-700 pt-1">
+                                    <span>💵 Efectivo en Caja Chica:</span>
+                                    <span class="font-black text-emerald-600">${Utils.formatter.format(balanceEfectivoCaja)}</span>
+                                </div>
+                                <div class="flex justify-between text-slate-700">
+                                    <span>🏦 Banco (Transferencias / Tarjeta):</span>
+                                    <span class="font-black text-blue-600">${Utils.formatter.format(balanceCuentaBanco)}</span>
+                                </div>
+                            </div>
+                        `;
+            
+                        categoriesHtml += Object.keys(montosPorCategoria)
+                            .filter(cName => cName !== "Refacciones")
+                            .map(cName => `
+                                <div class="flex justify-between items-center border-b border-slate-100 pb-1">
+                                    <span class="text-slate-600 font-medium">${Utils.escapeHtml(cName)}:</span>
+                                    <span class="font-bold text-slate-800">${Utils.formatter.format(montosPorCategoria[cName])}</span>
+                                </div>`)
+                            .join('');
+            
+                        catContainer.innerHTML = categoriesHtml;
                     }
                 }
             
-                this.renderCharts(totalIngresos, totalEgresos, montosPorCategoria);
+                this.renderCharts(ingresos, totalGastos, montosPorCategoria);
             },
             
             renderCharts(ingresos, totalGastos, montosPorCategoria) {
