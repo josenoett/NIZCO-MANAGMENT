@@ -2232,7 +2232,7 @@
                 // 8. P&L Express
                 const totalIngresosCobrados = entradasEfectivo + entradasBanco;
                 const totalGastosDirectos = salidasEfectivo + salidasBanco;
-                const utilidadNetaP&L = totalIngresosCobrados - (totalGastosDirectos + costoNominaPeriodo + totalGastosFijosProrrateados);
+                const utilidadNetaPL = totalIngresosCobrados - (totalGastosDirectos + costoNominaPeriodo + totalGastosFijosProrrateados);
             
                 const balEfectivo = entradasEfectivo - salidasEfectivo;
                 const balBanco = entradasBanco - salidasBanco;
@@ -2396,7 +2396,7 @@
                                 </div>
                                 <div class="flex justify-between font-black text-xs pt-2 border-t border-blue-200 text-slate-900">
                                     <span>(=) UTILIDAD NETA REAL REPARTIBLE:</span>
-                                    <span class="${utilidadNetaP&L >= 0 ? 'text-emerald-700' : 'text-rose-700'}">${Utils.formatter.format(utilidadNetaP&L)}</span>
+                                    <span class="${utilidadNetaPL >= 0 ? 'text-emerald-700' : 'text-rose-700'}">${Utils.formatter.format(utilidadNetaPL)}</span>
                                 </div>
                             </div>
                         </div>
