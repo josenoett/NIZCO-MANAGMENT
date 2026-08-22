@@ -2075,7 +2075,7 @@
             },
 
             async downloadCorteCajaPDF() {
-                showToast("Generando reporte de corte de caja...");
+                showToast("Generando Reporte Ejecutivo de Entrega de Cuentas...");
             
                 const preset = document.getElementById('erp-date-preset').value;
                 const { start, end } = Financial_Engine.getDateRange(preset);
@@ -2086,7 +2086,7 @@
                 let entradasEfectivo = 0, entradasBanco = 0;
                 let salidasEfectivo = 0, salidasBanco = 0;
             
-                // 1. Obtener Ingresos
+                // 1. Obtener Ingresos Reales
                 const ingresosPeriodo = State.pagos.filter(p => {
                     const pDate = Utils.parseFechaLocal(p.fecha);
                     return pDate >= start && pDate <= end;
@@ -2100,6 +2100,8 @@
             
                 // 2. Obtener Refacciones
                 let refaccionesPeriodo = [];
+                let comprasPorProveedor = {};
+            
                 if (supabaseClient) {
                     try {
                         const { data } = await supabaseClient
@@ -2116,9 +2118,12 @@
                     const m = parseFloat(r.costo_neto || 0);
                     if ((r.metodo_pago || '').toLowerCase() === 'efectivo') salidasEfectivo += m;
                     else salidasBanco += m;
+            
+                    const prov = r.proveedor || 'Otros / Mostrador';
+                    comprasPorProveedor[prov] = (comprasPorProveedor[prov] || 0) + m;
                 });
             
-                // 3. Obtener Gastos Varios
+                // 3. Gastos Varios
                 const gastosPeriodo = State.expenses.filter(e => {
                     const eDate = Utils.parseFechaLocal(e.fecha);
                     return eDate >= start && eDate <= end;
@@ -2130,7 +2135,7 @@
                     else salidasBanco += m;
                 });
             
-                // 4. CALCULAR NÓMINA DEVENGADA DEL PERIODO (INFORMATIVA)
+                // 4. Nómina Devengada
                 let costoNominaPeriodo = 0;
                 let desglosePersonal = [];
             
@@ -2159,113 +2164,338 @@
                     }
                 });
             
+                // 5. CÁLCULO DE RENTA Y GASTOS ESTRUCTURALES DEL PERIODO (INFORMATIVO)
+                const totalDays = Math.max(1, Math.ceil((end - start) / (1000 * 60 * 60 * 24)));
+                const rentaMensual = parseFloat(State.fixedCosts.renta) || 0;
+                const serviciosMensuales = parseFloat(State.fixedCosts.servicios) || 0;
+                const impuestosMensuales = parseFloat(State.fixedCosts.impuestos) || 0;
+            
+                const rentaProrrateada = (rentaMensual / 30.4) * totalDays;
+                const serviciosProrrateados = (serviciosMensuales / 30.4) * totalDays;
+                const impuestosProrrateados = (impuestosMensuales / 30.4) * totalDays;
+                const totalGastosFijosProrrateados = rentaProrrateada + serviciosProrrateados + impuestosProrrateados;
+            
+                // 6. Cuentas por Cobrar (Pendientes del Periodo)
+                let cuentasPorCobrar = [];
+                let totalPendienteCobro = 0;
+            
+                State.orders.forEach(o => {
+                    if (o.estado === 'Cancelada') return;
+                    const oDate = Utils.parseFechaLocal(o.fecha_ingreso || o.fecha_registro);
+                    if (oDate >= start && oDate <= end) {
+                        const totalOrden = parseFloat(o.total_cobrado || 0);
+                        
+                        const abonosOrden = State.pagos
+                            .filter(p => Number(p.orden_id) === Number(o.id))
+                            .reduce((acc, p) => acc + (parseFloat(p.monto) || 0), 0);
+                        
+                        const saldoPendiente = totalOrden - abonosOrden;
+                        if (saldoPendiente > 0.5) {
+                            totalPendienteCobro += saldoPendiente;
+                            cuentasPorCobrar.push({
+                                id: o.id,
+                                cliente: o.cliente_nombre,
+                                auto: `${o.auto_marca} (${o.auto_placas})`,
+                                total: totalOrden,
+                                abonado: abonosOrden,
+                                pendiente: saldoPendiente
+                            });
+                        }
+                    }
+                });
+            
+                // 7. Métricas de Productividad por Mecánico
+                let listaProductividad = [];
+                const mecanicos = State.personal.filter(p => p.rol && p.rol.includes('Mecánico'));
+            
+                mecanicos.forEach(m => {
+                    const ordenesMec = State.orders.filter(o => {
+                        if (o.estado === 'Cancelada') return false;
+                        const oDate = Utils.parseFechaLocal(o.fecha_ingreso || o.fecha_registro);
+                        const matchMec = (o.tecnico_user_id && o.tecnico_user_id === m.user_id) || 
+                                         (o.tecnico_asignado && o.tecnico_asignado.toLowerCase() === m.nombre?.toLowerCase());
+                        return matchMec && (oDate >= start && oDate <= end);
+                    });
+            
+                    const concluidas = ordenesMec.filter(o => o.estado === 'Terminado' || o.estado === 'Entregado');
+                    let manoObraProducida = 0;
+                    concluidas.forEach(o => manoObraProducida += parseFloat(o.costo_mano_obra || 0));
+            
+                    listaProductividad.push({
+                        nombre: m.nombre,
+                        asignadas: ordenesMec.length,
+                        concluidas: concluidas.length,
+                        manoObra: manoObraProducida
+                    });
+                });
+            
+                // 8. P&L Express
+                const totalIngresosCobrados = entradasEfectivo + entradasBanco;
+                const totalGastosDirectos = salidasEfectivo + salidasBanco;
+                const utilidadNetaP&L = totalIngresosCobrados - (totalGastosDirectos + costoNominaPeriodo + totalGastosFijosProrrateados);
+            
                 const balEfectivo = entradasEfectivo - salidasEfectivo;
                 const balBanco = entradasBanco - salidasBanco;
             
                 const printArea = document.createElement('div');
-                printArea.className = "p-8 bg-white font-sans text-slate-800 text-xs";
+                printArea.className = "bg-white font-sans text-slate-800 text-xs";
                 printArea.style.width = "790px";
             
                 printArea.innerHTML = `
-                    <div class="border-b-2 border-slate-900 pb-4 mb-4 flex justify-between items-center">
-                        <div>
-                            <h1 class="text-xl font-black text-slate-900">BEFIX GARAGE ERP</h1>
-                            <p class="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Reporte de Entrega de Cuentas / Balance de Caja y Banco</p>
+                    <!-- HOJA 1: ARQUEO DE CAJA, NÓMINA Y RENTA -->
+                    <div class="p-8" style="min-height: 1020px;">
+                        <div class="border-b-2 border-slate-900 pb-4 mb-4 flex justify-between items-center">
+                            <div>
+                                <h1 class="text-xl font-black text-slate-900">BEFIX GARAGE ERP</h1>
+                                <p class="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Reporte de Entrega de Cuentas (Página 1: Arqueo de Dinero)</p>
+                            </div>
+                            <div class="text-right">
+                                <span class="bg-slate-100 text-slate-800 text-[10px] font-bold px-3 py-1 rounded-full border border-slate-200">
+                                    Rango: ${fInicioStr} - ${fFinStr}
+                                </span>
+                                <p class="text-[9px] text-slate-400 mt-1">Generado: ${new Date().toLocaleString('es-MX')}</p>
+                            </div>
                         </div>
-                        <div class="text-right">
-                            <span class="bg-slate-100 text-slate-800 text-[10px] font-bold px-3 py-1 rounded-full border border-slate-200">
-                                Rango: ${fInicioStr} - ${fFinStr}
-                            </span>
-                            <p class="text-[9px] text-slate-400 mt-1">Generado: ${new Date().toLocaleString('es-MX')}</p>
-                        </div>
-                    </div>
             
-                    <!-- RESUMEN DE CUENTAS SEPARADO -->
-                    <div class="grid grid-cols-2 gap-4 mb-5">
-                        <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200">
-                            <h3 class="font-extrabold text-slate-900 text-xs border-b pb-1 mb-2 uppercase flex justify-between">
-                                <span>💵 CAJA FÍSICA (EFECTIVO)</span>
+                        <div class="grid grid-cols-2 gap-4 mb-4">
+                            <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200">
+                                <h3 class="font-extrabold text-slate-900 text-xs border-b pb-1 mb-2 uppercase flex justify-between">
+                                    <span>💵 CAJA FÍSICA (EFECTIVO)</span>
+                                </h3>
+                                <div class="flex justify-between text-slate-600 mb-1">
+                                    <span>(+) Entradas Efectivo:</span>
+                                    <span class="font-bold text-emerald-600">${Utils.formatter.format(entradasEfectivo)}</span>
+                                </div>
+                                <div class="flex justify-between text-slate-600 mb-1">
+                                    <span>(-) Salidas Efectivo:</span>
+                                    <span class="font-bold text-rose-600">${Utils.formatter.format(salidasEfectivo)}</span>
+                                </div>
+                                <div class="flex justify-between text-slate-900 font-black text-xs pt-2 border-t mt-1">
+                                    <span>BALANCE EN CAJA:</span>
+                                    <span class="text-blue-600">${Utils.formatter.format(balEfectivo)}</span>
+                                </div>
+                            </div>
+            
+                            <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200">
+                                <h3 class="font-extrabold text-slate-900 text-xs border-b pb-1 mb-2 uppercase flex justify-between">
+                                    <span>🏦 CUENTA DE BANCO (SPEI / TARJETA)</span>
+                                </h3>
+                                <div class="flex justify-between text-slate-600 mb-1">
+                                    <span>(+) Entradas Banco:</span>
+                                    <span class="font-bold text-emerald-600">${Utils.formatter.format(entradasBanco)}</span>
+                                </div>
+                                <div class="flex justify-between text-slate-600 mb-1">
+                                    <span>(-) Salidas Banco:</span>
+                                    <span class="font-bold text-rose-600">${Utils.formatter.format(salidasBanco)}</span>
+                                </div>
+                                <div class="flex justify-between text-slate-900 font-black text-xs pt-2 border-t mt-1">
+                                    <span>BALANCE EN BANCO:</span>
+                                    <span class="text-blue-600">${Utils.formatter.format(balBanco)}</span>
+                                </div>
+                            </div>
+                        </div>
+            
+                        <!-- TABLA INFORMATIVA DE RENTA Y COSTOS FIJOS -->
+                        <div class="mb-4 bg-slate-50 p-3.5 rounded-2xl border border-slate-200">
+                            <h3 class="font-bold border-b pb-1 mb-2 uppercase text-[10px] text-blue-900 flex justify-between items-center">
+                                <span>🏢 RESUMEN INFORMATIVO DE RENTA Y GASTOS FIJOS (${totalDays} DÍAS - NO RESTADO DE CAJA/BANCO)</span>
+                                <span class="text-xs font-black text-blue-900">${Utils.formatter.format(totalGastosFijosProrrateados)}</span>
                             </h3>
-                            <div class="flex justify-between text-slate-600 mb-1">
-                                <span>(+) Entradas Efectivo:</span>
-                                <span class="font-bold text-emerald-600">${Utils.formatter.format(entradasEfectivo)}</span>
-                            </div>
-                            <div class="flex justify-between text-slate-600 mb-1">
-                                <span>(-) Salidas Efectivo:</span>
-                                <span class="font-bold text-rose-600">${Utils.formatter.format(salidasEfectivo)}</span>
-                            </div>
-                            <div class="flex justify-between text-slate-900 font-black text-xs pt-2 border-t mt-1">
-                                <span>BALANCE EN CAJA:</span>
-                                <span class="text-blue-600">${Utils.formatter.format(balEfectivo)}</span>
+                            <div class="grid grid-cols-3 gap-3 text-[10px]">
+                                <div class="bg-white p-2 rounded-xl border border-slate-200 flex justify-between items-center">
+                                    <div>
+                                        <span class="text-slate-500 font-medium block">Renta Taller:</span>
+                                        <span class="text-[8px] text-slate-400">($${rentaMensual.toLocaleString()}/mes)</span>
+                                    </div>
+                                    <span class="font-bold text-slate-800">${Utils.formatter.format(rentaProrrateada)}</span>
+                                </div>
+                                <div class="bg-white p-2 rounded-xl border border-slate-200 flex justify-between items-center">
+                                    <div>
+                                        <span class="text-slate-500 font-medium block">Servicios (Agua/Luz/Net):</span>
+                                        <span class="text-[8px] text-slate-400">($${serviciosMensuales.toLocaleString()}/mes)</span>
+                                    </div>
+                                    <span class="font-bold text-slate-800">${Utils.formatter.format(serviciosProrrateados)}</span>
+                                </div>
+                                <div class="bg-white p-2 rounded-xl border border-slate-200 flex justify-between items-center">
+                                    <div>
+                                        <span class="text-slate-500 font-medium block">Impuestos Est.:</span>
+                                        <span class="text-[8px] text-slate-400">($${impuestosMensuales.toLocaleString()}/mes)</span>
+                                    </div>
+                                    <span class="font-bold text-slate-800">${Utils.formatter.format(impuestosProrrateados)}</span>
+                                </div>
                             </div>
                         </div>
             
-                        <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200">
-                            <h3 class="font-extrabold text-slate-900 text-xs border-b pb-1 mb-2 uppercase flex justify-between">
-                                <span>🏦 CUENTA DE BANCO (SPEI / TARJETA)</span>
+                        <!-- TABLA INFORMATIVA DE NÓMINA DEVENGADA -->
+                        <div class="mb-4 bg-slate-50 p-3.5 rounded-2xl border border-slate-200">
+                            <h3 class="font-bold border-b pb-1.5 mb-2 uppercase text-[10px] text-purple-800 flex justify-between items-center">
+                                <span>📋 RESUMEN INFORMATIVO DE NÓMINA DEL PERIODO (NO RESTADO DE CAJA/BANCO)</span>
+                                <span class="text-xs font-black text-purple-900">${Utils.formatter.format(costoNominaPeriodo)}</span>
                             </h3>
-                            <div class="flex justify-between text-slate-600 mb-1">
-                                <span>(+) Entradas Banco:</span>
-                                <span class="font-bold text-emerald-600">${Utils.formatter.format(entradasBanco)}</span>
-                            </div>
-                            <div class="flex justify-between text-slate-600 mb-1">
-                                <span>(-) Salidas Banco:</span>
-                                <span class="font-bold text-rose-600">${Utils.formatter.format(salidasBanco)}</span>
-                            </div>
-                            <div class="flex justify-between text-slate-900 font-black text-xs pt-2 border-t mt-1">
-                                <span>BALANCE EN BANCO:</span>
-                                <span class="text-blue-600">${Utils.formatter.format(balBanco)}</span>
-                            </div>
-                        </div>
-                    </div>
-            
-                    <!-- TABLA INFORMATIVA DE NÓMINA DEVENGADA -->
-                    <div class="mb-6 bg-slate-50 p-4 rounded-2xl border border-slate-200">
-                        <h3 class="font-bold border-b pb-1.5 mb-2 uppercase text-[10px] text-purple-800 flex justify-between items-center">
-                            <span>📋 RESUMEN INFORMATIVO DE NÓMINA DEL PERIODO (NO RESTADO DE CAJA/BANCO)</span>
-                            <span class="text-xs font-black text-purple-900">${Utils.formatter.format(costoNominaPeriodo)}</span>
-                        </h3>
-                        <table class="w-full text-left border-collapse text-[10px]">
-                            <thead>
-                                <tr class="bg-slate-200/60 text-slate-700 uppercase font-bold">
-                                    <th class="p-1.5">Colaborador</th>
-                                    <th class="p-1.5">Puesto / Rol</th>
-                                    <th class="p-1.5 text-center">Sueldo Semanal</th>
-                                    <th class="p-1.5 text-center">Días en Periodo</th>
-                                    <th class="p-1.5 text-right">Monto Devengado</th>
-                                </tr>
-                            </thead>
-                            <tbody class="divide-y divide-slate-200">
-                                ${desglosePersonal.length === 0 ? '<tr><td colspan="5" class="p-2 text-center text-slate-400">Sin colaboradores activos registrados en el periodo</td></tr>' : 
-                                  desglosePersonal.map(p => `
-                                    <tr>
-                                        <td class="p-1.5 font-bold text-slate-800">${Utils.escapeHtml(p.nombre)}</td>
-                                        <td class="p-1.5 text-slate-600">${Utils.escapeHtml(p.puesto)}</td>
-                                        <td class="p-1.5 text-center">${Utils.formatter.format(p.sueldoSemanal)}</td>
-                                        <td class="p-1.5 text-center font-bold">${p.dias} días</td>
-                                        <td class="p-1.5 text-right font-bold text-slate-900">${Utils.formatter.format(p.monto)}</td>
+                            <table class="w-full text-left border-collapse text-[10px]">
+                                <thead>
+                                    <tr class="bg-slate-200/60 text-slate-700 uppercase font-bold">
+                                        <th class="p-1.5">Colaborador</th>
+                                        <th class="p-1.5">Puesto / Rol</th>
+                                        <th class="p-1.5 text-center">Sueldo Semanal</th>
+                                        <th class="p-1.5 text-center">Días en Periodo</th>
+                                        <th class="p-1.5 text-right">Monto Devengado</th>
                                     </tr>
-                                `).join('')}
-                            </tbody>
-                        </table>
-                        <p class="text-[8px] text-slate-400 mt-2 italic">* Este monto representa el compromiso de nómina acumulado en las fechas seleccionadas según el sueldo registrado de cada colaborador.</p>
+                                </thead>
+                                <tbody class="divide-y divide-slate-200">
+                                    ${desglosePersonal.length === 0 ? '<tr><td colspan="5" class="p-2 text-center text-slate-400">Sin colaboradores activos registrados</td></tr>' : 
+                                      desglosePersonal.map(p => `
+                                        <tr>
+                                            <td class="p-1.5 font-bold text-slate-800">${Utils.escapeHtml(p.nombre)}</td>
+                                            <td class="p-1.5 text-slate-600">${Utils.escapeHtml(p.puesto)}</td>
+                                            <td class="p-1.5 text-center">${Utils.formatter.format(p.sueldoSemanal)}</td>
+                                            <td class="p-1.5 text-center font-bold">${p.dias} días</td>
+                                            <td class="p-1.5 text-right font-bold text-slate-900">${Utils.formatter.format(p.monto)}</td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
             
-                    <div class="grid grid-cols-2 gap-12 mt-12 pt-6 border-t text-[9px] text-center font-bold text-slate-400">
-                        <div>
-                            <div class="border-b border-slate-300 w-3/4 mx-auto mb-1"></div>
-                            <p>Firma de Entrega / Socio Operativo</p>
+                    <div style="page-break-before: always;"></div>
+            
+                    <!-- HOJA 2: ESTADO FINANCIERO Y RENDIMIENTO PARA SOCIOS -->
+                    <div class="p-8" style="min-height: 1020px;">
+                        <div class="border-b-2 border-slate-900 pb-3 mb-4 flex justify-between items-center">
+                            <div>
+                                <h2 class="text-lg font-black text-slate-900">ESTADO DE RESULTADOS Y PRODUCTIVIDAD</h2>
+                                <p class="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Reporte para Socios (Página 2)</p>
+                            </div>
+                            <span class="bg-blue-50 text-blue-700 text-[10px] font-bold px-3 py-1 rounded-full border border-blue-200">
+                                Periodo: ${fInicioStr} - ${fFinStr}
+                            </span>
                         </div>
-                        <div>
-                            <div class="border-b border-slate-300 w-3/4 mx-auto mb-1"></div>
-                            <p>Firma de Conformidad / Socio Inversionista</p>
+            
+                        <!-- ESTADO DE PÉRDIDAS Y GANANCIAS (P&L EXPRESS) -->
+                        <div class="bg-blue-50/60 border border-blue-200 p-4 rounded-2xl mb-5">
+                            <h3 class="font-extrabold text-blue-900 text-xs border-b border-blue-200 pb-1 mb-2 uppercase">
+                                📊 ESTADO DE RESULTADOS REAL (ESTIMACIÓN DE UTILIDAD REPARTIBLE)
+                            </h3>
+                            <div class="flex flex-col gap-1.5 text-[11px]">
+                                <div class="flex justify-between font-bold text-slate-800">
+                                    <span>(+) Ingresos Totales Cobrados (Caja + Banco):</span>
+                                    <span class="text-emerald-600">${Utils.formatter.format(totalIngresosCobrados)}</span>
+                                </div>
+                                <div class="flex justify-between text-slate-600 pl-3">
+                                    <span>(-) Costo de Refacciones y Gastos Directos:</span>
+                                    <span class="text-rose-600">${Utils.formatter.format(totalGastosDirectos)}</span>
+                                </div>
+                                <div class="flex justify-between text-slate-600 pl-3">
+                                    <span>(-) Costo Total de Nómina Devengada:</span>
+                                    <span class="text-rose-600">${Utils.formatter.format(costoNominaPeriodo)}</span>
+                                </div>
+                                <div class="flex justify-between text-slate-600 pl-3">
+                                    <span>(-) Gastos Fijos Operativos Prorrateados (Renta/Servicios):</span>
+                                    <span class="text-rose-600">${Utils.formatter.format(totalGastosFijosProrrateados)}</span>
+                                </div>
+                                <div class="flex justify-between font-black text-xs pt-2 border-t border-blue-200 text-slate-900">
+                                    <span>(=) UTILIDAD NETA REAL REPARTIBLE:</span>
+                                    <span class="${utilidadNetaP&L >= 0 ? 'text-emerald-700' : 'text-rose-700'}">${Utils.formatter.format(utilidadNetaP&L)}</span>
+                                </div>
+                            </div>
+                        </div>
+            
+                        <!-- CUENTAS POR COBRAR PENDIENTES -->
+                        <div class="mb-5 bg-slate-50 p-4 rounded-2xl border border-slate-200">
+                            <h3 class="font-bold border-b pb-1 mb-2 uppercase text-[10px] text-amber-800 flex justify-between items-center">
+                                <span>⏳ CUENTAS POR COBRAR DEL PERIODO (DINERO EN LA CALLE)</span>
+                                <span class="text-xs font-black text-amber-900">${Utils.formatter.format(totalPendienteCobro)}</span>
+                            </h3>
+                            <table class="w-full text-left border-collapse text-[10px]">
+                                <thead>
+                                    <tr class="bg-slate-200/60 text-slate-700 uppercase font-bold">
+                                        <th class="p-1.5">Orden</th>
+                                        <th class="p-1.5">Cliente / Auto</th>
+                                        <th class="p-1.5 text-right">Total Orden</th>
+                                        <th class="p-1.5 text-right">Abonado</th>
+                                        <th class="p-1.5 text-right">Saldo Pendiente</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-slate-200">
+                                    ${cuentasPorCobrar.length === 0 ? '<tr><td colspan="5" class="p-2 text-center text-slate-400">Excelente: No hay saldo pendiente de cobro en este periodo.</td></tr>' : 
+                                      cuentasPorCobrar.map(c => `
+                                        <tr>
+                                            <td class="p-1.5 font-bold text-slate-900">#${c.id}</td>
+                                            <td class="p-1.5">${Utils.escapeHtml(c.cliente)} <span class="text-[9px] text-slate-400">(${Utils.escapeHtml(c.auto)})</span></td>
+                                            <td class="p-1.5 text-right">${Utils.formatter.format(c.total)}</td>
+                                            <td class="p-1.5 text-right text-emerald-600 font-semibold">${Utils.formatter.format(c.abonado)}</td>
+                                            <td class="p-1.5 text-right font-bold text-amber-700">${Utils.formatter.format(c.pendiente)}</td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                        </div>
+            
+                        <!-- PRODUCTIVIDAD DE TALLER Y PROVEEDORES -->
+                        <div class="grid grid-cols-2 gap-4 mb-8">
+                            <div class="bg-slate-50 p-3.5 rounded-2xl border border-slate-200">
+                                <h3 class="font-bold border-b pb-1 mb-2 uppercase text-[10px] text-slate-700">🔧 PRODUCTIVIDAD POR MECÁNICO</h3>
+                                <table class="w-full text-left text-[9px]">
+                                    <thead>
+                                        <tr class="font-bold border-b text-slate-500">
+                                            <th class="pb-1">Mecánico</th>
+                                            <th class="pb-1 text-center">Ord. Concluidas</th>
+                                            <th class="pb-1 text-right">M.O. Generada</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="divide-y">
+                                        ${listaProductividad.map(m => `
+                                            <tr>
+                                                <td class="py-1 font-semibold">${Utils.escapeHtml(m.nombre)}</td>
+                                                <td class="py-1 text-center font-bold">${m.concluidas} / ${m.asignadas}</td>
+                                                <td class="py-1 text-right font-bold text-blue-600">${Utils.formatter.format(m.manoObra)}</td>
+                                            </tr>
+                                        `).join('')}
+                                    </tbody>
+                                </table>
+                            </div>
+            
+                            <div class="bg-slate-50 p-3.5 rounded-2xl border border-slate-200">
+                                <h3 class="font-bold border-b pb-1 mb-2 uppercase text-[10px] text-slate-700">📦 COMPRAS POR PROVEEDOR</h3>
+                                <table class="w-full text-left text-[9px]">
+                                    <thead>
+                                        <tr class="font-bold border-b text-slate-500">
+                                            <th class="pb-1">Proveedor</th>
+                                            <th class="pb-1 text-right">Monto Total</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="divide-y">
+                                        ${Object.keys(comprasPorProveedor).length === 0 ? '<tr><td colspan="2" class="p-1 text-center text-slate-400">Sin compras</td></tr>' :
+                                          Object.keys(comprasPorProveedor).map(prov => `
+                                            <tr>
+                                                <td class="py-1 font-semibold">${Utils.escapeHtml(prov)}</td>
+                                                <td class="py-1 text-right font-bold text-slate-800">${Utils.formatter.format(comprasPorProveedor[prov])}</td>
+                                            </tr>
+                                        `).join('')}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+            
+                        <!-- FIRMAS DE CONFORMIDAD -->
+                        <div class="grid grid-cols-2 gap-12 pt-8 border-t border-slate-300 text-[9px] text-center font-bold text-slate-400">
+                            <div>
+                                <div class="border-b border-slate-300 w-3/4 mx-auto mb-1"></div>
+                                <p>Firma de Entrega / Socio Operativo</p>
+                                <p class="text-[8px] font-normal text-slate-400">BEFIX GARAGE ERP</p>
+                            </div>
+                            <div>
+                                <div class="border-b border-slate-300 w-3/4 mx-auto mb-1"></div>
+                                <p>Firma de Conformidad / Socio Inversionista</p>
+                            </div>
                         </div>
                     </div>
                 `;
             
                 const opt = {
-                    margin: 0.3,
-                    filename: `Corte_Caja_${fInicioStr}_al_${fFinStr}.pdf`,
+                    margin: 0,
+                    filename: `Reporte_Ejecutivo_Socios_${fInicioStr}_al_${fFinStr}.pdf`,
                     image: { type: 'jpeg', quality: 0.98 },
                     html2canvas: { scale: 2 },
                     jsPDF: { format: 'letter', orientation: 'portrait' }
