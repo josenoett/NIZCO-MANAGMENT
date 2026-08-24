@@ -1762,7 +1762,63 @@
                         catContainer.innerHTML = categoriesHtml;
                     }
                 }
-            
+                // RENDERIZAR TABLA 1: DESGLOSE DE ÓRDENES QUE GENERARON INGRESOS
+                const incomeBody = document.getElementById('dashboard-income-orders-body');
+                if (incomeBody) {
+                    if (listaOrdenesIngreso.length === 0) {
+                        incomeBody.innerHTML = `<tr><td colspan="5" class="p-4 text-center text-slate-400">Sin registros de ingresos en este periodo.</td></tr>`;
+                    } else {
+                        incomeBody.innerHTML = listaOrdenesIngreso.map(i => {
+                            const fStr = i.fecha.toLocaleDateString('es-MX', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+                            return `
+                                <tr class="hover:bg-slate-50 transition border-b border-slate-100">
+                                    <td class="py-2.5 px-4 font-medium text-slate-500">${fStr}</td>
+                                    <td class="py-2.5 px-4 font-bold text-slate-900">#${i.ordenId}</td>
+                                    <td class="py-2.5 px-4">
+                                        <span class="font-semibold text-slate-800 block">${Utils.escapeHtml(i.cliente)}</span>
+                                        <span class="text-[10px] text-slate-400 block">${Utils.escapeHtml(i.auto)}</span>
+                                    </td>
+                                    <td class="py-2.5 px-4">
+                                        <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-700 uppercase border border-slate-200">
+                                            ${Utils.escapeHtml(i.metodo)} (${Utils.escapeHtml(i.tipo)})
+                                        </span>
+                                    </td>
+                                    <td class="py-2.5 px-4 text-right font-bold text-emerald-600">${Utils.formatter.format(i.monto)}</td>
+                                </tr>
+                            `;
+                        }).join('');
+                    }
+                }
+    
+                // RENDERIZAR TABLA 2: DESGLOSE DE REFACCIONES Y COMPRAS
+                const partsBody = document.getElementById('dashboard-parts-cost-body');
+                if (partsBody) {
+                    if (listaComprasRefacciones.length === 0) {
+                        partsBody.innerHTML = `<tr><td colspan="6" class="p-4 text-center text-slate-400">Sin compras de refacciones en este periodo.</td></tr>`;
+                    } else {
+                        partsBody.innerHTML = listaComprasRefacciones.map(r => {
+                            const fStr = r.fecha.toLocaleDateString('es-MX', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+                            return `
+                                <tr class="hover:bg-slate-50 transition border-b border-slate-100">
+                                    <td class="py-2.5 px-4 font-medium text-slate-500">${fStr}</td>
+                                    <td class="py-2.5 px-4 font-bold text-blue-600">${r.ordenId}</td>
+                                    <td class="py-2.5 px-4">
+                                        <span class="font-semibold text-slate-800 block">${Utils.escapeHtml(r.descripcion)}</span>
+                                        <span class="text-[10px] text-slate-400 block">${Utils.escapeHtml(r.cliente)}</span>
+                                    </td>
+                                    <td class="py-2.5 px-4 font-medium text-slate-600">${Utils.escapeHtml(r.proveedor)}</td>
+                                    <td class="py-2.5 px-4">
+                                        <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-700 border border-slate-200">
+                                            ${Utils.escapeHtml(r.metodo)}
+                                        </span>
+                                    </td>
+                                    <td class="py-2.5 px-4 text-right font-bold text-slate-900">${Utils.formatter.format(r.costo)}</td>
+                                </tr>
+                            `;
+                        }).join('');
+                    }
+                }
+    
                 this.renderCharts(ingresos, totalGastos, montosPorCategoria);
             },
             
