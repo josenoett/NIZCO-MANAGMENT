@@ -1899,73 +1899,39 @@
             });
         
             // --- CHART 4: UTILIDAD NETA POR MES ---
+            const margenProporcional = ingresos > 0 ? (ingresos - totalGastos) / ingresos : 0;
+            const dataUtilidadMes = dataIngresosMes.map(ing => ing * margenProporcional);
+
+            const esNegativo = (ingresos - totalGastos) < 0;
+            const colorGrafica = esNegativo ? '#f43f5e' : '#10b981';
+            const colorFondo = esNegativo ? 'rgba(244, 63, 94, 0.1)' : 'rgba(16, 185, 129, 0.1)';
+
             chartInstance4 = new Chart(ctx4, {
                 type: 'line',
                 data: {
                     labels: mesesLabels,
-                    datasets: [{ label: 'Utilidad Neta', data: dataUtilidadMes, borderColor: '#10b981', backgroundColor: 'rgba(16, 185, 129, 0.1)', tension: 0.3, fill: true }]
-                },
-                options: { responsive: true, maintainAspectRatio: false }
-            });
-        
-            // --- CHART 4: UTILIDAD NETA POR MES ---
-            // Calculamos la utilidad real restando la proporción de gastos/refacciones si están disponibles
-            const dataUtilidad = labelsMeses.map(k => {
-                const inc = mapaIngresos[k] || 0;
-                // Si tienes el mapa de gastos globales usa la clave del mes, si no, usa el total proporcional
-                const gast = (typeof gastosPorMes !== 'undefined' && gastosPorMes[k]) ? gastosPorMes[k] : 0;
-                return inc - gast;
-            });
-        
-            chartInstance4 = new Chart(ctx4, {
-                type: 'line',
-                data: {
-                    labels: labelsMeses,
                     datasets: [{
                         label: 'Utilidad Neta',
-                        data: dataUtilidad,
-                        borderColor: '#10b981',
-                        backgroundColor: 'rgba(16, 185, 129, 0.1)',
-                        tension: 0.4,
-                        fill: true
+                        data: dataUtilidadMes,
+                        borderColor: colorGrafica,
+                        backgroundColor: colorFondo,
+                        tension: 0.3,
+                        fill: 'origin'
                     }]
                 },
-                options: { responsive: true, maintainAspectRatio: false }
+                options: { 
+                    responsive: true, 
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            grid: {
+                                color: (context) => context.tick.value === 0 ? '#94a3b8' : '#f1f5f9',
+                                lineWidth: (context) => context.tick.value === 0 ? 2 : 1
+                            }
+                        }
+                    }
+                }
             });
-        
-            // --- CHART 4: UTILIDAD NETA ---
-            chartInstance4 = new Chart(ctx4, {
-                type: 'line',
-                data: {
-                    labels: labelsMeses,
-                    datasets: [{
-                        label: 'Utilidad Neta',
-                        data: dataUtilidad,
-                        borderColor: '#10b981',
-                        backgroundColor: 'rgba(16, 185, 129, 0.1)',
-                        tension: 0.4,
-                        fill: true
-                    }]
-                },
-                options: { responsive: true, maintainAspectRatio: false }
-            });
-            
-                // --- CHART 4: UTILIDAD NETA POR MES ---
-                chartInstance4 = new Chart(ctx4, {
-                    type: 'line',
-                    data: {
-                        labels: labelsMeses,
-                        datasets: [{
-                            label: 'Utilidad Neta',
-                            data: dataUtilidad,
-                            borderColor: '#10b981',
-                            backgroundColor: 'rgba(16, 185, 129, 0.1)',
-                            tension: 0.4,
-                            fill: true
-                        }]
-                    },
-                    options: { responsive: true, maintainAspectRatio: false }
-                });
             }
         };
 
