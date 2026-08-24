@@ -1834,8 +1834,8 @@
                 const ctx4 = document.getElementById('chart-utilidad-mes');
                 
                 if(!ctx1 || !ctx2 || !ctx3 || !ctx4) return; 
-            
-                // --- CHART 1: INGRESOS VS GASTOS ---
+    
+                // --- CHART 1: INGRESOS VS GASTOS (AMBOS EN BASE BRUTA REAL) ---
                 chartInstance1 = new Chart(ctx1, {
                     type: 'bar',
                     data: {
@@ -1845,7 +1845,7 @@
                     options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
                 });
             
-                // --- CHART 2: GASTOS POR CATEGORÍA ---
+                // --- CHART 2: GASTOS POR CATEGORÍA (CUADRADO AL 100%) ---
                 const catLabels = Object.keys(montosPorCategoria).filter(k => montosPorCategoria[k] > 0);
                 const catData = catLabels.map(k => montosPorCategoria[k]);
             
@@ -1858,11 +1858,12 @@
                     options: { responsive: true, maintainAspectRatio: false }
                 });
             
-                // --- AGROUPAMIENTO HISTÓRICO REAL Y EXACTO POR MES ---
+                // --- ACUMULACIÓN MENSUAL STRICTA (P&L CONSOLIDADO POR MES) ---
                 const mapaIngresos = {};
-                const mapaEgresos = {};
+                const mapaComprasRefacciones = {};
+                const mapaGastosOperativos = {};
     
-                // 1. Agrupar Ingresos reales (State.pagos)
+                // 1. Ingresos Cobrados por Mes
                 if (State.pagos && State.pagos.length > 0) {
                     State.pagos.forEach(p => {
                         if (!p.fecha) return;
@@ -1872,53 +1873,70 @@
                     });
                 }
     
-                // 2. Agrupar Gastos operativos (State.expenses)
+                // 2. Compras Reales de Refacciones a Proveedores por Mes (compras_refacciones)
+                if (typeof listaComprasRefacciones !== 'undefined' && listaComprasRefacciones.length > 0) {
+                    listaComprasRefacciones.forEach(c => {
+                        if (!c.fecha) return;
+                        const d = Utils.parseFechaLocal(c.fecha);
+                        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+                        mapaComprasRefacciones[key] = (mapaComprasRefacciones[key] || 0) + (parseFloat(c.costo || 0) / 1.08); // Costo Neto
+                    });
+                }
+    
+                // 3. Gastos Operativos Directos por Mes (State.expenses)
                 if (State.expenses && State.expenses.length > 0) {
                     State.expenses.forEach(e => {
                         if (!e.fecha) return;
                         const d = Utils.parseFechaLocal(e.fecha);
                         const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-                        mapaEgresos[key] = (mapaEgresos[key] || 0) + parseFloat(e.monto || 0);
+                        const mAmt = parseFloat(e.monto || 0);
+                        if (e.categoria !== "Nómina" || mAmt >= 0) { // Excluir descuentos de nómina
+                            mapaGastosOperativos[key] = (mapaGastosOperativos[key] || 0) + mAmt;
+                        }
                     });
                 }
     
-                // 3. Agrupar Refacciones/Compras de Órdenes (State.orders)
-                if (State.orders && State.orders.length > 0) {
-                    State.orders.forEach(o => {
-                        if (o.estado === 'Cancelada') return;
-                        const d = Utils.parseFechaLocal(o.fecha_ingreso || o.fecha_registro);
-                        if (isNaN(d.getTime())) return;
-                        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-                        
-                        // Se descuentan las refacciones/compras netas del mes
-                        const refNeto = parseFloat(o.costo_refacciones || 0) / 1.08;
-                        mapaEgresos[key] = (mapaEgresos[key] || 0) + refNeto;
+                // 4. Cálculo de Nómina Mensual Fija Basada en el Personal
+                let nominaMensualBase = 0;
+                if (State.personal && State.personal.length > 0) {
+                    State.personal.forEach(p => {
+                        if (!p.fecha_egreso) { // Empleados activos
+                            nominaMensualBase += ((parseFloat(p.sueldo) || 0) / 7) * 30.4;
+                        }
                     });
                 }
     
-                // Obtener todas las llaves de meses y ORDENAR DE IZQUIERDA A DERECHA (Cronológico ascendente)
-                const todasLasLlaves = Array.from(new Set([...Object.keys(mapaIngresos), ...Object.keys(mapaEgresos)])).sort();
+                // 5. Gastos Fijos de Estructura (Renta, Servicios, Impuestos)
+                const fijosMensuales = (State.fixedCosts.renta || 0) + (State.fixedCosts.servicios || 0) + (State.fixedCosts.impuestos || 0);
+    
+                // Obtener meses únicos y ORDENAR DE IZQUIERDA A DERECHA (May -> Ago)
+                const llavesMeses = Array.from(new Set([
+                    ...Object.keys(mapaIngresos), 
+                    ...Object.keys(mapaComprasRefacciones), 
+                    ...Object.keys(mapaGastosOperativos)
+                ])).sort();
     
                 let mesesLabels = [];
                 let dataIngresosMes = [];
                 let dataUtilidadMes = [];
     
-                const fijosMensuales = (State.fixedCosts.renta || 0) + (State.fixedCosts.servicios || 0) + (State.fixedCosts.impuestos || 0);
-    
-                todasLasLlaves.forEach(key => {
+                llavesMeses.forEach(key => {
                     const [year, month] = key.split('-');
                     const fechaObj = new Date(parseInt(year), parseInt(month) - 1, 1);
                     const mesNombre = fechaObj.toLocaleDateString('es-MX', { month: 'short' });
                     const labelFormateada = mesNombre.charAt(0).toUpperCase() + mesNombre.slice(1);
     
                     const inc = mapaIngresos[key] || 0;
-                    const egr = mapaEgresos[key] || 0;
+                    const comprasRef = mapaComprasRefacciones[key] || 0;
+                    const gastosOp = mapaGastosOperativos[key] || 0;
+    
+                    // Utilidad Neta Real = Ingresos - Compras Refacciones - Gastos Operativos - Nómina - Fijos
+                    const egresosTotalesMes = comprasRef + gastosOp + nominaMensualBase + fijosMensuales;
+                    const utilidadNetaMes = inc - egresosTotalesMes;
     
                     mesesLabels.push(labelFormateada);
                     dataIngresosMes.push(inc);
-                    
-                    // Utilidad Neta Real por Mes = Ingresos - Gastos - Refacciones - Gastos Fijos
-                    dataUtilidadMes.push(inc - egr - fijosMensuales);
+                    dataUtilidadMes.push(utilidadNetaMes);
                 });
     
                 if (mesesLabels.length === 0) {
@@ -1944,7 +1962,7 @@
                     options: { responsive: true, maintainAspectRatio: false }
                 });
     
-                // --- CHART 4: UTILIDAD NETA POR MES (REAL Y EXACTA) ---
+                // --- CHART 4: UTILIDAD NETA POR MES (REAL Y BALANCEADA) ---
                 chartInstance4 = new Chart(ctx4, {
                     type: 'line',
                     data: {
