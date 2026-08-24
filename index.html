@@ -1850,18 +1850,23 @@
                 const catData = catLabels.map(k => montosPorCategoria[k]);
                 // (AQUÍ SIGUE TU CÓDIGO DE CHART2...)
             
-                // --- PREPARACIÓN DE DATOS MENSUALES (EJE X CRONOLÓGICO) ---
-                // Tomamos todos los meses disponibles y ordenamos cronológicamente
-                const labelsMeses = Object.keys(ingresosPorMes).slice(-6).reverse(); 
+                // --- PREPARACIÓN DE DATOS MENSUALES ---
+                // Si tus mapas de meses existen en la instancia o arriba en recalculate:
+                const mapaIngresos = (typeof ingresosPorMes !== 'undefined') ? ingresosPorMes : (this.ingresosPorMes || {});
+                const mapaGastos = (typeof gastosPorMes !== 'undefined') ? gastosPorMes : (this.gastosPorMes || {});
+                const mapaRefacciones = (typeof refaccionesPorMes !== 'undefined') ? refaccionesPorMes : (this.refaccionesPorMes || {});
             
-                // Datos de Evolución de Ingresos
-                const dataIngresos = labelsMeses.map(k => ingresosPorMes[k] || 0);
+                // Ordenar de izquierda a derecha (mayo -> agosto)
+                const labelsMeses = Object.keys(mapaIngresos).reverse();
             
-                // Datos de Utilidad Neta Real (Ingresos - Gastos Operativos - Refacciones/Compras)
+                // Datos de Ingresos
+                const dataIngresos = labelsMeses.map(k => mapaIngresos[k] || 0);
+            
+                // Datos de Utilidad Neta Real que cuadra con la tarjeta principal
                 const dataUtilidad = labelsMeses.map(k => {
-                    const inc = ingresosPorMes[k] || 0;
-                    const gast = gastosPorMes[k] || 0;
-                    const refac = refaccionesPorMes[k] || 0;
+                    const inc = mapaIngresos[k] || 0;
+                    const gast = mapaGastos[k] || 0;
+                    const refac = mapaRefacciones[k] || 0;
                     return inc - gast - refac;
                 });
             
