@@ -1866,7 +1866,7 @@
                     }
                 });
             
-                const labelsMesesReales = Object.keys(ingresosPorMes).slice(-6); // Últimos 6 meses
+                const labelsMesesReales = Object.keys(ingresosPorMes).slice(-6).reverse(); // Invierte el orden a cronológico
                 const dataIngresosReales = labelsMesesReales.map(k => ingresosPorMes[k]);
             
                 chartInstance3 = new Chart(ctx3, {
