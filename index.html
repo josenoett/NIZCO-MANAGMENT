@@ -1823,115 +1823,125 @@
             },
             
             renderCharts(ingresos, totalGastos, montosPorCategoria) {
-            if(chartInstance1) chartInstance1.destroy();
-            if(chartInstance2) chartInstance2.destroy();
-            if(chartInstance3) chartInstance3.destroy();
-            if(chartInstance4) chartInstance4.destroy();
-        
-            const ctx1 = document.getElementById('chart-ingresos-gastos');
-            const ctx2 = document.getElementById('chart-gastos-categoria');
-            const ctx3 = document.getElementById('chart-evolucion-ingresos');
-            const ctx4 = document.getElementById('chart-utilidad-mes');
+                if(chartInstance1) chartInstance1.destroy();
+                if(chartInstance2) chartInstance2.destroy();
+                if(chartInstance3) chartInstance3.destroy();
+                if(chartInstance4) chartInstance4.destroy();
             
-            if(!ctx1 || !ctx2 || !ctx3 || !ctx4) return; 
-        
-            // --- CHART 1: INGRESOS VS GASTOS ---
-            chartInstance1 = new Chart(ctx1, {
-                type: 'bar',
-                data: {
-                    labels: ['Ingresos', 'Gastos'],
-                    datasets: [{ data: [ingresos, totalGastos], backgroundColor: ['#10b981', '#f43f5e'], borderRadius: 8 }]
-                },
-                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
-            });
-        
-            // --- CHART 2: GASTOS POR CATEGORÍA ---
-            const catLabels = Object.keys(montosPorCategoria).filter(k => montosPorCategoria[k] > 0);
-            const catData = catLabels.map(k => montosPorCategoria[k]);
-        
-            chartInstance2 = new Chart(ctx2, {
-                type: 'doughnut',
-                data: {
-                    labels: catLabels.length > 0 ? catLabels : ['Sin gastos'],
-                    datasets: [{ data: catData.length > 0 ? catData : [0], backgroundColor: ['#3b82f6', '#10b981', '#ef4444', '#f59e0b', '#8b5cf6', '#ec4899', '#64748b', '#06b6d4', '#14b8a6', '#a855f7'] }]
-                },
-                options: { responsive: true, maintainAspectRatio: false }
-            });
-        
-            // --- AGROUPAMIENTO DE PAGOS REALES POR MES (MAYO -> AGOSTO) ---
-            const mapaMeses = {};
+                const ctx1 = document.getElementById('chart-ingresos-gastos');
+                const ctx2 = document.getElementById('chart-gastos-categoria');
+                const ctx3 = document.getElementById('chart-evolucion-ingresos');
+                const ctx4 = document.getElementById('chart-utilidad-mes');
+                
+                if(!ctx1 || !ctx2 || !ctx3 || !ctx4) return; 
             
-            // Agrupamos el historial real de pagos almacenado en State.pagos
-            if (State.pagos && State.pagos.length > 0) {
-                // Ordenamos los pagos por fecha para que el objeto se llene cronológicamente
-                const pagosOrdenados = [...State.pagos].sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
-                pagosOrdenados.forEach(p => {
-                    if (!p.fecha) return;
-                    const d = Utils.parseFechaLocal(p.fecha);
-                    const mesNombre = d.toLocaleDateString('es-MX', { month: 'short' });
-                    const mesLabel = mesNombre.charAt(0).toUpperCase() + mesNombre.slice(1); // ej: "May", "Jun", "Jul", "Ago"
-                    
-                    mapaMeses[mesLabel] = (mapaMeses[mesLabel] || 0) + parseFloat(p.monto || 0);
+                // --- CHART 1: INGRESOS VS GASTOS ---
+                chartInstance1 = new Chart(ctx1, {
+                    type: 'bar',
+                    data: {
+                        labels: ['Ingresos', 'Gastos'],
+                        datasets: [{ data: [ingresos, totalGastos], backgroundColor: ['#10b981', '#f43f5e'], borderRadius: 8 }]
+                    },
+                    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
                 });
-            }
-        
-            // Si hay datos tomamos los últimos meses en orden cronológico, si no, mostramos el mes actual
-            let mesesLabels = Object.keys(mapaMeses);
-            let dataIngresosMes = mesesLabels.map(k => mapaMeses[k]);
-        
-            if (mesesLabels.length === 0) {
-                mesesLabels = ['Actual'];
-                dataIngresosMes = [ingresos];
-            }
-        
-            // Calculamos el estimado de Utilidad Neta por mes aplicando el margen actual
-            const margenProporcional = ingresos > 0 ? (ingresos - totalGastos) / ingresos : 0;
-            const dataUtilidadMes = dataIngresosMes.map(ing => ing * margenProporcional);
-        
-            // --- CHART 3: EVOLUCIÓN DE INGRESOS ---
-            chartInstance3 = new Chart(ctx3, {
-                type: 'line',
-                data: {
-                    labels: mesesLabels,
-                    datasets: [{ label: 'Ingresos', data: dataIngresosMes, borderColor: '#3b82f6', backgroundColor: 'rgba(59, 130, 246, 0.1)', tension: 0.3, fill: true }]
-                },
-                options: { responsive: true, maintainAspectRatio: false }
-            });
-        
-            // --- CHART 4: UTILIDAD NETA POR MES ---
-            const margenProporcional = ingresos > 0 ? (ingresos - totalGastos) / ingresos : 0;
-            const dataUtilidadMes = dataIngresosMes.map(ing => ing * margenProporcional);
-
-            const esNegativo = (ingresos - totalGastos) < 0;
-            const colorGrafica = esNegativo ? '#f43f5e' : '#10b981';
-            const colorFondo = esNegativo ? 'rgba(244, 63, 94, 0.1)' : 'rgba(16, 185, 129, 0.1)';
-
-            chartInstance4 = new Chart(ctx4, {
-                type: 'line',
-                data: {
-                    labels: mesesLabels,
-                    datasets: [{
-                        label: 'Utilidad Neta',
-                        data: dataUtilidadMes,
-                        borderColor: colorGrafica,
-                        backgroundColor: colorFondo,
-                        tension: 0.3,
-                        fill: 'origin'
-                    }]
-                },
-                options: { 
-                    responsive: true, 
-                    maintainAspectRatio: false,
-                    scales: {
-                        y: {
-                            grid: {
-                                color: (context) => context.tick.value === 0 ? '#94a3b8' : '#f1f5f9',
-                                lineWidth: (context) => context.tick.value === 0 ? 2 : 1
+            
+                // --- CHART 2: GASTOS POR CATEGORÍA ---
+                const catLabels = Object.keys(montosPorCategoria).filter(k => montosPorCategoria[k] > 0);
+                const catData = catLabels.map(k => montosPorCategoria[k]);
+            
+                chartInstance2 = new Chart(ctx2, {
+                    type: 'doughnut',
+                    data: {
+                        labels: catLabels.length > 0 ? catLabels : ['Sin gastos'],
+                        datasets: [{ data: catData.length > 0 ? catData : [0], backgroundColor: ['#3b82f6', '#10b981', '#ef4444', '#f59e0b', '#8b5cf6', '#ec4899', '#64748b', '#06b6d4', '#14b8a6', '#a855f7'] }]
+                    },
+                    options: { responsive: true, maintainAspectRatio: false }
+                });
+            
+                // --- AGROUPAMIENTO HISTÓRICO REAL POR MES (ESTÁTICO) ---
+                const mapaIngresos = {};
+                const mapaEgresos = {};
+            
+                if (State.pagos && State.pagos.length > 0) {
+                    State.pagos.forEach(p => {
+                        if (!p.fecha) return;
+                        const d = Utils.parseFechaLocal(p.fecha);
+                        const mesNombre = d.toLocaleDateString('es-MX', { month: 'short' });
+                        const key = mesNombre.charAt(0).toUpperCase() + mesNombre.slice(1);
+                        mapaIngresos[key] = (mapaIngresos[key] || 0) + parseFloat(p.monto || 0);
+                    });
+                }
+    
+                if (State.expenses && State.expenses.length > 0) {
+                    State.expenses.forEach(e => {
+                        if (!e.fecha) return;
+                        const d = Utils.parseFechaLocal(e.fecha);
+                        const mesNombre = d.toLocaleDateString('es-MX', { month: 'short' });
+                        const key = mesNombre.charAt(0).toUpperCase() + mesNombre.slice(1);
+                        mapaEgresos[key] = (mapaEgresos[key] || 0) + parseFloat(e.monto || 0);
+                    });
+                }
+            
+                let mesesLabels = Object.keys(mapaIngresos);
+                if (mesesLabels.length === 0) {
+                    mesesLabels = ['Actual'];
+                    mapaIngresos['Actual'] = ingresos;
+                    mapaEgresos['Actual'] = totalGastos;
+                }
+            
+                const fijosMensuales = (State.fixedCosts.renta || 0) + (State.fixedCosts.servicios || 0) + (State.fixedCosts.impuestos || 0);
+                
+                const dataIngresosMes = mesesLabels.map(m => mapaIngresos[m] || 0);
+                const dataUtilidadMes = mesesLabels.map(m => {
+                    const inc = mapaIngresos[m] || 0;
+                    const egr = mapaEgresos[m] || 0;
+                    return inc - egr - fijosMensuales;
+                });
+            
+                // --- CHART 3: EVOLUCIÓN DE INGRESOS ---
+                chartInstance3 = new Chart(ctx3, {
+                    type: 'line',
+                    data: {
+                        labels: mesesLabels,
+                        datasets: [{ 
+                            label: 'Ingresos', 
+                            data: dataIngresosMes, 
+                            borderColor: '#3b82f6', 
+                            backgroundColor: 'rgba(59, 130, 246, 0.1)', 
+                            tension: 0.3, 
+                            fill: true 
+                        }]
+                    },
+                    options: { responsive: true, maintainAspectRatio: false }
+                });
+            
+                // --- CHART 4: UTILIDAD NETA POR MES ---
+                chartInstance4 = new Chart(ctx4, {
+                    type: 'line',
+                    data: {
+                        labels: mesesLabels,
+                        datasets: [{
+                            label: 'Utilidad Neta',
+                            data: dataUtilidadMes,
+                            borderColor: '#10b981',
+                            backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                            tension: 0.3,
+                            fill: 'origin'
+                        }]
+                    },
+                    options: { 
+                        responsive: true, 
+                        maintainAspectRatio: false,
+                        scales: {
+                            y: {
+                                grid: {
+                                    color: (context) => context.tick.value === 0 ? '#64748b' : '#f1f5f9',
+                                    lineWidth: (context) => context.tick.value === 0 ? 2 : 1
+                                }
                             }
                         }
                     }
-                }
-            });
+                });
             }
         };
 
