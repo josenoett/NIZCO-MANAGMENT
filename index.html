@@ -1819,10 +1819,10 @@
                     }
                 }
     
-                this.renderCharts(ingresos, totalGastos, montosPorCategoria, ingresosPorMes, gastosPorMes, refaccionesPorMes);
+                this.renderCharts(ingresos, totalGastos, montosPorCategoria);
             },
             
-            renderCharts(ingresos, totalGastos, montosPorCategoria, ingresosPorMes = {}, gastosPorMes = {}, refaccionesPorMes = {}) {
+            renderCharts(ingresos, totalGastos, montosPorCategoria) {
             if(chartInstance1) chartInstance1.destroy();
             if(chartInstance2) chartInstance2.destroy();
             if(chartInstance3) chartInstance3.destroy();
@@ -1835,7 +1835,7 @@
         
             if(!ctx1 || !ctx2 || !ctx3 || !ctx4) return;
         
-            // --- CHART 1 Y CHART 2 PERMANECEN IGUAL ---
+            // --- CHART 1: INGRESOS VS GASTOS ---
             chartInstance1 = new Chart(ctx1, {
                 type: 'bar',
                 data: {
@@ -1845,26 +1845,19 @@
                 options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
             });
         
+            // --- CHART 2: GASTOS POR CATEGORÍA ---
             const catLabels = Object.keys(montosPorCategoria).filter(k => montosPorCategoria[k] > 0);
             const catData = catLabels.map(k => montosPorCategoria[k]);
+            
+            // (Conserva aquí tu código original para chartInstance2)
         
-            // (Aquí conservas tu código actual de chartInstance2...)
-        
-        
-            // --- PREPARACIÓN DE DATOS MENSUALES CRONOLÓGICOS (DE IZQUIERDA A DERECHA) ---
-            // Invertimos las llaves para que arranque en mayo y termine en agosto
-            const labelsMeses = Object.keys(ingresosPorMes).slice(-6).reverse(); 
-        
-            // Datos de Ingresos
-            const dataIngresos = labelsMeses.map(k => ingresosPorMes[k] || 0);
-        
-            // Datos de Utilidad Neta Real (cuadra 100% con la tarjeta superior)
-            const dataUtilidad = labelsMeses.map(k => {
-                const inc = ingresosPorMes[k] || 0;
-                const gast = gastosPorMes[k] || 0;
-                const refac = refaccionesPorMes[k] || 0;
-                return inc - gast - refac;
-            });
+            // --- DATOS CRONOLÓGICOS (MAYO -> AGOSTO) ---
+            // Usamos 'ingresosPorMes' si existe globalmente, o creamos la vista según los meses acumulados
+            const mapaIngresos = (typeof ingresosPorMes !== 'undefined') ? ingresosPorMes : {};
+            
+            // Para ordenar de izquierda a derecha (mayo -> agosto)
+            const labelsMeses = Object.keys(mapaIngresos).slice(-6).reverse(); 
+            const dataIngresos = labelsMeses.map(k => mapaIngresos[k] || 0);
         
             // --- CHART 3: EVOLUCIÓN MENSUAL ---
             chartInstance3 = new Chart(ctx3, {
@@ -1876,6 +1869,31 @@
                         data: dataIngresos,
                         borderColor: '#3b82f6',
                         backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                        tension: 0.4,
+                        fill: true
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: false }
+            });
+        
+            // --- CHART 4: UTILIDAD NETA POR MES ---
+            // Calculamos la utilidad real restando la proporción de gastos/refacciones si están disponibles
+            const dataUtilidad = labelsMeses.map(k => {
+                const inc = mapaIngresos[k] || 0;
+                // Si tienes el mapa de gastos globales usa la clave del mes, si no, usa el total proporcional
+                const gast = (typeof gastosPorMes !== 'undefined' && gastosPorMes[k]) ? gastosPorMes[k] : 0;
+                return inc - gast;
+            });
+        
+            chartInstance4 = new Chart(ctx4, {
+                type: 'line',
+                data: {
+                    labels: labelsMeses,
+                    datasets: [{
+                        label: 'Utilidad Neta',
+                        data: dataUtilidad,
+                        borderColor: '#10b981',
+                        backgroundColor: 'rgba(16, 185, 129, 0.1)',
                         tension: 0.4,
                         fill: true
                     }]
