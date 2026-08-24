@@ -1858,46 +1858,75 @@
                     options: { responsive: true, maintainAspectRatio: false }
                 });
             
-                // --- AGROUPAMIENTO HISTÓRICO REAL POR MES (ESTÁTICO) ---
+                // --- AGROUPAMIENTO HISTÓRICO REAL Y EXACTO POR MES ---
                 const mapaIngresos = {};
                 const mapaEgresos = {};
-            
+    
+                // 1. Agrupar Ingresos reales (State.pagos)
                 if (State.pagos && State.pagos.length > 0) {
                     State.pagos.forEach(p => {
                         if (!p.fecha) return;
                         const d = Utils.parseFechaLocal(p.fecha);
-                        const mesNombre = d.toLocaleDateString('es-MX', { month: 'short' });
-                        const key = mesNombre.charAt(0).toUpperCase() + mesNombre.slice(1);
+                        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
                         mapaIngresos[key] = (mapaIngresos[key] || 0) + parseFloat(p.monto || 0);
                     });
                 }
     
+                // 2. Agrupar Gastos operativos (State.expenses)
                 if (State.expenses && State.expenses.length > 0) {
                     State.expenses.forEach(e => {
                         if (!e.fecha) return;
                         const d = Utils.parseFechaLocal(e.fecha);
-                        const mesNombre = d.toLocaleDateString('es-MX', { month: 'short' });
-                        const key = mesNombre.charAt(0).toUpperCase() + mesNombre.slice(1);
+                        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
                         mapaEgresos[key] = (mapaEgresos[key] || 0) + parseFloat(e.monto || 0);
                     });
                 }
-            
-                let mesesLabels = Object.keys(mapaIngresos);
+    
+                // 3. Agrupar Refacciones/Compras de Órdenes (State.orders)
+                if (State.orders && State.orders.length > 0) {
+                    State.orders.forEach(o => {
+                        if (o.estado === 'Cancelada') return;
+                        const d = Utils.parseFechaLocal(o.fecha_ingreso || o.fecha_registro);
+                        if (isNaN(d.getTime())) return;
+                        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+                        
+                        // Se descuentan las refacciones/compras netas del mes
+                        const refNeto = parseFloat(o.costo_refacciones || 0) / 1.08;
+                        mapaEgresos[key] = (mapaEgresos[key] || 0) + refNeto;
+                    });
+                }
+    
+                // Obtener todas las llaves de meses y ORDENAR DE IZQUIERDA A DERECHA (Cronológico ascendente)
+                const todasLasLlaves = Array.from(new Set([...Object.keys(mapaIngresos), ...Object.keys(mapaEgresos)])).sort();
+    
+                let mesesLabels = [];
+                let dataIngresosMes = [];
+                let dataUtilidadMes = [];
+    
+                const fijosMensuales = (State.fixedCosts.renta || 0) + (State.fixedCosts.servicios || 0) + (State.fixedCosts.impuestos || 0);
+    
+                todasLasLlaves.forEach(key => {
+                    const [year, month] = key.split('-');
+                    const fechaObj = new Date(parseInt(year), parseInt(month) - 1, 1);
+                    const mesNombre = fechaObj.toLocaleDateString('es-MX', { month: 'short' });
+                    const labelFormateada = mesNombre.charAt(0).toUpperCase() + mesNombre.slice(1);
+    
+                    const inc = mapaIngresos[key] || 0;
+                    const egr = mapaEgresos[key] || 0;
+    
+                    mesesLabels.push(labelFormateada);
+                    dataIngresosMes.push(inc);
+                    
+                    // Utilidad Neta Real por Mes = Ingresos - Gastos - Refacciones - Gastos Fijos
+                    dataUtilidadMes.push(inc - egr - fijosMensuales);
+                });
+    
                 if (mesesLabels.length === 0) {
                     mesesLabels = ['Actual'];
-                    mapaIngresos['Actual'] = ingresos;
-                    mapaEgresos['Actual'] = totalGastos;
+                    dataIngresosMes = [ingresos];
+                    dataUtilidadMes = [ingresos - totalGastos];
                 }
-            
-                const fijosMensuales = (State.fixedCosts.renta || 0) + (State.fixedCosts.servicios || 0) + (State.fixedCosts.impuestos || 0);
-                
-                const dataIngresosMes = mesesLabels.map(m => mapaIngresos[m] || 0);
-                const dataUtilidadMes = mesesLabels.map(m => {
-                    const inc = mapaIngresos[m] || 0;
-                    const egr = mapaEgresos[m] || 0;
-                    return inc - egr - fijosMensuales;
-                });
-            
+    
                 // --- CHART 3: EVOLUCIÓN DE INGRESOS ---
                 chartInstance3 = new Chart(ctx3, {
                     type: 'line',
@@ -1914,8 +1943,8 @@
                     },
                     options: { responsive: true, maintainAspectRatio: false }
                 });
-            
-                // --- CHART 4: UTILIDAD NETA POR MES ---
+    
+                // --- CHART 4: UTILIDAD NETA POR MES (REAL Y EXACTA) ---
                 chartInstance4 = new Chart(ctx4, {
                     type: 'line',
                     data: {
