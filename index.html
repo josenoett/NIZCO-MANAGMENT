@@ -220,7 +220,7 @@
                             <div class="bg-rose-50 text-rose-600 p-3 rounded-xl"><span class="material-icons">trending_down</span></div>
                         </div>
                         <div class="text-[10px] text-slate-400 mt-3 pt-2 border-t border-slate-100 flex flex-wrap gap-1">
-                            Fijos: <span id="costo-fijos-total" class="font-semibold text-slate-700">$0.00</span> | 
+                            Refacciones: <span id="costo-ref-badge" class="font-semibold text-slate-700">$0.00</span> | 
                             Nómina: <span id="costo-nomina-total" class="font-semibold text-slate-700">$0.00</span> | 
                             Varios: <span id="costo-varios-total" class="font-semibold text-slate-700">$0.00</span>
                         </div>
@@ -284,7 +284,7 @@
                                 <span>(-) Refacciones (Costo Neto Real)</span> <span id="er-refacciones" class="text-rose-600">$0.00</span>
                             </div>
                             <div class="flex justify-between border-b pb-1.5 pl-4 text-slate-600">
-                                <span>(-) Nómina Devengada</span> <span id="er-nomina" class="text-rose-600">$0.00</span>
+                                <span>(-) Nómina Pagada</span> <span id="er-nomina" class="text-rose-600">$0.00</span>
                             </div>
                             <div class="flex justify-between border-b pb-1.5 pl-4 text-slate-600">
                                 <span>(-) Gasolina</span> <span id="er-gasolina" class="text-rose-600">$0.00</span>
@@ -1479,9 +1479,6 @@
                 const preset = document.getElementById('erp-date-preset').value;
                 const { start, end } = this.getDateRange(preset);
 
-                const MS_DIA = 1000 * 60 * 60 * 24;
-                const totalDays = Math.max(1, Math.floor((end - start) / MS_DIA) + 1);
-
                 let vehiculosAtendidos = 0;
                 let ventasNetasSinIva16 = 0; 
                 let pagado = 0;
@@ -1495,7 +1492,7 @@
                 let montosPorCategoria = {};
                 State.categories.forEach(cat => montosPorCategoria[cat] = 0);
 
-                // 1. VENTAS DEVENGADAS: Se calcula el subtotal neto de cada orden del periodo (sin IVA)
+                // 1. VENTAS DEVENGADAS: Subtotal neto de cada orden del periodo (sin IVA)
                 State.orders.forEach(o => {
                     if (o.estado === 'Cancelada') return;
 
@@ -1514,7 +1511,7 @@
                     ventasNetasSinIva16 += subtotalOrden;
                 });
 
-                // 2. CAJA REAL E IVA TRASLADADO COBRADO (SAT ART. 1º-B)
+                // 2. CAJA REAL E IVA TRASLADADO COBRADO
                 const ordenesCanceladas = new Set(
                     State.orders.filter(o => o.estado === 'Cancelada').map(o => o.id)
                 );
@@ -1565,7 +1562,7 @@
                     });
                 });
 
-                // 3. COMPRAS DE REFACCIONES: EVALUADAS POR FECHA DE PAGO REAL (SAT ART. 5)
+                // 3. COMPRAS DE REFACCIONES: EVALUADAS POR FECHA DE PAGO REAL
                 let listaComprasRefacciones = [];
 
                 if (supabaseClient) {
@@ -1582,7 +1579,6 @@
 
                                 const cTotalPagado = money(c.total_pagado || c.costo_neto);
                                 
-                                // REGLA SAT ART 5: Validar explícitamente tiene_cfdi + iva_acreditable + iva > 0
                                 const esIvaAcreditable = 
                                     Boolean(c.tiene_cfdi) === true && 
                                     Boolean(c.iva_acreditable) === true && 
@@ -1598,7 +1594,7 @@
                                     refaccionesCostNetoPnl += cSubtotal;
                                     totalIvaAcreditablePagado += cIva;
                                 } else {
-                                    refaccionesCostNetoPnl += cTotalPagado; // Si no es acreditable, el total pagado es el costo operativo
+                                    refaccionesCostNetoPnl += cTotalPagado;
                                 }
 
                                 const metodo = (c.metodo_pago || '').trim().toLowerCase();
@@ -1628,9 +1624,9 @@
                     }
                 }
 
-                // 4. GASTOS GENERALES DE TESORERÍA
+                // 4. GASTOS GENERALES DE TESORERÍA (NÓMINA Y GASTOS OPERATIVOS REALES)
                 let egresosManuales = 0;
-                let deduccionesNomina = 0; 
+                let nominaRealPagada = 0;
 
                 State.expenses.forEach(e => {
                     const eDate = Utils.parseFechaLocal(e.fecha);
@@ -1638,60 +1634,35 @@
                         const mAmt = roundMoney(money(e.monto));
                         const metodo = (e.metodo_pago || '').trim().toLowerCase();
 
-                        if (e.categoria === "Nómina" && mAmt < 0) {
-                            deduccionesNomina += Math.abs(mAmt); 
+                        if (e.categoria === "Nómina") {
+                            nominaRealPagada += mAmt;
                         } else {
                             egresosManuales += mAmt;
-                            if (metodo === 'efectivo') {
-                                salidasEfectivo += mAmt;
-                            } else if (metodo === 'transferencia' || metodo === 'tarjeta') {
-                                salidasBanco += mAmt;
-                            }
+                        }
 
-                            if (montosPorCategoria[e.categoria] !== undefined) {
-                                montosPorCategoria[e.categoria] += mAmt;
-                            } else {
-                                montosPorCategoria[e.categoria] = mAmt;
-                            }
+                        if (metodo === 'efectivo') {
+                            salidasEfectivo += mAmt;
+                        } else if (metodo === 'transferencia' || metodo === 'tarjeta') {
+                            salidasBanco += mAmt;
+                        }
+
+                        if (montosPorCategoria[e.categoria] !== undefined) {
+                            montosPorCategoria[e.categoria] += mAmt;
+                        } else {
+                            montosPorCategoria[e.categoria] = mAmt;
                         }
                     }
                 });
 
-                // 5. NÓMINA CORREGIDA
-                let costoNominaPeriodo = 0;
-                State.personal.forEach(p => {
-                    const sueldoDiario = money(p.sueldo) / 7;
-                    const empInicio = p.fecha_ingreso ? Utils.parseFechaLocal(p.fecha_ingreso) : new Date(0);
-                    const empFin = p.fecha_egreso ? Utils.parseFechaLocal(p.fecha_egreso) : new Date(8640000000000000);
-
-                    const inicioInterseccion = new Date(Math.max(start, empInicio));
-                    const finInterseccion = new Date(Math.min(end, empFin));
-
-                    if (inicioInterseccion <= finInterseccion) {
-                        const msDiferencia = finInterseccion - inicioInterseccion;
-                        const diasTrabajadosEnPeriodo = Math.floor(msDiferencia / MS_DIA) + 1;
-                        costoNominaPeriodo += diasTrabajadosEnPeriodo * sueldoDiario;
-                    }
-                });
-
-                // Prorrateo de gastos fijos
-                const fijosMensuales = money(State.fixedCosts.renta) + money(State.fixedCosts.servicios) + money(State.fixedCosts.impuestos);
-                const fijosPorDia = fijosMensuales / 30.4;
-                const costoFijosPeriodo = fijosPorDia * totalDays;
-
-                let nominaFinalConDescuentos = costoNominaPeriodo - deduccionesNomina;
-                montosPorCategoria["Nómina"] = nominaFinalConDescuentos;
+                montosPorCategoria["Nómina"] = nominaRealPagada;
                 montosPorCategoria["Refacciones"] = refaccionesCostNetoPnl; 
 
-                // 1. Gastos Operativos Generales / Indirectos (OPEX)
-                const gastosOperativosGenerales = nominaFinalConDescuentos + costoFijosPeriodo + egresosManuales;
-                
-                // 2. Gastos Totales del Negocio (Egresos Globales: COGS + OPEX)
+                // 5. CÁLCULO DE UTILIDADES Y ESTRUCTURA FINANCIERA CORREGIDA
+                const gastosOperativosGenerales = nominaRealPagada + egresosManuales;
                 const totalGastos = refaccionesCostNetoPnl + gastosOperativosGenerales;
                 
-                // 3. Utilidades Correctas en Cascada
                 const utilidadBruta = ventasNetasSinIva16 - refaccionesCostNetoPnl; 
-                const utilidadNeta = utilidadBruta - gastosOperativosGenerales; // Mismo resultado matemático pero ordenado conceptualmente
+                const utilidadNeta = ventasNetasSinIva16 - totalGastos;
                 
                 const margenUtilidad = ventasNetasSinIva16 > 0 ? (utilidadNeta / ventasNetasSinIva16) * 100 : 0;
                 const ticketPromedio = vehiculosAtendidos > 0 ? ventasNetasSinIva16 / vehiculosAtendidos : 0;
@@ -1713,8 +1684,8 @@
                     if (document.getElementById('caja-pagado')) document.getElementById('caja-pagado').innerText = Utils.formatter.format(pagado);
                     if (document.getElementById('caja-anticipo')) document.getElementById('caja-anticipo').innerText = Utils.formatter.format(anticipo);
                     if (document.getElementById('costo-ref-total')) document.getElementById('costo-ref-total').innerText = Utils.formatter.format(refaccionesCostNetoPnl);
-                    if (document.getElementById('costo-fijos-total')) document.getElementById('costo-fijos-total').innerText = Utils.formatter.format(costoFijosPeriodo);
-                    if (document.getElementById('costo-nomina-total')) document.getElementById('costo-nomina-total').innerText = Utils.formatter.format(nominaFinalConDescuentos);
+                    if (document.getElementById('costo-ref-badge')) document.getElementById('costo-ref-badge').innerText = Utils.formatter.format(refaccionesCostNetoPnl);
+                    if (document.getElementById('costo-nomina-total')) document.getElementById('costo-nomina-total').innerText = Utils.formatter.format(nominaRealPagada);
                     if (document.getElementById('costo-varios-total')) document.getElementById('costo-varios-total').innerText = Utils.formatter.format(egresosManuales);
 
                     if (document.getElementById('er-ingresos')) document.getElementById('er-ingresos').innerText = Utils.formatter.format(ventasNetasSinIva16);
@@ -2173,7 +2144,7 @@
                     orden_id: this.ordenActivaId,
                     descripcion: desc,
                     proveedor: document.getElementById('ref-proveedor').value.trim() || null,
-                    costo_neto: totalPagado, // Para compatibilidad legacy
+                    costo_neto: totalPagado,
                     total_pagado: totalPagado,
                     subtotal: subtotal,
                     iva: iva,
@@ -2718,7 +2689,6 @@
 
                 if (error) { showToast("Error Supabase: " + error.message, true); return; }
 
-                // PROTECCIÓN TRANSACCIONAL EN REGISTRO DE PAGO
                 if (montoAbonado > 0 && createdOrder) {
                     const fechaPagoInput = document.getElementById('form-fecha-pago').value;
                     const fechaPago = fechaPagoInput ? new Date(fechaPagoInput).toISOString() : new Date().toISOString();
@@ -2969,11 +2939,9 @@
                     }
                 }
 
-                // 1. Actualización preliminar de la orden
                 const { error } = await supabaseClient.from('ordenes_trabajo').update(fields).eq('id', State.currentEditingOrderId); 
                 if (error) { showToast("Error al guardar orden: " + error.message, true); return; }
 
-                // 2. Si hay abono, intentar registrar en pagos con ROLLBACK en caso de fallo
                 if (montoAbonoIngresado > 0) {
                     const fechaPagoInput = document.getElementById('modal-fecha-pago').value;
                     const fechaPago = fechaPagoInput ? new Date(fechaPagoInput).toISOString() : new Date().toISOString();
@@ -2990,7 +2958,6 @@
                     const { error: errorPago } = await supabaseClient.from('pagos').insert([nuevoPagoObj]);
 
                     if (errorPago) {
-                        // REVERSIÓN DE SEGURIDAD (ROLLBACK EN CALIENTE)
                         await supabaseClient.from('ordenes_trabajo').update({
                             estado_pago: ordenOriginal ? ordenOriginal.estado_pago : 'Pendiente'
                         }).eq('id', State.currentEditingOrderId);
