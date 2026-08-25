@@ -1727,66 +1727,22 @@
                     if (document.getElementById('er-utilidad-neta')) document.getElementById('er-utilidad-neta').innerText = Utils.formatter.format(utilidadNeta);
             
                     const catContainer = document.getElementById('dashboard-categories-container');
-                        if (catContainer) {
-                            const totalIvaAcreditablePagado = refaccionesCostBruto - refaccionesCostNeto;
-                            const balanceIvaNeto = totalIva16Cobrado - totalIvaAcreditablePagado;
-                            const esIvaPorPagar = balanceIvaNeto >= 0;
-                        
-                            let categoriesHtml = `
-                                <div class="bg-blue-50/80 p-3.5 rounded-2xl border border-blue-200 flex flex-col gap-2 mb-4 font-sans text-xs">
-                                    <span class="text-[10px] uppercase font-extrabold text-blue-800 tracking-wider flex items-center gap-1 border-b border-blue-200 pb-1">
-                                        <span class="material-icons text-xs">account_balance_wallet</span> 📊 MOVIMIENTOS Y COMPROMISOS DEL PERIODO
-                                    </span>
-                                    
-                                    <!-- FLUJO CAJA CHICA -->
-                                    <div class="bg-white p-2.5 rounded-xl border border-slate-200 flex flex-col gap-1">
-                                        <div class="flex justify-between font-bold text-slate-800">
-                                            <span>💵 Movimiento Caja Chica (Efectivo):</span>
-                                            <span class="${balanceEfectivoCaja >= 0 ? 'text-emerald-600' : 'text-rose-600'} font-black">${Utils.formatter.format(balanceEfectivoCaja)}</span>
-                                        </div>
-                                        <div class="flex justify-between text-[10px] text-slate-500">
-                                            <span>• Cobros en Efectivo: ${Utils.formatter.format(entradasEfectivo)}</span>
-                                            <span>• Salidas Efectivo: ${Utils.formatter.format(salidasEfectivo)}</span>
-                                        </div>
-                                    </div>
-                        
-                                    <!-- FLUJO BANCO -->
-                                    <div class="bg-white p-2.5 rounded-xl border border-slate-200 flex flex-col gap-1">
-                                        <div class="flex justify-between font-bold text-slate-800">
-                                            <span>🏦 Movimiento Banco (SPEI / Tarjeta):</span>
-                                            <span class="${balanceCuentaBanco >= 0 ? 'text-blue-600' : 'text-rose-600'} font-black">${Utils.formatter.format(balanceCuentaBanco)}</span>
-                                        </div>
-                                        <div class="flex justify-between text-[10px] text-slate-500">
-                                            <span>• Cobros en Banco: ${Utils.formatter.format(entradasBanco)}</span>
-                                            <span>• Salidas Banco: ${Utils.formatter.format(salidasBanco)}</span>
-                                        </div>
-                                    </div>
-                        
-                                    <div class="border-t border-dashed border-blue-300 my-0.5"></div>
-                        
-                                    <!-- CARGAS AUTOMÁTICAS -->
-                                    <div class="flex justify-between text-slate-700 text-[11px]">
-                                        <span>📋 Nómina Devengada (Automática):</span>
-                                        <span class="font-bold text-rose-600">${Utils.formatter.format(nominaFinalConDescuentos)}</span>
-                                    </div>
-                                    <div class="flex justify-between text-slate-700 text-[11px]">
-                                        <span>🏢 Renta / Gastos Fijos (Prorrateados):</span>
-                                        <span class="font-bold text-rose-600">${Utils.formatter.format(costoFijosPeriodo)}</span>
-                                    </div>
-                        
-                                    <div class="border-t border-dashed border-blue-300 my-0.5"></div>
-                        
-                                    <!-- RESUMEN FISCAL -->
-                                    <div class="flex justify-between text-slate-600 text-[11px]">
-                                        <span>• Ventas Netas (Sin IVA):</span>
-                                        <span class="font-bold text-slate-800">${Utils.formatter.format(ventasNetasSinIva16)}</span>
-                                    </div>
-                                    <div class="flex justify-between text-[11px] font-bold ${esIvaPorPagar ? 'text-amber-900' : 'text-emerald-900'}">
-                                        <span>🏛️ ${esIvaPorPagar ? 'IVA a Pagar al SAT:' : 'IVA a Favor:'}</span>
-                                        <span class="font-black">${Utils.formatter.format(Math.abs(balanceIvaNeto))}</span>
-                                    </div>
-                                </div>
-                            `;
+                    if (catContainer) {
+                        let categoriesHtml = Object.keys(montosPorCategoria)
+                            .filter(cName => cName !== "Refacciones" && montosPorCategoria[cName] > 0)
+                            .map(cName => `
+                                <div class="flex justify-between items-center border-b border-slate-100 pb-1.5 text-xs">
+                                    <span class="text-slate-600 font-medium">${Utils.escapeHtml(cName)}:</span>
+                                    <span class="font-bold text-slate-800">${Utils.formatter.format(montosPorCategoria[cName])}</span>
+                                </div>`)
+                            .join('');
+                    
+                        if (!categoriesHtml) {
+                            categoriesHtml = `<p class="text-xs text-slate-400 text-center py-2">Sin gastos registrados por categoría en este periodo.</p>`;
+                        }
+                    
+                        catContainer.innerHTML = categoriesHtml;
+                    }
                         
                             categoriesHtml += Object.keys(montosPorCategoria)
                                 .filter(cName => cName !== "Refacciones" && cName !== "Nómina")
