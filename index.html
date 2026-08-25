@@ -1687,9 +1687,11 @@
                 const totalGastos = refaccionesCostNeto + nominaFinalConDescuentos + costoFijosPeriodo + egresosManuales;
                 const ventasNetasSinIva16 = ingresos - totalIva16Cobrado;
                 
-                // 2. Utilidad Bruta y Neta Real (Estado de Resultados)
-                const utilidadBruta = ventasNetasSinIva16 - refaccionesCostNeto;
-                const utilidadNeta = ventasNetasSinIva16 - totalGastos;
+                // 2. Utilidad Bruta y Neta Real (Alineadas con las tarjetas del Dashboard)
+                const utilidadBruta = ingresos - refaccionesCostNeto;
+                const utilidadNeta = ingresos - totalGastos;
+                
+                const margenUtilidad = ingresos > 0 ? (utilidadNeta / ingresos) * 100 : 0;
                 
                 const margenUtilidad = ventasNetasSinIva16 > 0 ? (utilidadNeta / ventasNetasSinIva16) * 100 : 0;
                 const ticketPromedio = vehiculosAtendidos > 0 ? ingresos / vehiculosAtendidos : 0;
