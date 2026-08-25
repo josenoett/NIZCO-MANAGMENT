@@ -148,7 +148,7 @@
                         </div>
                         <div>
                             <h3 class="font-bold text-slate-900 text-sm">Filtros de Reporte Consolidado</h3>
-                            <p class="text-xs text-slate-400">Todos los balances y gráficas se recalculan según el flujo de efectivo del periodo.</p>
+                            <p class="text-xs text-slate-400">Todos los balances y gráficas se recalculan según el flujo devengado y real de efectivo del periodo.</p>
                         </div>
                     </div>
                     
@@ -188,13 +188,13 @@
                     <div class="bg-white border border-slate-200 p-5 rounded-2xl flex flex-col justify-between shadow-sm">
                         <div class="flex items-center justify-between">
                             <div>
-                                <p class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Ingresos Reales (Cobrado)</p>
+                                <p class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Ventas Netas Devengadas (Sin IVA)</p>
                                 <h3 id="dash-ingresos" class="text-2xl font-extrabold text-slate-800 mt-1">$0.00</h3>
                             </div>
                             <div class="bg-emerald-50 text-emerald-600 p-3 rounded-xl"><span class="material-icons">trending_up</span></div>
                         </div>
                         <div class="text-[10px] text-slate-400 mt-3 pt-2 border-t border-slate-100">
-                            Pagos Liquidados: <span id="caja-pagado" class="font-semibold text-slate-700">$0.00</span> | Anticipos: <span id="caja-anticipo" class="font-semibold text-slate-700">$0.00</span>
+                            Caja Real (Liquidados): <span id="caja-pagado" class="font-semibold text-emerald-600">$0.00</span> | Anticipos: <span id="caja-anticipo" class="font-semibold text-blue-600">$0.00</span>
                         </div>
                     </div>
 
@@ -244,14 +244,14 @@
                     <div class="bg-white border border-slate-200 p-4 rounded-xl shadow-sm flex items-center gap-4">
                         <div class="bg-indigo-50 text-indigo-600 p-2 rounded-lg"><span class="material-icons">receipt</span></div>
                         <div>
-                            <p class="text-[10px] font-bold text-slate-400 uppercase">Ticket Promedio (Ingresos/Vehículo)</p>
+                            <p class="text-[10px] font-bold text-slate-400 uppercase">Ticket Promedio (Devengado/Vehículo)</p>
                             <h4 id="dash-ticket-promedio" class="text-lg font-bold text-slate-800">$0.00</h4>
                         </div>
                     </div>
                     <div class="bg-white border border-slate-200 p-4 rounded-xl shadow-sm flex items-center gap-4">
                         <div class="bg-amber-50 text-amber-600 p-2 rounded-lg"><span class="material-icons">percent</span></div>
                         <div>
-                            <p class="text-[10px] font-bold text-slate-400 uppercase">Margen de Utilidad</p>
+                            <p class="text-[10px] font-bold text-slate-400 uppercase">Margen de Utilidad Real</p>
                             <h4 id="dash-margen" class="text-lg font-bold text-slate-800">0%</h4>
                         </div>
                     </div>
@@ -259,7 +259,7 @@
 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div class="bg-white p-4 border border-slate-200 rounded-2xl shadow-sm">
-                        <h4 class="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">Ingresos vs Gastos</h4>
+                        <h4 class="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">Ingresos Devengados vs Gastos</h4>
                         <div class="h-64"><canvas id="chart-ingresos-gastos"></canvas></div>
                     </div>
                     <div class="bg-white p-4 border border-slate-200 rounded-2xl shadow-sm">
@@ -271,12 +271,12 @@
                 <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
                     <div class="bg-white border border-slate-200 p-6 rounded-2xl lg:col-span-7 shadow-sm flex flex-col gap-4">
                         <div>
-                            <h4 class="font-bold text-slate-900 text-sm uppercase tracking-wider">Estado de Flujo de Efectivo</h4>
-                            <p class="text-xs text-slate-400">Esquema financiero estructurado según cobros reales efectuados en el periodo.</p>
+                            <h4 class="font-bold text-slate-900 text-sm uppercase tracking-wider">Estado de Resultados Devengado</h4>
+                            <p class="text-xs text-slate-400">Esquema financiero estructurado según operaciones y servicios devengados del periodo.</p>
                         </div>
                         <div class="flex flex-col gap-2 text-xs font-medium text-slate-700 mt-2">
                             <div class="flex justify-between border-b pb-1.5 font-bold text-slate-900 text-sm">
-                                <span>INGRESOS COBRADOS REALES</span> <span id="er-ingresos" class="text-emerald-600">$0.00</span>
+                                <span>VENTAS NETAS DEVENGADAS (SIN IVA)</span> <span id="er-ingresos" class="text-emerald-600">$0.00</span>
                             </div>
                             <div class="flex justify-between border-b pb-1.5 pl-4 text-slate-600">
                                 <span>(-) Refacciones (Costo Neto Real)</span> <span id="er-refacciones" class="text-rose-600">$0.00</span>
@@ -315,9 +315,9 @@
                 <div class="bg-white border border-slate-200 p-6 rounded-2xl shadow-sm flex flex-col gap-4 mt-6">
                     <div>
                         <h4 class="font-bold text-slate-900 text-sm uppercase tracking-wider flex items-center gap-2">
-                            <span class="material-icons text-emerald-600">receipt_long</span> Desglose de Órdenes que Generaron Ingresos
+                            <span class="material-icons text-emerald-600">receipt_long</span> Desglose de Órdenes que Generaron Cobros Reales
                         </h4>
-                        <p class="text-xs text-slate-400">Listado detallado de cobros y anticipos recibidos dentro del periodo seleccionado.</p>
+                        <p class="text-xs text-slate-400">Listado detallado de cobros y anticipos efectivamente liquidados dentro del periodo seleccionado.</p>
                     </div>
                     
                     <div class="overflow-x-auto max-h-72 no-scrollbar">
@@ -351,16 +351,17 @@
                         <table class="w-full text-left border-collapse text-xs">
                             <thead>
                                 <tr class="bg-slate-50 text-slate-500 uppercase text-[10px] tracking-wider font-bold border-b border-slate-200">
-                                    <th class="py-3 px-4">Fecha Compra</th>
+                                    <th class="py-3 px-4">Fecha Pago Compra</th>
                                     <th class="py-3 px-4">Orden</th>
                                     <th class="py-3 px-4">Descripción Pieza / Refacción</th>
                                     <th class="py-3 px-4">Proveedor</th>
                                     <th class="py-3 px-4">Método</th>
-                                    <th class="py-3 px-4 text-right">Costo Neto</th>
+                                    <th class="py-3 px-4 text-center">IVA Acreditable (CFDI)</th>
+                                    <th class="py-3 px-4 text-right">Costo Total Pagado</th>
                                 </tr>
                             </thead>
                             <tbody id="dashboard-parts-cost-body" class="divide-y divide-slate-100 text-slate-700 font-medium">
-                                <tr><td colspan="6" class="p-4 text-center text-slate-400">Cargando compras de refacciones...</td></tr>
+                                <tr><td colspan="7" class="p-4 text-center text-slate-400">Cargando compras de refacciones...</td></tr>
                             </tbody>
                         </table>
                     </div>
@@ -558,7 +559,7 @@
                             <div id="form-fecha-pago-container" class="flex flex-col gap-1.5" style="display: none;">
                                 <label class="text-xs font-semibold text-slate-500 uppercase">Fecha del Pago</label>
                                 <input type="datetime-local" id="form-fecha-pago" class="border rounded-xl px-4 py-2.5 bg-white focus:outline-none cursor-pointer">
-                                <span class="text-[10px] text-slate-400">Déjalo así si el cliente pagó justo ahora. Cámbialo si el pago fue en otro momento (ej. pago retroactivo).</span>
+                                <span class="text-[10px] text-slate-400">Déjalo así si el cliente pagó justo ahora. Cámbialo si el pago fue en otro momento.</span>
                             </div>
                         </div>
 
@@ -1037,8 +1038,6 @@
                         </div>
 
                         <div id="modal-payment-method-container" class="hidden section-finance-view bg-blue-50/50 p-4 rounded-xl border border-blue-100 flex flex-col gap-3">
-                            
-                            <!-- RESUMEN Y LISTADO DE ANTICIPOS ACUMULADOS -->
                             <div id="modal-anticipos-resumen" class="bg-white p-3 rounded-xl border border-blue-200 flex flex-col gap-2 text-xs">
                                 <div class="flex justify-between items-center font-bold text-slate-800 border-b border-slate-100 pb-1.5">
                                     <span class="flex items-center gap-1">
@@ -1055,9 +1054,7 @@
                                                 <th class="pb-1 text-right">Monto</th>
                                             </tr>
                                         </thead>
-                                        <tbody id="tbody-anticipos-orden" class="divide-y text-slate-600">
-                                            <!-- Carga dinámica -->
-                                        </tbody>
+                                        <tbody id="tbody-anticipos-orden" class="divide-y text-slate-600"></tbody>
                                     </table>
                                 </div>
                             </div>
@@ -1073,15 +1070,15 @@
                                 </div>
                                 <div>
                                     <label class="text-xs font-semibold text-slate-500 uppercase">Monto a Abonar ($) *</label>
-                                    <input type="number" id="modal-monto-abono" step="0.01" placeholder="0.00" class="w-full border rounded-xl px-3 py-2 text-sm bg-white focus:outline-none">
+                                    <input type="number" id="modal-monto-abono" step="0.01" placeholder="0.00 (Auto si Pagado)" class="w-full border rounded-xl px-3 py-2 text-sm bg-white focus:outline-none">
                                 </div>
                             </div>
                             <div>
                                 <label class="text-xs font-semibold text-slate-500 uppercase">Fecha del Pago</label>
                                 <input type="datetime-local" id="modal-fecha-pago" class="w-full border rounded-xl px-3 py-2 text-sm bg-white focus:outline-none cursor-pointer">
-                                <p class="text-[10px] text-slate-400 mt-0.5">Por defecto es ahora mismo. Cámbiala si el pago fue retroactivo (ej. "el cliente pagó ayer por transferencia").</p>
+                                <p class="text-[10px] text-slate-400 mt-0.5">Por defecto es ahora mismo. Cámbiala si el pago fue retroactivo.</p>
                             </div>
-                            <p class="text-[10px] text-slate-500">* Los abonos registrados se asentarán de forma inmutable en el historial de pagos.</p>
+                            <p class="text-[10px] text-slate-500">* Los abonos registrados se asentarán de forma inmutable en el historial de pagos de la caja.</p>
                         </div>
 
                         <div class="grid grid-cols-2 gap-4">
@@ -1111,7 +1108,7 @@
                             <textarea id="modal-diagnostico" rows="3" class="w-full border rounded-xl p-2.5 text-sm resize-none focus:outline-none"></textarea>
                         </div>
 
-                        <!-- SECCIÓN INTEGRADA: COMPRAS Y REFACCIONES -->
+                        <!-- SECCIÓN INTEGRADA: COMPRAS Y REFACCIONES CON FISCALIDAD Y TOTAL_PAGADO -->
                         <div class="border border-slate-200 rounded-2xl p-4 bg-slate-50/50 flex flex-col gap-3">
                           <div class="flex justify-between items-center">
                             <h4 class="font-semibold text-slate-800 text-xs flex items-center gap-1.5 uppercase tracking-wider">
@@ -1120,46 +1117,50 @@
                             <span id="lbl-total-refacciones-orden" class="bg-blue-100 text-blue-700 text-xs font-bold px-2.5 py-1 rounded-full">$0.00</span>
                           </div>
 
-                          <!-- Formulario para agregar compras -->
                           <form id="form-agregar-refaccion" onsubmit="UI_Controller.guardarRefaccionModal(event)" class="flex flex-col gap-2">
                             <div class="grid grid-cols-1 sm:grid-cols-12 gap-2">
                               <input type="text" id="ref-descripcion" placeholder="Descripción (Ej. Kit distribución)" required class="sm:col-span-5 px-3 py-1.5 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
                               <input type="text" id="ref-proveedor" placeholder="Proveedor (Ej. AutoZone)" class="sm:col-span-4 px-3 py-1.5 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
-                              <input type="number" step="0.01" id="ref-costo" placeholder="Costo $" required class="sm:col-span-3 px-3 py-1.5 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+                              <input type="number" step="0.01" id="ref-costo" placeholder="Costo Total Pagado $" required class="sm:col-span-3 px-3 py-1.5 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
                             </div>
 
-                            <div class="grid grid-cols-1 sm:grid-cols-12 gap-2">
-                              <select id="ref-metodo" required class="sm:col-span-4 px-3 py-1.5 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+                            <div class="grid grid-cols-1 sm:grid-cols-12 gap-2 items-center">
+                              <select id="ref-metodo" required class="sm:col-span-3 px-3 py-1.5 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
                                 <option value="Efectivo">Efectivo</option>
                                 <option value="Transferencia">Transferencia</option>
                                 <option value="Tarjeta">Tarjeta</option>
                                 <option value="Crédito Proveedor">Crédito Proveedor</option>
                               </select>
-                              <input type="text" id="ref-folio" placeholder="Folio / Ticket (Opcional)" class="sm:col-span-3 px-3 py-1.5 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
-                              <input type="datetime-local" id="ref-fecha" required class="sm:col-span-3 px-3 py-1.5 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
                               
-                              <button type="submit" class="sm:col-span-2 bg-emerald-600 hover:bg-emerald-700 text-white font-medium py-1.5 px-3 rounded-lg text-xs flex items-center justify-center gap-1 transition-colors">
-                                <span class="material-icons text-sm">add</span> Agregar
-                              </button>
+                              <input type="text" id="ref-folio" placeholder="Folio / Ticket / CFDI" class="sm:col-span-3 px-3 py-1.5 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+                              <input type="datetime-local" id="ref-fecha-pago" required class="sm:col-span-3 px-3 py-1.5 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+                              
+                              <!-- CHECKBOX IVA ACREDITABLE / FISCAL -->
+                              <div class="sm:col-span-3 flex items-center gap-1.5 bg-white p-1.5 border border-slate-200 rounded-lg text-[10px]">
+                                <input type="checkbox" id="ref-tiene-cfdi" class="w-3.5 h-3.5 text-blue-600 rounded">
+                                <label for="ref-tiene-cfdi" class="font-bold text-slate-700 cursor-pointer">Factura / IVA Acreditable</label>
+                              </div>
                             </div>
+
+                            <button type="submit" class="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700 text-white font-medium py-1.5 px-3 rounded-lg text-xs flex items-center justify-center gap-1 transition-colors self-end mt-1">
+                              <span class="material-icons text-sm">add</span> Registrar Compra de Refacción
+                            </button>
                           </form>
 
-                          <!-- Tabla de historial de refacciones -->
                           <div class="overflow-x-auto border border-slate-200 rounded-xl bg-white">
                             <table class="w-full text-left border-collapse text-xs">
                               <thead>
                                 <tr class="bg-slate-100/80 text-slate-500 border-b border-slate-200">
-                                  <th class="p-2">Fecha</th>
+                                  <th class="p-2">Fecha Pago</th>
                                   <th class="p-2">Descripción</th>
                                   <th class="p-2">Proveedor</th>
                                   <th class="p-2">Método</th>
-                                  <th class="p-2 text-right">Costo</th>
+                                  <th class="p-2 text-center">Fiscal</th>
+                                  <th class="p-2 text-right">Total Pagado</th>
                                   <th class="p-2 text-center"></th>
                                 </tr>
                               </thead>
-                              <tbody id="tbody-refacciones-orden" class="divide-y divide-slate-100 text-slate-700">
-                                <!-- Carga dinámica -->
-                              </tbody>
+                              <tbody id="tbody-refacciones-orden" class="divide-y divide-slate-100 text-slate-700"></tbody>
                             </table>
                           </div>
                         </div>
@@ -1202,64 +1203,66 @@
             </div>
         </div>
     </div>
+
     <!-- MODAL EDITAR / REGISTRAR BAJA DE PERSONAL -->
-<div id="modal-edit-personal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
-    <div class="bg-white rounded-3xl w-full max-w-md border flex flex-col overflow-hidden shadow-2xl">
-        <div class="px-6 py-4 border-b flex justify-between items-center bg-slate-50">
-            <div>
-                <h3 class="font-bold text-slate-900 text-base">Gestionar Estado de Empleado</h3>
-                <p class="text-xs text-slate-400">Actualizar datos o registrar baja</p>
+    <div id="modal-edit-personal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-white rounded-3xl w-full max-w-md border flex flex-col overflow-hidden shadow-2xl">
+            <div class="px-6 py-4 border-b flex justify-between items-center bg-slate-50">
+                <div>
+                    <h3 class="font-bold text-slate-900 text-base">Gestionar Estado de Empleado</h3>
+                    <p class="text-xs text-slate-400">Actualizar datos o registrar baja</p>
+                </div>
+                <button onclick="UI_Controller.closePersonalModal()" class="text-slate-400"><span class="material-icons">close</span></button>
             </div>
-            <button onclick="UI_Controller.closePersonalModal()" class="text-slate-400"><span class="material-icons">close</span></button>
-        </div>
-        
-        <form id="form-edit-personal" onsubmit="UI_Controller.handleUpdatePersonal(event)" class="p-6 flex flex-col gap-4 text-xs">
-            <input type="hidden" id="edit-personal-id">
             
-            <div class="flex flex-col gap-1">
-                <label class="font-bold text-slate-500 uppercase">Nombre Completo</label>
-                <input type="text" id="edit-personal-nombre" required class="border rounded-xl px-3 py-2 focus:outline-none">
-            </div>
+            <form id="form-edit-personal" onsubmit="UI_Controller.handleUpdatePersonal(event)" class="p-6 flex flex-col gap-4 text-xs">
+                <input type="hidden" id="edit-personal-id">
+                
+                <div class="flex flex-col gap-1">
+                    <label class="font-bold text-slate-500 uppercase">Nombre Completo</label>
+                    <input type="text" id="edit-personal-nombre" required class="border rounded-xl px-3 py-2 focus:outline-none">
+                </div>
 
-            <div class="grid grid-cols-2 gap-3">
-                <div class="flex flex-col gap-1">
-                    <label class="font-bold text-slate-500 uppercase">Rol / Puesto</label>
-                    <select id="edit-personal-rol" required class="border rounded-xl px-3 py-2 bg-white focus:outline-none">
-                        <option value="Mecánico">🔧 Mecánico</option>
-                        <option value="Recepcionista">📋 Recepcionista</option>
-                        <option value="Administrador">👑 Administrador</option>
-                        <option value="Contabilidad/Finanzas">📊 Contabilidad/Finanzas</option>
-                    </select>
+                <div class="grid grid-cols-2 gap-3">
+                    <div class="flex flex-col gap-1">
+                        <label class="font-bold text-slate-500 uppercase">Rol / Puesto</label>
+                        <select id="edit-personal-rol" required class="border rounded-xl px-3 py-2 bg-white focus:outline-none">
+                            <option value="Mecánico">🔧 Mecánico</option>
+                            <option value="Recepcionista">📋 Recepcionista</option>
+                            <option value="Administrador">👑 Administrador</option>
+                            <option value="Contabilidad/Finanzas">📊 Contabilidad/Finanzas</option>
+                        </select>
+                    </div>
+                    <div class="flex flex-col gap-1">
+                        <label class="font-bold text-slate-500 uppercase">Sueldo Semanal ($)</label>
+                        <input type="number" id="edit-personal-sueldo" required min="0" step="any" class="border rounded-xl px-3 py-2 focus:outline-none">
+                    </div>
                 </div>
-                <div class="flex flex-col gap-1">
-                    <label class="font-bold text-slate-500 uppercase">Sueldo Semanal ($)</label>
-                    <input type="number" id="edit-personal-sueldo" required min="0" step="any" class="border rounded-xl px-3 py-2 focus:outline-none">
-                </div>
-            </div>
 
-            <div class="grid grid-cols-2 gap-3 bg-slate-50 p-3 rounded-2xl border border-slate-200">
-                <div class="flex flex-col gap-1">
-                    <label class="font-bold text-slate-500 uppercase">Fecha Ingreso</label>
-                    <input type="date" id="edit-personal-fecha-ingreso" required class="border rounded-xl px-2.5 py-1.5 bg-white focus:outline-none">
+                <div class="grid grid-cols-2 gap-3 bg-slate-50 p-3 rounded-2xl border border-slate-200">
+                    <div class="flex flex-col gap-1">
+                        <label class="font-bold text-slate-500 uppercase">Fecha Ingreso</label>
+                        <input type="date" id="edit-personal-fecha-ingreso" required class="border rounded-xl px-2.5 py-1.5 bg-white focus:outline-none">
+                    </div>
+                    <div class="flex flex-col gap-1">
+                        <label class="font-bold text-rose-600 uppercase">Fecha Egreso (Baja)</label>
+                        <input type="date" id="edit-personal-fecha-egreso" class="border border-rose-200 rounded-xl px-2.5 py-1.5 bg-white focus:outline-none">
+                    </div>
                 </div>
-                <div class="flex flex-col gap-1">
-                    <label class="font-bold text-rose-600 uppercase">Fecha Egreso (Baja)</label>
-                    <input type="date" id="edit-personal-fecha-egreso" class="border border-rose-200 rounded-xl px-2.5 py-1.5 bg-white focus:outline-none">
-                </div>
-            </div>
 
-            <div class="flex items-center justify-between pt-2 border-t">
-                <button type="button" onclick="UI_Controller.clearFechaEgresoModal()" class="text-blue-600 hover:underline text-[11px] font-semibold">
-                    Reactivar (Quitar fecha baja)
-                </button>
-                <div class="flex gap-2">
-                    <button type="button" onclick="UI_Controller.closePersonalModal()" class="px-3 py-1.5 text-slate-500">Cancelar</button>
-                    <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-1.5 rounded-xl font-bold">Guardar</button>
+                <div class="flex items-center justify-between pt-2 border-t">
+                    <button type="button" onclick="UI_Controller.clearFechaEgresoModal()" class="text-blue-600 hover:underline text-[11px] font-semibold">
+                        Reactivar (Quitar fecha baja)
+                    </button>
+                    <div class="flex gap-2">
+                        <button type="button" onclick="UI_Controller.closePersonalModal()" class="px-3 py-1.5 text-slate-500">Cancelar</button>
+                        <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-1.5 rounded-xl font-bold">Guardar</button>
+                    </div>
                 </div>
-            </div>
-        </form>
+            </form>
+        </div>
     </div>
-</div>
+
     <!-- SCRIPTS ERP STATE-DRIVEN ENGINE -->
     <script>
         const State = {
@@ -1315,7 +1318,7 @@
             }
         };
 
-        let chartInstance1 = null, chartInstance2 = null, chartInstance3 = null, chartInstance4 = null;
+        let chartInstance1 = null, chartInstance2 = null;
 
         function showToast(message, isError = false) {
             const container = document.getElementById('toast-container');
@@ -1473,103 +1476,137 @@
             async recalculate() {
                 const preset = document.getElementById('erp-date-preset').value;
                 const { start, end } = this.getDateRange(preset);
-            
+
                 const MS_DIA = 1000 * 60 * 60 * 24;
-                const totalDays = Math.max(1, Math.floor((end - start) / MS_DIA) + 1); // 1. DÍAS INCLUSIVOS
-            
+                const totalDays = Math.max(1, Math.floor((end - start) / MS_DIA) + 1);
+
                 let vehiculosAtendidos = 0;
-                let ingresos = 0; 
+                let ventasNetasSinIva16 = 0; 
                 let pagado = 0;
                 let anticipo = 0;
-                let totalIva16Cobrado = 0;
-            
+                let refaccionesCostNetoPnl = 0;
+                let totalIvaAcreditablePagado = 0;
+
+                const money = (value) => Number.parseFloat(value) || 0;
+                const roundMoney = (value) => Math.round((value + Number.EPSILON) * 100) / 100;
+
+                let montosPorCategoria = {};
+                State.categories.forEach(cat => montosPorCategoria[cat] = 0);
+
+                // 1. VENTAS DEVENGADAS: Se calcula el subtotal neto de cada orden del periodo (sin IVA)
+                State.orders.forEach(o => {
+                    if (o.estado === 'Cancelada') return;
+
+                    const oDate = Utils.parseFechaLocal(o.fecha_ingreso || o.fecha_registro);
+                    if (oDate < start || oDate > end) return;
+
+                    vehiculosAtendidos++;
+
+                    let totalOrden = money(o.total_cobrado);
+                    let subtotalOrden = totalOrden;
+
+                    if (o.requiere_factura) {
+                        subtotalOrden = roundMoney(totalOrden / 1.16);
+                    }
+
+                    ventasNetasSinIva16 += subtotalOrden;
+                });
+
+                // 2. CAJA REAL E IVA TRASLADADO COBRADO (SAT ART. 1º-B)
+                const ordenesCanceladas = new Set(
+                    State.orders.filter(o => o.estado === 'Cancelada').map(o => o.id)
+                );
+
                 let entradasEfectivo = 0;
                 let salidasEfectivo = 0;
                 let entradasBanco = 0;
                 let salidasBanco = 0;
-            
                 let listaOrdenesIngreso = [];
-                let listaComprasRefacciones = [];
-                let pagosProcesadosIds = new Set();
-            
-                let montosPorCategoria = {};
-                State.categories.forEach(cat => montosPorCategoria[cat] = 0);
-            
-                // 1. Vehículos en el periodo (Por fecha de ingreso)
-                State.orders.forEach(o => {
-                    if (o.estado === 'Cancelada') return;
-                    const oDate = Utils.parseFechaLocal(o.fecha_ingreso || o.fecha_registro);
-                    if (oDate >= start && oDate <= end) {
-                        vehiculosAtendidos++;
-                    }
-                });
-            
-                // 2. Cobros Reales (Entradas por Fecha de Pago)
+                let ivaTrasladadoCobradoReal = 0;
+
                 State.pagos.forEach(p => {
-                    if (p.id && pagosProcesadosIds.has(p.id)) return;
-                    if (p.id) pagosProcesadosIds.add(p.id);
-            
-                    const pDate = Utils.parseFechaLocal(p.fecha);
-                    if (pDate >= start && pDate <= end) {
-                        const pMonto = Math.round(parseFloat(p.monto || 0) * 100) / 100;
-                        ingresos += pMonto;
-            
-                        const metodo = (p.metodo_pago || '').trim().toLowerCase();
-                        if (metodo === 'efectivo') {
-                            entradasEfectivo += pMonto;
-                        } else {
-                            entradasBanco += pMonto;
-                        }
-            
-                        if (p.tipo === 'anticipo') anticipo += pMonto;
-                        else pagado += pMonto;
-            
-                        const ordenAsociada = State.orders.find(o => o.id === p.orden_id);
-                        if (ordenAsociada && ordenAsociada.requiere_factura) {
-                            totalIva16Cobrado += (pMonto - (pMonto / 1.16));
-                        }
-            
-                        listaOrdenesIngreso.push({
-                            id: p.id,
-                            ordenId: p.orden_id,
-                            cliente: ordenAsociada ? ordenAsociada.cliente_nombre : 'Cliente Desconocido',
-                            auto: ordenAsociada ? `${ordenAsociada.auto_marca} (${ordenAsociada.auto_placas})` : 'S/I',
-                            monto: pMonto,
-                            tipo: p.tipo,
-                            metodo: p.metodo_pago,
-                            fecha: pDate
-                        });
+                    if (ordenesCanceladas.has(p.orden_id)) return;
+
+                    const fechaPago = Utils.parseFechaLocal(p.fecha);
+                    if (fechaPago < start || fechaPago > end) return;
+
+                    const monto = money(p.monto);
+                    const metodo = (p.metodo_pago || '').trim().toLowerCase();
+
+                    if (metodo === 'efectivo') {
+                        entradasEfectivo += monto;
+                    } else {
+                        entradasBanco += monto;
                     }
+
+                    if (p.tipo === 'anticipo') {
+                        anticipo += monto;
+                    } else {
+                        pagado += monto;
+                    }
+
+                    const ordenAsociada = State.orders.find(o => o.id === p.orden_id);
+                    if (ordenAsociada && ordenAsociada.requiere_factura && money(ordenAsociada.total_cobrado) > 0) {
+                        const proporcionIva = (money(ordenAsociada.total_iva) || (money(ordenAsociada.total_cobrado) - (money(ordenAsociada.total_cobrado) / 1.16))) / money(ordenAsociada.total_cobrado);
+                        ivaTrasladadoCobradoReal += roundMoney(monto * proporcionIva);
+                    }
+
+                    listaOrdenesIngreso.push({
+                        id: p.id,
+                        ordenId: p.orden_id,
+                        cliente: ordenAsociada ? ordenAsociada.cliente_nombre : 'Cliente Desconocido',
+                        auto: ordenAsociada ? `${ordenAsociada.auto_marca} (${ordenAsociada.auto_placas})` : 'S/I',
+                        monto: monto,
+                        tipo: p.tipo,
+                        metodo: p.metodo_pago,
+                        fecha: fechaPago
+                    });
                 });
-            
-                // 3. Compras Reales de Refacciones (Salidas)
-                let refaccionesCostBruto = 0;
-                let refaccionesCostNeto = 0;
-            
+
+                // 3. COMPRAS DE REFACCIONES: EVALUADAS POR FECHA DE PAGO REAL (SAT ART. 5)
+                let listaComprasRefacciones = [];
+
                 if (supabaseClient) {
                     try {
                         const { data: comprasRango } = await supabaseClient
                             .from('compras_refacciones')
-                            .select('id, descripcion, proveedor, costo_neto, metodo_pago, fecha_compra, orden_id')
-                            .gte('fecha_compra', start.toISOString())
-                            .lte('fecha_compra', end.toISOString())
-                            .order('fecha_compra', { ascending: false });
-            
+                            .select('*')
+                            .order('fecha_pago', { ascending: false });
+
                         if (comprasRango && comprasRango.length > 0) {
                             comprasRango.forEach(c => {
-                                const cTotal = Math.round(parseFloat(c.costo_neto || 0) * 100) / 100;
-                                refaccionesCostBruto += cTotal;
-                                refaccionesCostNeto += (cTotal / 1.08); // Zona Fronteriza 8%
-            
+                                const fPagoComp = Utils.parseFechaLocal(c.fecha_pago || c.fecha_compra);
+                                if (fPagoComp < start || fPagoComp > end) return;
+
+                                const cTotalPagado = money(c.total_pagado || c.costo_neto);
+                                
+                                // REGLA SAT ART 5: Validar explícitamente tiene_cfdi + iva_acreditable + iva > 0
+                                const esIvaAcreditable = 
+                                    Boolean(c.tiene_cfdi) === true && 
+                                    Boolean(c.iva_acreditable) === true && 
+                                    money(c.iva) > 0;
+                                
+                                let cSubtotal = cTotalPagado;
+                                let cIva = 0;
+
+                                if (esIvaAcreditable) {
+                                    cSubtotal = money(c.subtotal) > 0 ? money(c.subtotal) : roundMoney(cTotalPagado / 1.16);
+                                    cIva = money(c.iva) > 0 ? money(c.iva) : roundMoney(cTotalPagado - cSubtotal);
+                                    
+                                    refaccionesCostNetoPnl += cSubtotal;
+                                    totalIvaAcreditablePagado += cIva;
+                                } else {
+                                    refaccionesCostNetoPnl += cTotalPagado; // Si no es acreditable, el total pagado es el costo operativo
+                                }
+
                                 const metodo = (c.metodo_pago || '').trim().toLowerCase();
                                 
-                                // CORRECCIÓN 4: CRÉDITO PROVEEDOR NO ES SALIDA DE BANCO
                                 if (metodo === 'efectivo') {
-                                    salidasEfectivo += cTotal;
+                                    salidasEfectivo += cTotalPagado;
                                 } else if (metodo === 'transferencia' || metodo === 'tarjeta') {
-                                    salidasBanco += cTotal;
-                                } // Si es 'crédito proveedor', se omite de salidas de efectivo/banco.
-            
+                                    salidasBanco += cTotalPagado;
+                                }
+
                                 const ordenAsociada = State.orders.find(o => o.id === c.orden_id);
                                 listaComprasRefacciones.push({
                                     id: c.id,
@@ -1578,8 +1615,9 @@
                                     descripcion: c.descripcion,
                                     proveedor: c.proveedor || 'No especificado',
                                     metodo: c.metodo_pago,
-                                    costo: cTotal,
-                                    fecha: Utils.parseFechaLocal(c.fecha_compra)
+                                    costoTotal: cTotalPagado,
+                                    esAcreditable: esIvaAcreditable,
+                                    fecha: fPagoComp
                                 });
                             });
                         }
@@ -1587,17 +1625,17 @@
                         console.error("Error al obtener compras de refacciones:", e);
                     }
                 }
-            
-                // 4. Gastos Generales de Tesorería
+
+                // 4. GASTOS GENERALES DE TESORERÍA
                 let egresosManuales = 0;
                 let deduccionesNomina = 0; 
-            
+
                 State.expenses.forEach(e => {
                     const eDate = Utils.parseFechaLocal(e.fecha);
                     if (eDate >= start && eDate <= end) {
-                        const mAmt = Math.round(parseFloat(e.monto || 0) * 100) / 100;
+                        const mAmt = roundMoney(money(e.monto));
                         const metodo = (e.metodo_pago || '').trim().toLowerCase();
-            
+
                         if (e.categoria === "Nómina" && mAmt < 0) {
                             deduccionesNomina += Math.abs(mAmt); 
                         } else {
@@ -1607,7 +1645,7 @@
                             } else if (metodo === 'transferencia' || metodo === 'tarjeta') {
                                 salidasBanco += mAmt;
                             }
-            
+
                             if (montosPorCategoria[e.categoria] !== undefined) {
                                 montosPorCategoria[e.categoria] += mAmt;
                             } else {
@@ -1616,49 +1654,49 @@
                         }
                     }
                 });
-            
-                // 5. CÁLCULO DE NÓMINA CORREGIDO (DÍAS INCLUSIVOS)
+
+                // 5. NÓMINA CORREGIDA
                 let costoNominaPeriodo = 0;
                 State.personal.forEach(p => {
-                    const sueldoDiario = (parseFloat(p.sueldo) || 0) / 7;
+                    const sueldoDiario = money(p.sueldo) / 7;
                     const empInicio = p.fecha_ingreso ? Utils.parseFechaLocal(p.fecha_ingreso) : new Date(0);
                     const empFin = p.fecha_egreso ? Utils.parseFechaLocal(p.fecha_egreso) : new Date(8640000000000000);
-            
+
                     const inicioInterseccion = new Date(Math.max(start, empInicio));
                     const finInterseccion = new Date(Math.min(end, empFin));
-            
+
                     if (inicioInterseccion <= finInterseccion) {
-                        // CORRECCIÓN 1: DÍAS INCLUSIVOS SUMANDO +1
                         const msDiferencia = finInterseccion - inicioInterseccion;
                         const diasTrabajadosEnPeriodo = Math.floor(msDiferencia / MS_DIA) + 1;
                         costoNominaPeriodo += diasTrabajadosEnPeriodo * sueldoDiario;
                     }
                 });
-            
+
                 // Prorrateo de gastos fijos
-                const fijosMensuales = (State.fixedCosts.renta || 0) + (State.fixedCosts.servicios || 0) + (State.fixedCosts.impuestos || 0);
+                const fijosMensuales = money(State.fixedCosts.renta) + money(State.fixedCosts.servicios) + money(State.fixedCosts.impuestos);
                 const fijosPorDia = fijosMensuales / 30.4;
                 const costoFijosPeriodo = fijosPorDia * totalDays;
-            
+
                 let nominaFinalConDescuentos = costoNominaPeriodo - deduccionesNomina;
                 montosPorCategoria["Nómina"] = nominaFinalConDescuentos;
-                montosPorCategoria["Refacciones"] = refaccionesCostNeto; 
-            
-                const totalGastos = refaccionesCostNeto + nominaFinalConDescuentos + costoFijosPeriodo + egresosManuales;
-                const ventasNetasSinIva16 = ingresos - totalIva16Cobrado;
-            
-                const utilidadBruta = ventasNetasSinIva16 - refaccionesCostNeto; 
+                montosPorCategoria["Refacciones"] = refaccionesCostNetoPnl; 
+
+                const totalGastos = refaccionesCostNetoPnl + nominaFinalConDescuentos + costoFijosPeriodo + egresosManuales;
+
+                // UTILIDAD PURA SIN IMPUESTOS NI MEZCLAS
+                const utilidadBruta = ventasNetasSinIva16 - refaccionesCostNetoPnl; 
                 const utilidadNeta = ventasNetasSinIva16 - totalGastos;
                 
                 const margenUtilidad = ventasNetasSinIva16 > 0 ? (utilidadNeta / ventasNetasSinIva16) * 100 : 0;
-                const ticketPromedio = vehiculosAtendidos > 0 ? ingresos / vehiculosAtendidos : 0;
-            
+                const ticketPromedio = vehiculosAtendidos > 0 ? ventasNetasSinIva16 / vehiculosAtendidos : 0;
+
                 const balanceEfectivoCaja = entradasEfectivo - salidasEfectivo;
                 const balanceCuentaBanco = entradasBanco - salidasBanco;
-            
+                const ivaFiscalEstimadoAPagar = Math.max(0, ivaTrasladadoCobradoReal - totalIvaAcreditablePagado);
+
                 // Renderizar a Interfaz
                 if (document.getElementById('dash-ingresos')) {
-                    document.getElementById('dash-ingresos').innerText = Utils.formatter.format(ingresos);
+                    document.getElementById('dash-ingresos').innerText = Utils.formatter.format(ventasNetasSinIva16);
                     document.getElementById('dash-utilidad-bruta').innerText = Utils.formatter.format(utilidadBruta);
                     document.getElementById('dash-egresos').innerText = Utils.formatter.format(totalGastos);
                     document.getElementById('dash-utilidad').innerText = Utils.formatter.format(utilidadNeta);
@@ -1668,11 +1706,10 @@
                     
                     if (document.getElementById('caja-pagado')) document.getElementById('caja-pagado').innerText = Utils.formatter.format(pagado);
                     if (document.getElementById('caja-anticipo')) document.getElementById('caja-anticipo').innerText = Utils.formatter.format(anticipo);
-                    if (document.getElementById('costo-ref-total')) document.getElementById('costo-ref-total').innerText = Utils.formatter.format(refaccionesCostNeto);
+                    if (document.getElementById('costo-ref-total')) document.getElementById('costo-ref-total').innerText = Utils.formatter.format(refaccionesCostNetoPnl);
                     if (document.getElementById('costo-fijos-total')) document.getElementById('costo-fijos-total').innerText = Utils.formatter.format(costoFijosPeriodo);
                     if (document.getElementById('costo-nomina-total')) document.getElementById('costo-nomina-total').innerText = Utils.formatter.format(nominaFinalConDescuentos);
-            
-                    // Mapeo a la tabla "Estado de Flujo de Efectivo"
+
                     if (document.getElementById('er-ingresos')) document.getElementById('er-ingresos').innerText = Utils.formatter.format(ventasNetasSinIva16);
                     if (document.getElementById('er-refacciones')) document.getElementById('er-refacciones').innerText = Utils.formatter.format(montosPorCategoria["Refacciones"]);
                     if (document.getElementById('er-nomina')) document.getElementById('er-nomina').innerText = Utils.formatter.format(montosPorCategoria["Nómina"]);
@@ -1686,62 +1723,45 @@
                     const otrosAcumulados = totalGastos - (montosPorCategoria["Refacciones"] + montosPorCategoria["Nómina"] + montosPorCategoria["Gasolina"] + montosPorCategoria["Diesel"] + montosPorCategoria["Consumibles"] + sumServiciosAcumulados + montosPorCategoria["Publicidad"]);
                     if (document.getElementById('er-otros')) document.getElementById('er-otros').innerText = Utils.formatter.format(otrosAcumulados > 0 ? otrosAcumulados : 0);
                     if (document.getElementById('er-utilidad-neta')) document.getElementById('er-utilidad-neta').innerText = Utils.formatter.format(utilidadNeta);
-            
-                    // CORRECCIÓN: CONSTRUCCIÓN DINÁMICA DE LA TARJETA "MONTOS TOTALES POR CATEGORÍA"
+
                     const catContainer = document.getElementById('dashboard-categories-container');
                     if (catContainer) {
-                        const totalIvaAcreditablePagado = refaccionesCostBruto - refaccionesCostNeto;
-                        const balanceIvaNeto = totalIva16Cobrado - totalIvaAcreditablePagado;
-                        const esIvaPorPagar = balanceIvaNeto >= 0;
-            
                         let categoriesHtml = `
                             <div class="bg-blue-50/80 p-3.5 rounded-2xl border border-blue-200 flex flex-col gap-1.5 mb-4 font-sans text-xs">
                                 <span class="text-[10px] uppercase font-extrabold text-blue-800 tracking-wider flex items-center gap-1 border-b border-blue-200 pb-1">
-                                    <span class="material-icons text-xs">account_balance_wallet</span> 📊 BALANCES Y DESGLOSE FISCAL (SOCIOS)
+                                    <span class="material-icons text-xs">account_balance_wallet</span> 📊 BALANCES DE CAJA REAL & FISCAL
                                 </span>
                                 
-                                <!-- BALANCES DE EFECTIVO Y BANCO -->
                                 <div class="flex justify-between text-slate-700 pt-0.5">
                                     <span>💵 Efectivo en Caja Chica:</span>
                                     <span class="font-black text-emerald-600">${Utils.formatter.format(balanceEfectivoCaja)}</span>
                                 </div>
                                 <div class="flex justify-between text-slate-700">
-                                    <span>🏦 Banco (Transferencias / Tarjeta):</span>
+                                    <span>🏦 Banco (SPEI / Tarjeta):</span>
                                     <span class="font-black text-blue-600">${Utils.formatter.format(balanceCuentaBanco)}</span>
                                 </div>
-            
+
                                 <div class="border-t border-dashed border-blue-300 my-1"></div>
-            
-                                <!-- DESGLOSE DE INGRESOS E IVA COBRADO (16%) -->
+
                                 <div class="flex justify-between text-slate-600 text-[11px]">
-                                    <span>• Ventas Netas Cobradas (Sin IVA):</span>
+                                    <span>• Ventas Netas Devengadas (Sin IVA):</span>
                                     <span class="font-bold text-slate-800">${Utils.formatter.format(ventasNetasSinIva16)}</span>
                                 </div>
                                 <div class="flex justify-between text-amber-700 text-[11px]">
-                                    <span>• IVA 16% Cobrado (Por Pagar):</span>
-                                    <span class="font-bold">${Utils.formatter.format(totalIva16Cobrado)}</span>
-                                </div>
-            
-                                <div class="border-t border-dashed border-blue-200 my-0.5"></div>
-            
-                                <!-- DESGLOSE DE REFACCIONES E IVA ACREDITABLE (8%) -->
-                                <div class="flex justify-between text-slate-600 text-[11px]">
-                                    <span>• Refacciones Costo Neto (Sin IVA):</span>
-                                    <span class="font-bold text-slate-800">${Utils.formatter.format(refaccionesCostNeto)}</span>
+                                    <span>• IVA Trasladado Cobrado (Flujo Real):</span>
+                                    <span class="font-bold">${Utils.formatter.format(ivaTrasladadoCobradoReal)}</span>
                                 </div>
                                 <div class="flex justify-between text-emerald-700 text-[11px]">
-                                    <span>• IVA 8% Pagado (Acreditable):</span>
+                                    <span>• IVA Acreditable Pagado (CFDI):</span>
                                     <span class="font-bold">${Utils.formatter.format(totalIvaAcreditablePagado)}</span>
                                 </div>
-            
-                                <!-- BALANCE NETO DE IVA -->
-                                <div class="flex justify-between text-[11px] pt-1.5 border-t border-blue-300 font-bold ${esIvaPorPagar ? 'text-amber-900' : 'text-emerald-900'}">
-                                    <span>🏛️ ${esIvaPorPagar ? 'Balance IVA a Pagar al SAT:' : 'Balance IVA a Favor:'}</span>
-                                    <span class="font-black">${Utils.formatter.format(Math.abs(balanceIvaNeto))}</span>
+                                <div class="flex justify-between text-purple-900 font-bold text-[11px] pt-1 border-t border-blue-200">
+                                    <span>⚖️ IVA Fiscal Estimado por Pagar:</span>
+                                    <span class="font-black text-purple-700">${Utils.formatter.format(ivaFiscalEstimadoAPagar)}</span>
                                 </div>
                             </div>
                         `;
-            
+
                         categoriesHtml += Object.keys(montosPorCategoria)
                             .filter(cName => cName !== "Refacciones")
                             .map(cName => `
@@ -1750,15 +1770,16 @@
                                     <span class="font-bold text-slate-800">${Utils.formatter.format(montosPorCategoria[cName])}</span>
                                 </div>`)
                             .join('');
-            
+
                         catContainer.innerHTML = categoriesHtml;
                     }
                 }
-                // RENDERIZAR TABLA 1: DESGLOSE DE ÓRDENES QUE GENERARON INGRESOS
+
+                // TABLA 1: INGRESOS REALES
                 const incomeBody = document.getElementById('dashboard-income-orders-body');
                 if (incomeBody) {
                     if (listaOrdenesIngreso.length === 0) {
-                        incomeBody.innerHTML = `<tr><td colspan="5" class="p-4 text-center text-slate-400">Sin registros de ingresos en este periodo.</td></tr>`;
+                        incomeBody.innerHTML = `<tr><td colspan="5" class="p-4 text-center text-slate-400">Sin registros de cobros efectuados en este periodo.</td></tr>`;
                     } else {
                         incomeBody.innerHTML = listaOrdenesIngreso.map(i => {
                             const fStr = i.fecha.toLocaleDateString('es-MX', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
@@ -1782,11 +1803,11 @@
                     }
                 }
     
-                // RENDERIZAR TABLA 2: DESGLOSE DE REFACCIONES Y COMPRAS
+                // TABLA 2: REFACCIONES Y FISCALIDAD
                 const partsBody = document.getElementById('dashboard-parts-cost-body');
                 if (partsBody) {
                     if (listaComprasRefacciones.length === 0) {
-                        partsBody.innerHTML = `<tr><td colspan="6" class="p-4 text-center text-slate-400">Sin compras de refacciones en este periodo.</td></tr>`;
+                        partsBody.innerHTML = `<tr><td colspan="7" class="p-4 text-center text-slate-400">Sin compras de refacciones pagadas en este periodo.</td></tr>`;
                     } else {
                         partsBody.innerHTML = listaComprasRefacciones.map(r => {
                             const fStr = r.fecha.toLocaleDateString('es-MX', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
@@ -1804,14 +1825,19 @@
                                             ${Utils.escapeHtml(r.metodo)}
                                         </span>
                                     </td>
-                                    <td class="py-2.5 px-4 text-right font-bold text-slate-900">${Utils.formatter.format(r.costo)}</td>
+                                    <td class="py-2.5 px-4 text-center">
+                                        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${r.esAcreditable ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-slate-100 text-slate-500'}">
+                                            ${r.esAcreditable ? 'SI (CFDI Acreditable)' : 'NO (Sin CFDI / No Acred.)'}
+                                        </span>
+                                    </td>
+                                    <td class="py-2.5 px-4 text-right font-bold text-slate-900">${Utils.formatter.format(r.costoTotal)}</td>
                                 </tr>
                             `;
                         }).join('');
                     }
                 }
     
-                this.renderCharts(ingresos, totalGastos, montosPorCategoria);
+                this.renderCharts(ventasNetasSinIva16, totalGastos, montosPorCategoria);
             },
             
             renderCharts(ingresos, totalGastos, montosPorCategoria) {
@@ -1823,17 +1849,15 @@
                 
                 if(!ctx1 || !ctx2) return; 
             
-                // --- CHART 1: INGRESOS VS GASTOS ---
                 chartInstance1 = new Chart(ctx1, {
                     type: 'bar',
                     data: {
-                        labels: ['Ingresos', 'Gastos'],
+                        labels: ['Ventas Netas Devengadas', 'Gastos Totales'],
                         datasets: [{ data: [ingresos, totalGastos], backgroundColor: ['#10b981', '#f43f5e'], borderRadius: 8 }]
                     },
                     options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
                 });
             
-                // --- CHART 2: GASTOS POR CATEGORÍA ---
                 const catLabels = Object.keys(montosPorCategoria).filter(k => montosPorCategoria[k] > 0);
                 const catData = catLabels.map(k => montosPorCategoria[k]);
             
@@ -1969,7 +1993,7 @@
                     .from('compras_refacciones')
                     .select('*')
                     .eq('orden_id', ordenId)
-                    .order('fecha_compra', { ascending: true });
+                    .order('fecha_pago', { ascending: true });
                     
                 if (error) throw error;
                 return data;
@@ -2059,465 +2083,136 @@
                 this.renderOrdersList();
             },
 
-            async downloadCorteCajaPDF() {
-                showToast("Generando Reporte Ejecutivo de Entrega de Cuentas...");
-            
-                const preset = document.getElementById('erp-date-preset').value;
-                const { start, end } = Financial_Engine.getDateRange(preset);
+            async cargarRefaccionesModal(ordenId) {
+                this.ordenActivaId = ordenId;
                 
-                const fInicioStr = start.toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' });
-                const fFinStr = end.toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' });
-            
-                let entradasEfectivo = 0, entradasBanco = 0;
-                let salidasEfectivo = 0, salidasBanco = 0;
-            
-                // 1. Obtener Ingresos y Calcular IVA 16% Cobrado
-                let totalIva16Cobrado = 0;
-                const ingresosPeriodo = State.pagos.filter(p => {
-                    const pDate = Utils.parseFechaLocal(p.fecha);
-                    return pDate >= start && pDate <= end;
-                });
-            
-                ingresosPeriodo.forEach(p => {
-                    const m = parseFloat(p.monto || 0);
-                    if ((p.metodo_pago || '').toLowerCase() === 'efectivo') entradasEfectivo += m;
-                    else entradasBanco += m;
-            
-                    const ordenAsociada = State.orders.find(o => o.id === p.orden_id);
-                    if (ordenAsociada && ordenAsociada.requiere_factura) {
-                        totalIva16Cobrado += (m - (m / 1.16));
-                    }
-                });
-            
-                // 2. Obtener Refacciones y Calcular IVA Acreditable Pagado
-                let refaccionesPeriodo = [];
-                let comprasPorProveedor = {};
-                let refaccionesCostBruto = 0;
-                let refaccionesCostNeto = 0;
-            
-                if (supabaseClient) {
-                    try {
-                        const { data } = await supabaseClient
-                            .from('compras_refacciones')
-                            .select('*')
-                            .gte('fecha_compra', start.toISOString())
-                            .lte('fecha_compra', end.toISOString())
-                            .order('fecha_compra', { ascending: false });
-                        refaccionesPeriodo = data || [];
-                    } catch (err) { console.error(err); }
-                }
-            
-                refaccionesPeriodo.forEach(r => {
-                    const m = parseFloat(r.costo_neto || 0);
-                    refaccionesCostBruto += m;
-                    refaccionesCostNeto += (m / 1.08); // Desglose neto frontera (8%)
-            
-                    if ((r.metodo_pago || '').toLowerCase() === 'efectivo') salidasEfectivo += m;
-                    else salidasBanco += m;
-            
-                    const prov = r.proveedor || 'Otros / Mostrador';
-                    comprasPorProveedor[prov] = (comprasPorProveedor[prov] || 0) + m;
-                });
-            
-                const totalIvaAcreditablePagado = refaccionesCostBruto - refaccionesCostNeto;
-            
-                // 3. Gastos Varios de Tesorería
-                let egresosManuales = 0;
-                const gastosPeriodo = State.expenses.filter(e => {
-                    const eDate = Utils.parseFechaLocal(e.fecha);
-                    return eDate >= start && eDate <= end;
-                });
-            
-                gastosPeriodo.forEach(g => {
-                    const m = parseFloat(g.monto || 0);
-                    egresosManuales += m;
-                    if ((g.metodo_pago || '').toLowerCase() === 'efectivo') salidasEfectivo += m;
-                    else salidasBanco += m;
-                });
-            
-                // 4. Nómina Devengada
-                let costoNominaPeriodo = 0;
-                let desglosePersonal = [];
-            
-                State.personal.forEach(p => {
-                    const sueldoSemanal = parseFloat(p.sueldo) || 0;
-                    const sueldoDiario = sueldoSemanal / 7;
-                    const empInicio = p.fecha_ingreso ? Utils.parseFechaLocal(p.fecha_ingreso) : new Date(0);
-                    const empFin = p.fecha_egreso ? Utils.parseFechaLocal(p.fecha_egreso) : new Date(8640000000000000);
-            
-                    const inicioInterseccion = new Date(Math.max(start, empInicio));
-                    const finInterseccion = new Date(Math.min(end, empFin));
-            
-                    if (inicioInterseccion <= finInterseccion) {
-                        const msDiferencia = finInterseccion - inicioInterseccion;
-                        const diasTrabajados = Math.ceil(msDiferencia / (1000 * 60 * 60 * 24));
-                        const montoCorrespondiente = diasTrabajados * sueldoDiario;
-                        
-                        costoNominaPeriodo += montoCorrespondiente;
-                        desglosePersonal.push({
-                            nombre: p.nombre,
-                            puesto: p.rol,
-                            sueldoSemanal: sueldoSemanal,
-                            dias: diasTrabajados,
-                            monto: montoCorrespondiente
+                const now = new Date();
+                now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+                const inputFecha = document.getElementById('ref-fecha-pago');
+                if (inputFecha) inputFecha.value = now.toISOString().slice(0, 16);
+
+                try {
+                    const compras = await API_Service.obtenerComprasPorOrden(ordenId);
+                    const tbody = document.getElementById('tbody-refacciones-orden');
+                    const lblTotal = document.getElementById('lbl-total-refacciones-orden');
+                    
+                    if (!tbody) return;
+                    tbody.innerHTML = '';
+                    let totalAcumulado = 0;
+
+                    if (!compras || compras.length === 0) {
+                        tbody.innerHTML = `<tr><td colspan="7" class="p-3 text-center text-slate-400">No hay compras registradas para esta orden.</td></tr>`;
+                    } else {
+                        compras.forEach(item => {
+                            const costoTotal = parseFloat(item.total_pagado || item.costo_neto || 0);
+                            totalAcumulado += costoTotal;
+
+                            const fechaFormateada = Utils.parseFechaLocal(item.fecha_pago || item.fecha_compra).toLocaleString('es-MX', {
+                                day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'
+                            });
+
+                            const esAcreditable = Boolean(item.tiene_cfdi) === true && Boolean(item.iva_acreditable) === true && parseFloat(item.iva || 0) > 0;
+
+                            tbody.innerHTML += `
+                                <tr class="hover:bg-slate-50 transition">
+                                    <td class="p-2 text-[10px] text-slate-500 font-medium">${fechaFormateada}</td>
+                                    <td class="p-2 font-semibold text-slate-800">${Utils.escapeHtml(item.descripcion)}</td>
+                                    <td class="p-2 text-slate-600">${Utils.escapeHtml(item.proveedor || '-')}</td>
+                                    <td class="p-2"><span class="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-600 border border-slate-200">${Utils.escapeHtml(item.metodo_pago)}</span></td>
+                                    <td class="p-2 text-center">
+                                        <span class="px-2 py-0.5 rounded text-[9px] font-bold ${esAcreditable ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-slate-100 text-slate-500'}">
+                                            ${esAcreditable ? 'SI (CFDI)' : 'NO'}
+                                        </span>
+                                    </td>
+                                    <td class="p-2 text-right font-bold text-slate-800">${Utils.formatter.format(costoTotal)}</td>
+                                    <td class="p-2 text-center">
+                                        <button type="button" onclick="UI_Controller.borrarRefaccionModal(${item.id})" class="text-rose-500 hover:text-rose-700 transition" title="Eliminar">
+                                            <span class="material-icons text-sm">delete</span>
+                                        </button>
+                                    </td>
+                                </tr>
+                            `;
                         });
                     }
-                });
-            
-                // 5. Gastos Fijos Prorrateados
-                const totalDays = Math.max(1, Math.ceil((end - start) / (1000 * 60 * 60 * 24)));
-                const rentaMensual = parseFloat(State.fixedCosts.renta) || 0;
-                const serviciosMensuales = parseFloat(State.fixedCosts.servicios) || 0;
-                const impuestosMensuales = parseFloat(State.fixedCosts.impuestos) || 0;
-            
-                const rentaProrrateada = (rentaMensual / 30.4) * totalDays;
-                const serviciosProrrateados = (serviciosMensuales / 30.4) * totalDays;
-                const impuestosProrrateados = (impuestosMensuales / 30.4) * totalDays;
-                const totalGastosFijosProrrateados = rentaProrrateada + serviciosProrrateados + impuestosProrrateados;
-            
-                // 6. Cuentas por Cobrar Pendientes
-                let cuentasPorCobrar = [];
-                let totalPendienteCobro = 0;
-            
-                State.orders.forEach(o => {
-                    if (o.estado === 'Cancelada') return;
-                    const oDate = Utils.parseFechaLocal(o.fecha_ingreso || o.fecha_registro);
-                    if (oDate >= start && oDate <= end) {
-                        const totalOrden = parseFloat(o.total_cobrado || 0);
-                        const abonosOrden = State.pagos
-                            .filter(p => Number(p.orden_id) === Number(o.id))
-                            .reduce((acc, p) => acc + (parseFloat(p.monto) || 0), 0);
-                        
-                        const saldoPendiente = totalOrden - abonosOrden;
-                        if (saldoPendiente > 0.5) {
-                            totalPendienteCobro += saldoPendiente;
-                            cuentasPorCobrar.push({
-                                id: o.id,
-                                cliente: o.cliente_nombre,
-                                auto: `${o.auto_marca} (${o.auto_placas})`,
-                                total: totalOrden,
-                                abonado: abonosOrden,
-                                pendiente: saldoPendiente
-                            });
-                        }
+
+                    if (lblTotal) lblTotal.innerText = Utils.formatter.format(totalAcumulado);
+                } catch (err) {
+                    console.error("Error al cargar refacciones:", err);
+                    showToast("Error al cargar el historial de refacciones", true);
+                }
+            },
+
+            async guardarRefaccionModal(event) {
+                event.preventDefault();
+
+                if (!this.ordenActivaId) return;
+
+                const desc = document.getElementById('ref-descripcion').value.trim();
+                const totalPagado = parseFloat(document.getElementById('ref-costo').value) || 0;
+                const tieneCfdi = document.getElementById('ref-tiene-cfdi').checked;
+
+                let subtotal = totalPagado;
+                let iva = 0;
+
+                if (tieneCfdi) {
+                    subtotal = Math.round(((totalPagado / 1.16) + Number.EPSILON) * 100) / 100;
+                    iva = Math.round(((totalPagado - subtotal) + Number.EPSILON) * 100) / 100;
+                }
+
+                const fechaPagoVal = document.getElementById('ref-fecha-pago').value;
+                const isoFechaPago = fechaPagoVal ? new Date(fechaPagoVal).toISOString() : new Date().toISOString();
+
+                const datosCompra = {
+                    orden_id: this.ordenActivaId,
+                    descripcion: desc,
+                    proveedor: document.getElementById('ref-proveedor').value.trim() || null,
+                    costo_neto: totalPagado, // Para compatibilidad legacy
+                    total_pagado: totalPagado,
+                    subtotal: subtotal,
+                    iva: iva,
+                    tiene_cfdi: tieneCfdi,
+                    iva_acreditable: tieneCfdi,
+                    metodo_pago: document.getElementById('ref-metodo').value,
+                    folio_ticket_factura: document.getElementById('ref-folio').value.trim() || null,
+                    fecha_compra: isoFechaPago,
+                    fecha_pago: isoFechaPago
+                };
+
+                try {
+                    await API_Service.registrarCompraRefaccion(datosCompra);
+                    showToast("Refacción registrada en compras");
+
+                    State.modalEditingConcepts.push({
+                        descripcion: desc,
+                        cantidad: 1,
+                        precio: totalPagado,
+                        categoria: 'refacciones'
+                    });
+
+                    this.renderModalConcepts();
+
+                    document.getElementById('form-agregar-refaccion').reset();
+                    await this.cargarRefaccionesModal(this.ordenActivaId);
+                    
+                    API_Service.fetchOrders(true);
+                } catch (err) {
+                    console.error("Error al guardar refacción:", err);
+                    showToast("No se pudo registrar la compra", true);
+                }
+            },
+
+            async borrarRefaccionModal(compraId) {
+                customConfirm("¿Eliminar refacción?", "El costo total de la compra se actualizará automáticamente.", async () => {
+                    try {
+                        await API_Service.eliminarCompraRefaccion(compraId);
+                        showToast("Compra eliminada");
+                        await UI_Controller.cargarRefaccionesModal(UI_Controller.ordenActivaId);
+                        API_Service.fetchOrders(true);
+                    } catch (err) {
+                        console.error("Error al eliminar refacción:", err);
+                        showToast("Error al intentar borrar la compra", true);
                     }
                 });
-            
-                // 7. Productividad de Mecánicos
-                let listaProductividad = [];
-                const mecanicos = State.personal.filter(p => p.rol && p.rol.includes('Mecánico'));
-            
-                mecanicos.forEach(m => {
-                    const ordenesMec = State.orders.filter(o => {
-                        if (o.estado === 'Cancelada') return false;
-                        const oDate = Utils.parseFechaLocal(o.fecha_ingreso || o.fecha_registro);
-                        const matchMec = (o.tecnico_user_id && o.tecnico_user_id === m.user_id) || 
-                                         (o.tecnico_asignado && o.tecnico_asignado.toLowerCase() === m.nombre?.toLowerCase());
-                        return matchMec && (oDate >= start && oDate <= end);
-                    });
-            
-                    const concluidas = ordenesMec.filter(o => o.estado === 'Terminado' || o.estado === 'Entregado');
-                    let manoObraProducida = 0;
-                    concluidas.forEach(o => manoObraProducida += parseFloat(o.costo_mano_obra || 0));
-            
-                    listaProductividad.push({
-                        nombre: m.nombre,
-                        asignadas: ordenesMec.length,
-                        concluidas: concluidas.length,
-                        manoObra: manoObraProducida
-                    });
-                });
-            
-                // 8. Cálculos P&L y Balance de IVA de la Operación
-                const totalIngresosCobrados = entradasEfectivo + entradasBanco;
-                const ventasNetasSinIva16 = totalIngresosCobrados - totalIva16Cobrado;
-                
-                // Utilidad Neta Real idéntica al Dashboard
-                const utilidadNetaPL = ventasNetasSinIva16 - (refaccionesCostNeto + egresosManuales + costoNominaPeriodo + totalGastosFijosProrrateados);
-            
-                // Balance entre IVA Cobrado e IVA Pagado
-                const balanceIvaNeto = totalIva16Cobrado - totalIvaAcreditablePagado;
-                const esIvaPorPagar = balanceIvaNeto >= 0;
-            
-                const balEfectivo = entradasEfectivo - salidasEfectivo;
-                const balBanco = entradasBanco - salidasBanco;
-            
-                const printArea = document.createElement('div');
-                printArea.className = "bg-white font-sans text-slate-800 text-xs";
-                printArea.style.width = "790px";
-            
-                printArea.innerHTML = `
-                    <!-- HOJA 1: ARQUEO DE CAJA, NÓMINA Y RENTA -->
-                    <div class="p-8" style="min-height: 1020px;">
-                        <div class="border-b-2 border-slate-900 pb-4 mb-4 flex justify-between items-center">
-                            <div>
-                                <h1 class="text-xl font-black text-slate-900">BEFIX GARAGE ERP</h1>
-                                <p class="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Reporte de Entrega de Cuentas (Página 1: Arqueo de Dinero)</p>
-                            </div>
-                            <div class="text-right">
-                                <span class="bg-slate-100 text-slate-800 text-[10px] font-bold px-3 py-1 rounded-full border border-slate-200">
-                                    Rango: ${fInicioStr} - ${fFinStr}
-                                </span>
-                                <p class="text-[9px] text-slate-400 mt-1">Generado: ${new Date().toLocaleString('es-MX')}</p>
-                            </div>
-                        </div>
-            
-                        <div class="grid grid-cols-2 gap-4 mb-4">
-                            <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200">
-                                <h3 class="font-extrabold text-slate-900 text-xs border-b pb-1 mb-2 uppercase flex justify-between">
-                                    <span>💵 CAJA FÍSICA (EFECTIVO)</span>
-                                </h3>
-                                <div class="flex justify-between text-slate-600 mb-1">
-                                    <span>(+) Entradas Efectivo:</span>
-                                    <span class="font-bold text-emerald-600">${Utils.formatter.format(entradasEfectivo)}</span>
-                                </div>
-                                <div class="flex justify-between text-slate-600 mb-1">
-                                    <span>(-) Salidas Efectivo:</span>
-                                    <span class="font-bold text-rose-600">${Utils.formatter.format(salidasEfectivo)}</span>
-                                </div>
-                                <div class="flex justify-between text-slate-900 font-black text-xs pt-2 border-t mt-1">
-                                    <span>BALANCE EN CAJA:</span>
-                                    <span class="text-blue-600">${Utils.formatter.format(balEfectivo)}</span>
-                                </div>
-                            </div>
-            
-                            <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200">
-                                <h3 class="font-extrabold text-slate-900 text-xs border-b pb-1 mb-2 uppercase flex justify-between">
-                                    <span>🏦 CUENTA DE BANCO (SPEI / TARJETA)</span>
-                                </h3>
-                                <div class="flex justify-between text-slate-600 mb-1">
-                                    <span>(+) Entradas Banco:</span>
-                                    <span class="font-bold text-emerald-600">${Utils.formatter.format(entradasBanco)}</span>
-                                </div>
-                                <div class="flex justify-between text-slate-600 mb-1">
-                                    <span>(-) Salidas Banco:</span>
-                                    <span class="font-bold text-rose-600">${Utils.formatter.format(salidasBanco)}</span>
-                                </div>
-                                <div class="flex justify-between text-slate-900 font-black text-xs pt-2 border-t mt-1">
-                                    <span>BALANCE EN BANCO:</span>
-                                    <span class="text-blue-600">${Utils.formatter.format(balBanco)}</span>
-                                </div>
-                            </div>
-                        </div>
-            
-                        <!-- TABLA INFORMATIVA DE RENTA Y COSTOS FIJOS -->
-                        <div class="mb-4 bg-slate-50 p-3.5 rounded-2xl border border-slate-200">
-                            <h3 class="font-bold border-b pb-1 mb-2 uppercase text-[10px] text-blue-900 flex justify-between items-center">
-                                <span>🏢 RESUMEN INFORMATIVO DE RENTA Y GASTOS FIJOS (${totalDays} DÍAS - NO RESTADO DE CAJA/BANCO)</span>
-                                <span class="text-xs font-black text-blue-900">${Utils.formatter.format(totalGastosFijosProrrateados)}</span>
-                            </h3>
-                            <div class="grid grid-cols-3 gap-3 text-[10px]">
-                                <div class="bg-white p-2 rounded-xl border border-slate-200 flex justify-between items-center">
-                                    <div>
-                                        <span class="text-slate-500 font-medium block">Renta Taller:</span>
-                                        <span class="text-[8px] text-slate-400">($${rentaMensual.toLocaleString()}/mes)</span>
-                                    </div>
-                                    <span class="font-bold text-slate-800">${Utils.formatter.format(rentaProrrateada)}</span>
-                                </div>
-                                <div class="bg-white p-2 rounded-xl border border-slate-200 flex justify-between items-center">
-                                    <div>
-                                        <span class="text-slate-500 font-medium block">Servicios (Agua/Luz/Net):</span>
-                                        <span class="text-[8px] text-slate-400">($${serviciosMensuales.toLocaleString()}/mes)</span>
-                                    </div>
-                                    <span class="font-bold text-slate-800">${Utils.formatter.format(serviciosProrrateados)}</span>
-                                </div>
-                                <div class="bg-white p-2 rounded-xl border border-slate-200 flex justify-between items-center">
-                                    <div>
-                                        <span class="text-slate-500 font-medium block">Impuestos Est.:</span>
-                                        <span class="text-[8px] text-slate-400">($${impuestosMensuales.toLocaleString()}/mes)</span>
-                                    </div>
-                                    <span class="font-bold text-slate-800">${Utils.formatter.format(impuestosProrrateados)}</span>
-                                </div>
-                            </div>
-                        </div>
-            
-                        <!-- TABLA INFORMATIVA DE NÓMINA DEVENGADA -->
-                        <div class="mb-4 bg-slate-50 p-3.5 rounded-2xl border border-slate-200">
-                            <h3 class="font-bold border-b pb-1.5 mb-2 uppercase text-[10px] text-purple-800 flex justify-between items-center">
-                                <span>📋 RESUMEN INFORMATIVO DE NÓMINA DEL PERIODO (NO RESTADO DE CAJA/BANCO)</span>
-                                <span class="text-xs font-black text-purple-900">${Utils.formatter.format(costoNominaPeriodo)}</span>
-                            </h3>
-                            <table class="w-full text-left border-collapse text-[10px]">
-                                <thead>
-                                    <tr class="bg-slate-200/60 text-slate-700 uppercase font-bold">
-                                        <th class="p-1.5">Colaborador</th>
-                                        <th class="p-1.5">Puesto / Rol</th>
-                                        <th class="p-1.5 text-center">Sueldo Semanal</th>
-                                        <th class="p-1.5 text-center">Días en Periodo</th>
-                                        <th class="p-1.5 text-right">Monto Devengado</th>
-                                    </tr>
-                                </thead>
-                                <tbody class="divide-y divide-slate-200">
-                                    ${desglosePersonal.length === 0 ? '<tr><td colspan="5" class="p-2 text-center text-slate-400">Sin colaboradores activos registrados</td></tr>' : 
-                                      desglosePersonal.map(p => `
-                                        <tr>
-                                            <td class="p-1.5 font-bold text-slate-800">${Utils.escapeHtml(p.nombre)}</td>
-                                            <td class="p-1.5 text-slate-600">${Utils.escapeHtml(p.puesto)}</td>
-                                            <td class="p-1.5 text-center">${Utils.formatter.format(p.sueldoSemanal)}</td>
-                                            <td class="p-1.5 text-center font-bold">${p.dias} días</td>
-                                            <td class="p-1.5 text-right font-bold text-slate-900">${Utils.formatter.format(p.monto)}</td>
-                                        </tr>
-                                    `).join('')}
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-            
-                    <div style="page-break-before: always;"></div>
-            
-                    <!-- HOJA 2: ESTADO FINANCIERO Y RENDIMIENTO PARA SOCIOS -->
-                    <div class="p-8" style="min-height: 1020px;">
-                        <div class="border-b-2 border-slate-900 pb-3 mb-4 flex justify-between items-center">
-                            <div>
-                                <h2 class="text-lg font-black text-slate-900">ESTADO DE RESULTADOS Y PRODUCTIVIDAD</h2>
-                                <p class="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Reporte para Socios (Página 2)</p>
-                            </div>
-                            <span class="bg-blue-50 text-blue-700 text-[10px] font-bold px-3 py-1 rounded-full border border-blue-200">
-                                Periodo: ${fInicioStr} - ${fFinStr}
-                            </span>
-                        </div>
-            
-                        <!-- ESTADO DE PÉRDIDAS Y GANANCIAS (P&L EXPRESS) ALINEADO -->
-                        <div class="bg-blue-50/60 border border-blue-200 p-4 rounded-2xl mb-5">
-                            <h3 class="font-extrabold text-blue-900 text-xs border-b border-blue-200 pb-1 mb-2 uppercase">
-                                📊 ESTADO DE RESULTADOS REAL (UTILIDAD NETA REPARTIBLE)
-                            </h3>
-                            <div class="flex flex-col gap-1.5 text-[11px]">
-                                <div class="flex justify-between font-bold text-slate-800">
-                                    <span>(+) Ventas Netas Cobradas (Sin IVA 16%):</span>
-                                    <span class="text-emerald-600">${Utils.formatter.format(ventasNetasSinIva16)}</span>
-                                </div>
-                                <div class="flex justify-between text-slate-600 pl-3">
-                                    <span>(-) Costo Neto de Refacciones (Sin IVA 8%):</span>
-                                    <span class="text-rose-600">${Utils.formatter.format(refaccionesCostNeto)}</span>
-                                </div>
-                                <div class="flex justify-between text-slate-600 pl-3">
-                                    <span>(-) Gastos Directos de Tesorería:</span>
-                                    <span class="text-rose-600">${Utils.formatter.format(egresosManuales)}</span>
-                                </div>
-                                <div class="flex justify-between text-slate-600 pl-3">
-                                    <span>(-) Costo Total de Nómina Devengada:</span>
-                                    <span class="text-rose-600">${Utils.formatter.format(costoNominaPeriodo)}</span>
-                                </div>
-                                <div class="flex justify-between text-slate-600 pl-3">
-                                    <span>(-) Gastos Fijos Operativos Prorrateados (Renta/Servicios):</span>
-                                    <span class="text-rose-600">${Utils.formatter.format(totalGastosFijosProrrateados)}</span>
-                                </div>
-                                
-                                <div class="flex justify-between font-black text-xs pt-2 border-t border-blue-200 text-slate-900">
-                                    <span>(=) UTILIDAD NETA REAL REPARTIBLE:</span>
-                                    <span class="${utilidadNetaPL >= 0 ? 'text-emerald-700' : 'text-rose-700'}">${Utils.formatter.format(utilidadNetaPL)}</span>
-                                </div>
-            
-                                <!-- RENGLÓN DE BALANCE DE IVA -->
-                                <div class="flex justify-between text-[10px] pt-1.5 border-t border-dashed border-blue-300 ${esIvaPorPagar ? 'text-amber-800' : 'text-emerald-800'} font-semibold">
-                                    <span>🏛️ ${esIvaPorPagar ? 'IVA Estimado a Pagar (Cobrado 16% - Pagado 8%):' : 'IVA Estimado a Favor / Acreditable:'}</span>
-                                    <span class="font-bold">${Utils.formatter.format(Math.abs(balanceIvaNeto))}</span>
-                                </div>
-                            </div>
-                        </div>
-            
-                        <!-- CUENTAS POR COBRAR PENDIENTES -->
-                        <div class="mb-5 bg-slate-50 p-4 rounded-2xl border border-slate-200">
-                            <h3 class="font-bold border-b pb-1 mb-2 uppercase text-[10px] text-amber-800 flex justify-between items-center">
-                                <span>⏳ CUENTAS POR COBRAR DEL PERIODO (DINERO EN LA CALLE)</span>
-                                <span class="text-xs font-black text-amber-900">${Utils.formatter.format(totalPendienteCobro)}</span>
-                            </h3>
-                            <table class="w-full text-left border-collapse text-[10px]">
-                                <thead>
-                                    <tr class="bg-slate-200/60 text-slate-700 uppercase font-bold">
-                                        <th class="p-1.5">Orden</th>
-                                        <th class="p-1.5">Cliente / Auto</th>
-                                        <th class="p-1.5 text-right">Total Orden</th>
-                                        <th class="p-1.5 text-right">Abonado</th>
-                                        <th class="p-1.5 text-right">Saldo Pendiente</th>
-                                    </tr>
-                                </thead>
-                                <tbody class="divide-y divide-slate-200">
-                                    ${cuentasPorCobrar.length === 0 ? '<tr><td colspan="5" class="p-2 text-center text-slate-400">Excelente: No hay saldo pendiente de cobro en este periodo.</td></tr>' : 
-                                      cuentasPorCobrar.map(c => `
-                                        <tr>
-                                            <td class="p-1.5 font-bold text-slate-900">#${c.id}</td>
-                                            <td class="p-1.5">${Utils.escapeHtml(c.cliente)} <span class="text-[9px] text-slate-400">(${Utils.escapeHtml(c.auto)})</span></td>
-                                            <td class="p-1.5 text-right">${Utils.formatter.format(c.total)}</td>
-                                            <td class="p-1.5 text-right text-emerald-600 font-semibold">${Utils.formatter.format(c.abonado)}</td>
-                                            <td class="p-1.5 text-right font-bold text-amber-700">${Utils.formatter.format(c.pendiente)}</td>
-                                        </tr>
-                                    `).join('')}
-                                </tbody>
-                            </table>
-                        </div>
-            
-                        <!-- PRODUCTIVIDAD DE TALLER Y PROVEEDORES -->
-                        <div class="grid grid-cols-2 gap-4 mb-8">
-                            <div class="bg-slate-50 p-3.5 rounded-2xl border border-slate-200">
-                                <h3 class="font-bold border-b pb-1 mb-2 uppercase text-[10px] text-slate-700">🔧 PRODUCTIVIDAD POR MECÁNICO</h3>
-                                <table class="w-full text-left text-[9px]">
-                                    <thead>
-                                        <tr class="font-bold border-b text-slate-500">
-                                            <th class="pb-1">Mecánico</th>
-                                            <th class="pb-1 text-center">Ord. Concluidas</th>
-                                            <th class="pb-1 text-right">M.O. Generada</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody class="divide-y">
-                                        ${listaProductividad.map(m => `
-                                            <tr>
-                                                <td class="py-1 font-semibold">${Utils.escapeHtml(m.nombre)}</td>
-                                                <td class="py-1 text-center font-bold">${m.concluidas} / ${m.asignadas}</td>
-                                                <td class="py-1 text-right font-bold text-blue-600">${Utils.formatter.format(m.manoObra)}</td>
-                                            </tr>
-                                        `).join('')}
-                                    </tbody>
-                                </table>
-                            </div>
-            
-                            <div class="bg-slate-50 p-3.5 rounded-2xl border border-slate-200">
-                                <h3 class="font-bold border-b pb-1 mb-2 uppercase text-[10px] text-slate-700">📦 COMPRAS POR PROVEEDOR</h3>
-                                <table class="w-full text-left text-[9px]">
-                                    <thead>
-                                        <tr class="font-bold border-b text-slate-500">
-                                            <th class="pb-1">Proveedor</th>
-                                            <th class="pb-1 text-right">Monto Total</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody class="divide-y">
-                                        ${Object.keys(comprasPorProveedor).length === 0 ? '<tr><td colspan="2" class="p-1 text-center text-slate-400">Sin compras</td></tr>' :
-                                          Object.keys(comprasPorProveedor).map(prov => `
-                                            <tr>
-                                                <td class="py-1 font-semibold">${Utils.escapeHtml(prov)}</td>
-                                                <td class="py-1 text-right font-bold text-slate-800">${Utils.formatter.format(comprasPorProveedor[prov])}</td>
-                                            </tr>
-                                        `).join('')}
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-            
-                        <!-- FIRMAS DE CONFORMIDAD -->
-                        <div class="grid grid-cols-2 gap-12 pt-8 border-t border-slate-300 text-[9px] text-center font-bold text-slate-400">
-                            <div>
-                                <div class="border-b border-slate-300 w-3/4 mx-auto mb-1"></div>
-                                <p>Firma de Entrega / Socio Operativo</p>
-                                <p class="text-[8px] font-normal text-slate-400">BEFIX GARAGE ERP</p>
-                            </div>
-                            <div>
-                                <div class="border-b border-slate-300 w-3/4 mx-auto mb-1"></div>
-                                <p>Firma de Conformidad / Socio Inversionista</p>
-                            </div>
-                        </div>
-                    </div>
-                `;
-            
-                const opt = {
-                    margin: 0,
-                    filename: `Reporte_Ejecutivo_Socios_${fInicioStr}_al_${fFinStr}.pdf`,
-                    image: { type: 'jpeg', quality: 0.98 },
-                    html2canvas: { scale: 2 },
-                    jsPDF: { format: 'letter', orientation: 'portrait' }
-                };
-            
-                html2pdf().set(opt).from(printArea).save();
             },
 
             renderOrdersList() {
@@ -2819,7 +2514,7 @@
                 const p = State.personal.find(x => x.id === id);
                 if (!p) return;
             
-                customConfirm(`¿Dar de baja a ${p.nombre}?`, "Se asentarás la fecha de hoy como fecha de egreso.", async () => {
+                customConfirm(`¿Dar de baja a ${p.nombre}?`, "Se asentará la fecha de hoy como fecha de egreso.", async () => {
                     const hoy = new Date().toISOString().split('T')[0];
                     const { error } = await supabaseClient
                         .from('personal')
@@ -3016,6 +2711,7 @@
 
                 if (error) { showToast("Error Supabase: " + error.message, true); return; }
 
+                // PROTECCIÓN TRANSACCIONAL EN REGISTRO DE PAGO
                 if (montoAbonado > 0 && createdOrder) {
                     const fechaPagoInput = document.getElementById('form-fecha-pago').value;
                     const fechaPago = fechaPagoInput ? new Date(fechaPagoInput).toISOString() : new Date().toISOString();
@@ -3030,7 +2726,9 @@
                     }]);
 
                     if (errorPago) {
-                        showToast("Orden creada, pero el pago no se pudo registrar: " + errorPago.message, true);
+                        await supabaseClient.from('ordenes_trabajo').update({ estado_pago: 'Pendiente' }).eq('id', createdOrder.id);
+                        showToast("Falla al registrar pago inicial. La orden se mantuvo sin cobro para evitar descuadres: " + errorPago.message, true);
+                        return;
                     } else {
                         await API_Service.fetchPagos(true);
                     }
@@ -3209,112 +2907,8 @@
                 this.calculateModalTotals();
             },
 
-            async cargarRefaccionesModal(ordenId) {
-                this.ordenActivaId = ordenId;
-                
-                const now = new Date();
-                now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
-                const inputFecha = document.getElementById('ref-fecha');
-                if (inputFecha) inputFecha.value = now.toISOString().slice(0, 16);
-
-                try {
-                    const compras = await API_Service.obtenerComprasPorOrden(ordenId);
-                    const tbody = document.getElementById('tbody-refacciones-orden');
-                    const lblTotal = document.getElementById('lbl-total-refacciones-orden');
-                    
-                    if (!tbody) return;
-                    tbody.innerHTML = '';
-                    let totalAcumulado = 0;
-
-                    if (!compras || compras.length === 0) {
-                        tbody.innerHTML = `<tr><td colspan="6" class="p-3 text-center text-slate-400">No hay compras registradas para esta orden.</td></tr>`;
-                    } else {
-                        compras.forEach(item => {
-                            totalAcumulado += parseFloat(item.costo_neto || 0);
-                            const fechaFormateada = Utils.parseFechaLocal(item.fecha_compra).toLocaleString('es-MX', {
-                                day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'
-                            });
-
-                            tbody.innerHTML += `
-                                <tr class="hover:bg-slate-50 transition">
-                                    <td class="p-2 text-[10px] text-slate-500 font-medium">${fechaFormateada}</td>
-                                    <td class="p-2 font-semibold text-slate-800">${Utils.escapeHtml(item.descripcion)}</td>
-                                    <td class="p-2 text-slate-600">${Utils.escapeHtml(item.proveedor || '-')}</td>
-                                    <td class="p-2"><span class="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-600 border border-slate-200">${Utils.escapeHtml(item.metodo_pago)}</span></td>
-                                    <td class="p-2 text-right font-bold text-slate-800">${Utils.formatter.format(item.costo_neto)}</td>
-                                    <td class="p-2 text-center">
-                                        <button type="button" onclick="UI_Controller.borrarRefaccionModal(${item.id})" class="text-rose-500 hover:text-rose-700 transition" title="Eliminar">
-                                            <span class="material-icons text-sm">delete</span>
-                                        </button>
-                                    </td>
-                                </tr>
-                            `;
-                        });
-                    }
-
-                    if (lblTotal) lblTotal.innerText = Utils.formatter.format(totalAcumulado);
-                } catch (err) {
-                    console.error("Error al cargar refacciones:", err);
-                    showToast("Error al cargar el historial de refacciones", true);
-                }
-            },
-
-            async guardarRefaccionModal(event) {
-                event.preventDefault();
-
-                if (!this.ordenActivaId) return;
-
-                const desc = document.getElementById('ref-descripcion').value.trim();
-                const costo = parseFloat(document.getElementById('ref-costo').value) || 0;
-
-                const datosCompra = {
-                    orden_id: this.ordenActivaId,
-                    descripcion: desc,
-                    proveedor: document.getElementById('ref-proveedor').value.trim() || null,
-                    costo_neto: costo,
-                    metodo_pago: document.getElementById('ref-metodo').value,
-                    folio_ticket_factura: document.getElementById('ref-folio').value.trim() || null,
-                    fecha_compra: new Date(document.getElementById('ref-fecha').value).toISOString()
-                };
-
-                try {
-                    await API_Service.registrarCompraRefaccion(datosCompra);
-                    showToast("Refacción registrada en compras");
-
-                    State.modalEditingConcepts.push({
-                        descripcion: desc,
-                        cantidad: 1,
-                        precio: costo,
-                        categoria: 'refacciones'
-                    });
-
-                    this.renderModalConcepts();
-
-                    document.getElementById('form-agregar-refaccion').reset();
-                    await this.cargarRefaccionesModal(this.ordenActivaId);
-                    
-                    API_Service.fetchOrders(true);
-                } catch (err) {
-                    console.error("Error al guardar refacción:", err);
-                    showToast("No se pudo registrar la compra", true);
-                }
-            },
-
-            async borrarRefaccionModal(compraId) {
-                customConfirm("¿Eliminar refacción?", "El costo total de la compra se actualizará automáticamente.", async () => {
-                    try {
-                        await API_Service.eliminarCompraRefaccion(compraId);
-                        showToast("Compra eliminada");
-                        await UI_Controller.cargarRefaccionesModal(UI_Controller.ordenActivaId);
-                        API_Service.fetchOrders(true);
-                    } catch (err) {
-                        console.error("Error al eliminar refacción:", err);
-                        showToast("Error al intentar borrar la compra", true);
-                    }
-                });
-            },
-
             async handleSaveChanges() {
+                const ordenOriginal = State.orders.find(o => o.id === State.currentEditingOrderId);
                 const modalManualDate = document.getElementById('modal-fecha-ingreso').value;
                 const modalEgresoDate = document.getElementById('modal-fecha-egreso').value;
 
@@ -3348,6 +2942,13 @@
 
                     montoAbonoIngresado = parseFloat(document.getElementById('modal-monto-abono').value) || 0;
 
+                    if (paymentState === 'Pagado' && montoAbonoIngresado === 0) {
+                        const abonosPrevios = State.pagos
+                            .filter(p => Number(p.orden_id) === Number(State.currentEditingOrderId))
+                            .reduce((sum, p) => sum + (parseFloat(p.monto) || 0), 0);
+                        montoAbonoIngresado = Math.max(0, granTotal - abonosPrevios);
+                    }
+
                     fields.estado_pago = paymentState;
                     fields.metodo_pago = (paymentState === 'Anticipo' || paymentState === 'Pagado') ? (document.getElementById('modal-metodo-pago').value || 'Efectivo') : '';
                     fields.requiere_factura = requiereFactura;
@@ -3361,10 +2962,11 @@
                     }
                 }
 
+                // 1. Actualización preliminar de la orden
                 const { error } = await supabaseClient.from('ordenes_trabajo').update(fields).eq('id', State.currentEditingOrderId); 
-                if (error) { showToast("Error al guardar: " + error.message, true); return; }
+                if (error) { showToast("Error al guardar orden: " + error.message, true); return; }
 
-                let errorPago = null;
+                // 2. Si hay abono, intentar registrar en pagos con ROLLBACK en caso de fallo
                 if (montoAbonoIngresado > 0) {
                     const fechaPagoInput = document.getElementById('modal-fecha-pago').value;
                     const fechaPago = fechaPagoInput ? new Date(fechaPagoInput).toISOString() : new Date().toISOString();
@@ -3378,15 +2980,20 @@
                         observaciones: 'Pago registrado desde el modal de orden'
                     };
 
-                    const insertResult = await supabaseClient.from('pagos').insert([nuevoPagoObj]);
-                    errorPago = insertResult.error;
+                    const { error: errorPago } = await supabaseClient.from('pagos').insert([nuevoPagoObj]);
+
+                    if (errorPago) {
+                        // REVERSIÓN DE SEGURIDAD (ROLLBACK EN CALIENTE)
+                        await supabaseClient.from('ordenes_trabajo').update({
+                            estado_pago: ordenOriginal ? ordenOriginal.estado_pago : 'Pendiente'
+                        }).eq('id', State.currentEditingOrderId);
+
+                        showToast("Falla al registrar el pago en caja. Se revirtió el estado de la orden para evitar descuadres: " + errorPago.message, true);
+                        return;
+                    }
                 }
 
-                if (errorPago) {
-                    showToast("Cambios guardados, pero el pago no se pudo registrar: " + errorPago.message, true);
-                } else {
-                    showToast("Cambios guardados con éxito.");
-                }
+                showToast("Cambios guardados con éxito.");
                 this.closeModal(); 
 
                 await API_Service.fetchOrders(true);
@@ -3577,7 +3184,6 @@
             if(document.getElementById('form-fecha-ingreso')) { document.getElementById('form-fecha-ingreso').value = todayStr; }
             if(document.getElementById('personal-fecha-ingreso')) { document.getElementById('personal-fecha-ingreso').value = todayStr; }
             
-            // CREDENCIALES DE PRODUCCIÓN
             const url = "https://krhauwvbbjlihkeasrju.supabase.co"; 
             const key = "sb_publishable_FaCORWb3dFbMfSNST-VQwQ_lihLEkdx";
 
