@@ -1683,17 +1683,14 @@
                 montosPorCategoria["Nómina"] = nominaFinalConDescuentos;
                 montosPorCategoria["Refacciones"] = refaccionesCostNeto;
                 
-                // 1. Total Gastos Operativos (Sin distorsión de IVA)
+                // 1. Total Gastos Operativos
                 const totalGastos = refaccionesCostNeto + nominaFinalConDescuentos + costoFijosPeriodo + egresosManuales;
                 const ventasNetasSinIva16 = ingresos - totalIva16Cobrado;
                 
-                // 2. Utilidad Bruta y Neta Real (Alineadas con las tarjetas del Dashboard)
+                // 2. Utilidad Bruta y Neta Real (Alineadas con el Dashboard)
                 const utilidadBruta = ingresos - refaccionesCostNeto;
                 const utilidadNeta = ingresos - totalGastos;
-                
                 const margenUtilidad = ingresos > 0 ? (utilidadNeta / ingresos) * 100 : 0;
-                
-                const margenUtilidad = ventasNetasSinIva16 > 0 ? (utilidadNeta / ventasNetasSinIva16) * 100 : 0;
                 const ticketPromedio = vehiculosAtendidos > 0 ? ingresos / vehiculosAtendidos : 0;
                 
                 // 3. Flujo Neto Real de Cajas (Entradas brutas - Salidas directas pagadas)
