@@ -219,8 +219,10 @@
                             </div>
                             <div class="bg-rose-50 text-rose-600 p-3 rounded-xl"><span class="material-icons">trending_down</span></div>
                         </div>
-                        <div class="text-[10px] text-slate-400 mt-3 pt-2 border-t border-slate-100">
-                            Fijos: <span id="costo-fijos-total" class="font-semibold text-slate-700">$0.00</span> | Nómina: <span id="costo-nomina-total" class="font-semibold text-slate-700">$0.00</span>
+                        <div class="text-[10px] text-slate-400 mt-3 pt-2 border-t border-slate-100 flex flex-wrap gap-1">
+                            Fijos: <span id="costo-fijos-total" class="font-semibold text-slate-700">$0.00</span> | 
+                            Nómina: <span id="costo-nomina-total" class="font-semibold text-slate-700">$0.00</span> | 
+                            Varios: <span id="costo-varios-total" class="font-semibold text-slate-700">$0.00</span>
                         </div>
                     </div>
 
@@ -1681,11 +1683,15 @@
                 montosPorCategoria["Nómina"] = nominaFinalConDescuentos;
                 montosPorCategoria["Refacciones"] = refaccionesCostNetoPnl; 
 
-                const totalGastos = refaccionesCostNetoPnl + nominaFinalConDescuentos + costoFijosPeriodo + egresosManuales;
-
-                // UTILIDAD PURA SIN IMPUESTOS NI MEZCLAS
+                // 1. Gastos Operativos Generales / Indirectos (OPEX)
+                const gastosOperativosGenerales = nominaFinalConDescuentos + costoFijosPeriodo + egresosManuales;
+                
+                // 2. Gastos Totales del Negocio (Egresos Globales: COGS + OPEX)
+                const totalGastos = refaccionesCostNetoPnl + gastosOperativosGenerales;
+                
+                // 3. Utilidades Correctas en Cascada
                 const utilidadBruta = ventasNetasSinIva16 - refaccionesCostNetoPnl; 
-                const utilidadNeta = ventasNetasSinIva16 - totalGastos;
+                const utilidadNeta = utilidadBruta - gastosOperativosGenerales; // Mismo resultado matemático pero ordenado conceptualmente
                 
                 const margenUtilidad = ventasNetasSinIva16 > 0 ? (utilidadNeta / ventasNetasSinIva16) * 100 : 0;
                 const ticketPromedio = vehiculosAtendidos > 0 ? ventasNetasSinIva16 / vehiculosAtendidos : 0;
@@ -1709,6 +1715,7 @@
                     if (document.getElementById('costo-ref-total')) document.getElementById('costo-ref-total').innerText = Utils.formatter.format(refaccionesCostNetoPnl);
                     if (document.getElementById('costo-fijos-total')) document.getElementById('costo-fijos-total').innerText = Utils.formatter.format(costoFijosPeriodo);
                     if (document.getElementById('costo-nomina-total')) document.getElementById('costo-nomina-total').innerText = Utils.formatter.format(nominaFinalConDescuentos);
+                    if (document.getElementById('costo-varios-total')) document.getElementById('costo-varios-total').innerText = Utils.formatter.format(egresosManuales);
 
                     if (document.getElementById('er-ingresos')) document.getElementById('er-ingresos').innerText = Utils.formatter.format(ventasNetasSinIva16);
                     if (document.getElementById('er-refacciones')) document.getElementById('er-refacciones').innerText = Utils.formatter.format(montosPorCategoria["Refacciones"]);
