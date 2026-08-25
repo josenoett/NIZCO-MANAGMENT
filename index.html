@@ -1557,31 +1557,47 @@
             
                 let refaccionesCostBruto = 0;
                 let refaccionesCostNeto = 0;
-            
+                let totalIvaAcreditablePagado = 0;
+                
+                let ordenesConComprasSet = new Set();
+                
                 if (supabaseClient) {
                     try {
                         const { data: comprasRango } = await supabaseClient
                             .from('compras_refacciones')
-                            .select('id, descripcion, proveedor, costo_neto, metodo_pago, fecha_compra, orden_id')
+                            .select('id, descripcion, proveedor, costo_neto, total_pagado, iva, tiene_cfdi, metodo_pago, fecha_compra, orden_id')
                             .gte('fecha_compra', start.toISOString())
                             .lte('fecha_compra', end.toISOString())
                             .order('fecha_compra', { ascending: false });
-            
+                
                         if (comprasRango && comprasRango.length > 0) {
                             comprasRango.forEach(c => {
-                                const cTotal = Math.round(parseFloat(c.costo_neto || 0) * 100) / 100;
+                                const cTotal = Math.round(parseFloat(c.costo_neto || c.total_pagado || 0) * 100) / 100;
+                                const tieneCfdi = c.tiene_cfdi === true;
+                                const ivaMonto = tieneCfdi ? Math.round(parseFloat(c.iva || 0) * 100) / 100 : 0;
+                
+                                if (c.orden_id) {
+                                    ordenesConComprasSet.add(Number(c.orden_id));
+                                }
+                
                                 refaccionesCostBruto += cTotal;
-                                refaccionesCostNeto += (cTotal / 1.08); 
-            
-                                const metodo = (c.metodo_pago || '').trim().toLowerCase();
                                 
+                                // Desglose fiscal real: Si tiene CFDI restamos el IVA acreditable, si no, el costo es directo
+                                if (tieneCfdi) {
+                                    refaccionesCostNeto += (cTotal - ivaMonto);
+                                    totalIvaAcreditablePagado += ivaMonto;
+                                } else {
+                                    refaccionesCostNeto += cTotal;
+                                }
+                
+                                const metodo = (c.metodo_pago || '').trim().toLowerCase();
                                 if (metodo === 'efectivo') {
                                     salidasEfectivo += cTotal;
                                 } else if (metodo === 'transferencia' || metodo === 'tarjeta') {
                                     salidasBanco += cTotal;
                                 }
-            
-                                const ordenAsociada = State.orders.find(o => o.id === c.orden_id);
+                
+                                const ordenAsociada = State.orders.find(o => Number(o.id) === Number(c.orden_id));
                                 listaComprasRefacciones.push({
                                     id: c.id,
                                     ordenId: c.orden_id ? `#${c.orden_id}` : 'Gasto General',
@@ -1598,6 +1614,22 @@
                         console.error("Error al obtener compras de refacciones:", e);
                     }
                 }
+                
+                // Respaldo para órdenes históricas que no tienen refacciones cargadas en la bitácora (Anti-Duplicidad)
+                State.orders.forEach(o => {
+                    if (o.estado === 'Cancelada') return;
+                    const oDate = Utils.parseFechaLocal(o.fecha_ingreso || o.fecha_registro);
+                    
+                    if (oDate >= start && oDate <= end) {
+                        if (!ordenesConComprasSet.has(Number(o.id))) {
+                            const costoRefOrden = parseFloat(o.costo_refacciones || 0);
+                            if (costoRefOrden > 0) {
+                                refaccionesCostBruto += costoRefOrden;
+                                refaccionesCostNeto += costoRefOrden;
+                            }
+                        }
+                    }
+                });
             
                 let egresosManuales = 0;
                 let deduccionesNomina = 0; 
@@ -2197,7 +2229,8 @@
                 let comprasPorProveedor = {};
                 let refaccionesCostBruto = 0;
                 let refaccionesCostNeto = 0;
-            
+                let ordenesConComprasPDFSet = new Set();
+                
                 if (supabaseClient) {
                     try {
                         const { data } = await supabaseClient
@@ -2209,17 +2242,39 @@
                         refaccionesPeriodo = data || [];
                     } catch (err) { console.error(err); }
                 }
-            
+                
                 refaccionesPeriodo.forEach(r => {
-                    const m = parseFloat(r.costo_neto || 0);
+                    const m = Math.round(parseFloat(r.costo_neto || r.total_pagado || 0) * 100) / 100;
+                    const tieneCfdi = r.tiene_cfdi === true;
+                    const ivaMonto = tieneCfdi ? Math.round(parseFloat(r.iva || 0) * 100) / 100 : 0;
+                
+                    if (r.orden_id) {
+                        ordenesConComprasPDFSet.add(Number(r.orden_id));
+                    }
+                
                     refaccionesCostBruto += m;
-                    refaccionesCostNeto += (m / 1.08); 
-            
+                    refaccionesCostNeto += tieneCfdi ? (m - ivaMonto) : m;
+                
                     if ((r.metodo_pago || '').toLowerCase() === 'efectivo') salidasEfectivo += m;
                     else salidasBanco += m;
-            
+                
                     const prov = r.proveedor || 'Otros / Mostrador';
                     comprasPorProveedor[prov] = (comprasPorProveedor[prov] || 0) + m;
+                });
+                
+                // Sumar refacciones de órdenes históricas sin bitácora individual en el PDF
+                State.orders.forEach(o => {
+                    if (o.estado === 'Cancelada') return;
+                    const oDate = Utils.parseFechaLocal(o.fecha_ingreso || o.fecha_registro);
+                    if (oDate >= start && oDate <= end) {
+                        if (!ordenesConComprasPDFSet.has(Number(o.id))) {
+                            const cRef = parseFloat(o.costo_refacciones || 0);
+                            if (cRef > 0) {
+                                refaccionesCostBruto += cRef;
+                                refaccionesCostNeto += cRef;
+                            }
+                        }
+                    }
                 });
             
                 const totalIvaAcreditablePagado = refaccionesCostBruto - refaccionesCostNeto;
