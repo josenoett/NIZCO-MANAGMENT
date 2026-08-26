@@ -723,6 +723,7 @@
                                             <th class="pb-2">Fecha</th>
                                             <th class="pb-2">Categoría / Concepto</th>
                                             <th class="pb-2">Método</th>
+                                            <th class="pb-2">Capturado por</th>
                                             <th class="pb-2 text-right">Monto Egregio</th>
                                         </tr>
                                     </thead>
@@ -3126,11 +3127,18 @@
                         const textMonto = amt < 0 ? `+${Utils.formatter.format(Math.abs(amt))} (Desc.)` : `-${Utils.formatter.format(amt)}`;
                         const classMonto = amt < 0 ? 'text-emerald-600 font-bold' : 'text-rose-600 font-bold';
                         const badgeCfdi = e.tiene_cfdi ? '<span class="ml-1 text-[8px] bg-blue-100 text-blue-700 font-bold px-1 rounded">CFDI</span>' : '';
+                        const usuarioCaptura = e.registrado_por || e.creado_por || document.getElementById('user-display-name')?.innerText || 'Sistema';
+                
                         return `
                             <tr class="border-b">
                                 <td class="py-2 font-medium">${Utils.escapeHtml(e.fecha)}</td>
                                 <td class="py-2 font-bold">${Utils.escapeHtml(e.concepto)}${badgeCfdi}<span class="text-[10px] text-rose-600 font-bold block">${Utils.escapeHtml(e.categoria)}</span></td>
                                 <td class="py-2 text-slate-400">${Utils.escapeHtml(e.metodo_pago)}</td>
+                                <td class="py-2 font-semibold text-slate-700">
+                                    <span class="px-2 py-0.5 rounded bg-slate-100 text-[10px] font-bold text-slate-600 border border-slate-200">
+                                        👤 ${Utils.escapeHtml(usuarioCaptura)}
+                                    </span>
+                                </td>
                                 <td class="py-2 text-right ${classMonto}">${textMonto}</td>
                             </tr>`;
                     }).join('');
@@ -3153,6 +3161,7 @@
                     observaciones: document.getElementById('expense-notes').value || '',
                     tiene_cfdi: tieneCfdi,
                     iva: ivaCalculado
+                    registrado_por: document.getElementById('user-display-name')?.innerText || 'Administrador'
                 };
 
                 const { error } = await supabaseClient.from('gastos').insert([expense]);
