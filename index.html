@@ -1673,6 +1673,7 @@
                 let nominaFinalConDescuentos = costoNominaPeriodo - deduccionesNomina;
                 montosPorCategoria["Nómina"] = nominaFinalConDescuentos;
                 montosPorCategoria["Refacciones"] = refaccionesCostNeto;
+                montosPorCategoria["Renta"] = (parseFloat(State.fixedCosts.renta || 0) / 30.4) * totalDays;
                 
                 const totalGastos = refaccionesCostNeto + nominaFinalConDescuentos + costoFijosPeriodo + egresosManuales;
                 const ventasNetasSinIva16 = ingresos - totalIva16Cobrado;
@@ -1796,7 +1797,8 @@
                 const ctx = document.getElementById('chart-gastos-categoria');
                 if (!ctx) return;
 
-                const catLabels = Object.keys(montosPorCategoria).filter(k => montosPorCategoria[k] > 0);
+                // 1. Filtrar únicamente las categorías que tienen egresos reales (> 0)
+                const catLabels = Object.keys(montosPorCategoria).filter(k => (montosPorCategoria[k] || 0) > 0);
                 const catData = catLabels.map(k => montosPorCategoria[k]);
                 const totalEgresos = catData.reduce((a, b) => a + b, 0);
 
@@ -1817,6 +1819,13 @@
                         responsive: true,
                         maintainAspectRatio: false,
                         plugins: {
+                            legend: {
+                                position: 'top',
+                                labels: {
+                                    boxWidth: 12,
+                                    font: { size: 11 }
+                                }
+                            },
                             tooltip: {
                                 callbacks: {
                                     label: function(context) {
