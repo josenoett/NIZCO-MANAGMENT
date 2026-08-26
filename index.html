@@ -3127,7 +3127,7 @@
                         const textMonto = amt < 0 ? `+${Utils.formatter.format(Math.abs(amt))} (Desc.)` : `-${Utils.formatter.format(amt)}`;
                         const classMonto = amt < 0 ? 'text-emerald-600 font-bold' : 'text-rose-600 font-bold';
                         const badgeCfdi = e.tiene_cfdi ? '<span class="ml-1 text-[8px] bg-blue-100 text-blue-700 font-bold px-1 rounded">CFDI</span>' : '';
-                        const usuarioCaptura = e.registrado_por || e.creado_por || document.getElementById('user-display-name')?.innerText || 'Sistema';
+                        const usuarioCaptura = e.registrado_por || e.creado_por || 'No registrado';
                 
                         return `
                             <tr class="border-b">
