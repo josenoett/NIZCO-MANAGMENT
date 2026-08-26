@@ -1741,17 +1741,29 @@
             
                 let costoNominaPeriodo = 0;
                 State.personal.forEach(p => {
+                    // Si el empleado está dado de baja antes del inicio del periodo, no se contabiliza
+                    if (p.fecha_egreso && Utils.parseFechaLocal(p.fecha_egreso) < start) return;
+                    // Si el empleado ingresó después del fin del periodo, no se contabiliza
+                    if (p.fecha_ingreso && Utils.parseFechaLocal(p.fecha_ingreso) > end) return;
+                
                     const sueldoDiario = (parseFloat(p.sueldo) || 0) / 7;
-                    const empInicio = p.fecha_ingreso ? Utils.parseFechaLocal(p.fecha_ingreso) : new Date(0);
-                    const empFin = p.fecha_egreso ? Utils.parseFechaLocal(p.fecha_egreso) : new Date(8640000000000000);
-            
+                    
+                    const empInicio = p.fecha_ingreso ? Utils.parseFechaLocal(p.fecha_ingreso) : start;
+                    const empFin = p.fecha_egreso ? Utils.parseFechaLocal(p.fecha_egreso) : end;
+                
                     const inicioInterseccion = new Date(Math.max(start, empInicio));
                     const finInterseccion = new Date(Math.min(end, empFin));
-            
+                
                     if (inicioInterseccion <= finInterseccion) {
-                        const msDiferencia = finInterseccion - inicioInterseccion;
-                        const diasTrabajadosEnPeriodo = Utils.getDaysInRange(inicioInterseccion, finInterseccion);
-                        costoNominaPeriodo += diasTrabajadosEnPeriodo * sueldoDiario;
+                        // Cálculo estricto de días entre fechas sin desfases
+                        const diffTime = Math.abs(finInterseccion - inicioInterseccion);
+                        const diasTrabajadosEnPeriodo = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) || 1;
+                        
+                        // Tope máximo al número de días reales del rango seleccionado
+                        const diasMaximosRango = Math.round((end - start) / (1000 * 60 * 60 * 24));
+                        const diasEfectivos = Math.min(diasTrabajadosEnPeriodo, diasMaximosRango);
+                
+                        costoNominaPeriodo += diasEfectivos * sueldoDiario;
                     }
                 });
             
