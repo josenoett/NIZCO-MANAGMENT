@@ -1366,12 +1366,12 @@
                 const MS_PER_DAY = 1000 * 60 * 60 * 24;
                 const start = new Date(startDate);
                 const end = new Date(endDate);
-        
-                start.setHours(0, 0, 0, 0);
-                end.setHours(0, 0, 0, 0);
-        
-                const msDifference = end.getTime() - start.getTime();
-                return Math.max(1, Math.floor(msDifference / MS_PER_DAY) + 1);
+            
+                // Normalizar ambas fechas a medianoche para evitar desfases de horas/milisegundos
+                const utcStart = Date.UTC(start.getFullYear(), start.getMonth(), start.getDate());
+                const utcEnd = Date.UTC(end.getFullYear(), end.getMonth(), end.getDate());
+            
+                return Math.max(1, Math.floor((utcEnd - utcStart) / MS_PER_DAY) + 1);
             },
 
             debounce(fn, delay = 300) {
