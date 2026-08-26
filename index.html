@@ -1674,19 +1674,13 @@
                 montosPorCategoria["Nómina"] = nominaFinalConDescuentos;
                 montosPorCategoria["Refacciones"] = refaccionesCostNeto;
                 
-                // 1. Total Gastos Operativos
                 const totalGastos = refaccionesCostNeto + nominaFinalConDescuentos + costoFijosPeriodo + egresosManuales;
                 const ventasNetasSinIva16 = ingresos - totalIva16Cobrado;
                 
-                // 2. Utilidad Bruta y Neta Real (Alineadas con el Dashboard)
                 const utilidadBruta = ingresos - refaccionesCostNeto;
                 const utilidadNeta = ingresos - totalGastos;
                 const margenUtilidad = ingresos > 0 ? (utilidadNeta / ingresos) * 100 : 0;
                 const ticketPromedio = vehiculosAtendidos > 0 ? ingresos / vehiculosAtendidos : 0;
-                
-                // 3. Flujo Neto Real de Cajas (Entradas brutas - Salidas directas pagadas)
-                const balanceEfectivoCaja = entradasEfectivo - salidasEfectivo;
-                const balanceCuentaBanco = entradasBanco - salidasBanco;
             
                 if (document.getElementById('dash-ingresos')) {
                     document.getElementById('dash-ingresos').innerText = Utils.formatter.format(ingresos);
@@ -1717,7 +1711,6 @@
                     if (document.getElementById('er-otros')) document.getElementById('er-otros').innerText = Utils.formatter.format(otrosAcumulados > 0 ? otrosAcumulados : 0);
                     if (document.getElementById('er-utilidad-neta')) document.getElementById('er-utilidad-neta').innerText = Utils.formatter.format(utilidadNeta);
 
-                    // --- RENDERIZAR MONTO POR CATEGORÍA ---
                     const catContainer = document.getElementById('dashboard-categories-container');
                     if (catContainer) {
                         let categoriesHtml = Object.keys(montosPorCategoria)
@@ -1792,21 +1785,21 @@
                     }
                 }
     
-                renderCharts(ingresos, totalGastos, montosPorCategoria) {
-                // 1. Destruir la instancia previa si existe para evitar canvas congelados
+                this.renderCharts(ingresos, totalGastos, montosPorCategoria);
+            },
+            
+            renderCharts(ingresos, totalGastos, montosPorCategoria) {
                 if (chartInstanceCategoria) {
                     chartInstanceCategoria.destroy();
                 }
-            
+
                 const ctx = document.getElementById('chart-gastos-categoria');
                 if (!ctx) return;
-            
-                // 2. Filtrar únicamente las categorías que tienen egresos (> 0)
+
                 const catLabels = Object.keys(montosPorCategoria).filter(k => montosPorCategoria[k] > 0);
                 const catData = catLabels.map(k => montosPorCategoria[k]);
                 const totalEgresos = catData.reduce((a, b) => a + b, 0);
-            
-                // 3. Crear la gráfica de Dona con cálculo automático de porcentajes en tooltips
+
                 chartInstanceCategoria = new Chart(ctx, {
                     type: 'doughnut',
                     data: {
@@ -1837,7 +1830,8 @@
                         }
                     }
                 });
-            };
+            }
+        };
         
 
         const API_Service = {
