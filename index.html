@@ -1582,7 +1582,6 @@
                 
                                 refaccionesCostBruto += cTotal;
                                 
-                                // Desglose fiscal real: Si tiene CFDI restamos el IVA acreditable, si no, el costo es directo
                                 if (tieneCfdi) {
                                     refaccionesCostNeto += (cTotal - ivaMonto);
                                     totalIvaAcreditablePagado += ivaMonto;
@@ -1615,7 +1614,6 @@
                     }
                 }
                 
-                // Respaldo para órdenes históricas que no tienen refacciones cargadas en la bitácora (Anti-Duplicidad)
                 State.orders.forEach(o => {
                     if (o.estado === 'Cancelada') return;
                     const oDate = Utils.parseFechaLocal(o.fecha_ingreso || o.fecha_registro);
@@ -1725,37 +1723,26 @@
                     const otrosAcumulados = totalGastos - (montosPorCategoria["Refacciones"] + montosPorCategoria["Nómina"] + montosPorCategoria["Gasolina"] + montosPorCategoria["Diesel"] + montosPorCategoria["Consumibles"] + sumServiciosAcumulados + montosPorCategoria["Publicidad"]);
                     if (document.getElementById('er-otros')) document.getElementById('er-otros').innerText = Utils.formatter.format(otrosAcumulados > 0 ? otrosAcumulados : 0);
                     if (document.getElementById('er-utilidad-neta')) document.getElementById('er-utilidad-neta').innerText = Utils.formatter.format(utilidadNeta);
-            
+
+                    // --- RENDERIZAR MONTO POR CATEGORÍA ---
                     const catContainer = document.getElementById('dashboard-categories-container');
                     if (catContainer) {
                         let categoriesHtml = Object.keys(montosPorCategoria)
-                            .filter(cName => cName !== "Refacciones" && montosPorCategoria[cName] > 0)
+                            .filter(cName => cName !== "Refacciones" && (montosPorCategoria[cName] || 0) > 0)
                             .map(cName => `
                                 <div class="flex justify-between items-center border-b border-slate-100 pb-1.5 text-xs">
                                     <span class="text-slate-600 font-medium">${Utils.escapeHtml(cName)}:</span>
                                     <span class="font-bold text-slate-800">${Utils.formatter.format(montosPorCategoria[cName])}</span>
                                 </div>`)
                             .join('');
-                    
+
                         if (!categoriesHtml) {
                             categoriesHtml = `<p class="text-xs text-slate-400 text-center py-2">Sin gastos registrados por categoría en este periodo.</p>`;
                         }
-                    
+
                         catContainer.innerHTML = categoriesHtml;
                     }
-                        
-                            categoriesHtml += Object.keys(montosPorCategoria)
-                                .filter(cName => cName !== "Refacciones" && cName !== "Nómina")
-                                .map(cName => `
-                                    <div class="flex justify-between items-center border-b border-slate-100 pb-1 text-xs">
-                                        <span class="text-slate-600 font-medium">${Utils.escapeHtml(cName)}:</span>
-                                        <span class="font-bold text-slate-800">${Utils.formatter.format(montosPorCategoria[cName])}</span>
-                                    </div>`)
-                                .join('');
-                        
-                            catContainer.innerHTML = categoriesHtml;
-                        }
-                
+                }
 
                 const incomeBody = document.getElementById('dashboard-income-orders-body');
                 if (incomeBody) {
@@ -2232,7 +2219,6 @@
                     comprasPorProveedor[prov] = (comprasPorProveedor[prov] || 0) + m;
                 });
                 
-                // Sumar refacciones de órdenes históricas sin bitácora individual en el PDF
                 State.orders.forEach(o => {
                     if (o.estado === 'Cancelada') return;
                     const oDate = Utils.parseFechaLocal(o.fecha_ingreso || o.fecha_registro);
