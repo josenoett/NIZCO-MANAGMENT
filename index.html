@@ -1655,30 +1655,37 @@
                 
                         if (comprasRango && comprasRango.length > 0) {
                             comprasRango.forEach(c => {
-                                const cTotal = Math.round(parseFloat(c.costo_neto || c.total_pagado || 0) * 100) / 100;
+                                // Monto Total capturado (IVA incluido)
+                                const montoTotalConIva = Math.round(parseFloat(c.costo_neto || c.total_pagado || 0) * 100) / 100;
                                 const tieneCfdi = c.tiene_cfdi === true;
-                                const ivaMonto = tieneCfdi ? Math.round(parseFloat(c.iva || 0) * 100) / 100 : 0;
-                
+                        
+                                let subtotalSinIva = montoTotalConIva;
+                                let ivaMonto = 0;
+                        
+                                if (tieneCfdi && montoTotalConIva > 0) {
+                                    // Desglosar el 8% de IVA incluido (Zona Fronteriza: / 1.08)
+                                    subtotalSinIva = Math.round((montoTotalConIva / 1.08) * 100) / 100;
+                                    ivaMonto = Math.round((montoTotalConIva - subtotalSinIva) * 100) / 100;
+                                }
+                        
                                 if (c.orden_id) {
                                     ordenesConComprasSet.add(Number(c.orden_id));
                                 }
-                
-                                refaccionesCostBruto += cTotal;
+                        
+                                refaccionesCostBruto += montoTotalConIva;
+                                refaccionesCostNeto += subtotalSinIva; // El costo real antes de IVA
                                 
                                 if (tieneCfdi) {
-                                    refaccionesCostNeto += (cTotal - ivaMonto);
-                                    totalIvaAcreditablePagado += ivaMonto;
-                                } else {
-                                    refaccionesCostNeto += cTotal;
+                                    totalIvaAcreditablePagado += ivaMonto; // Suma solo el 8% desglosado
                                 }
-                
+                        
                                 const metodo = (c.metodo_pago || '').trim().toLowerCase();
                                 if (metodo === 'efectivo') {
-                                    salidasEfectivo += cTotal;
+                                    salidasEfectivo += montoTotalConIva;
                                 } else if (metodo === 'transferencia' || metodo === 'tarjeta') {
-                                    salidasBanco += cTotal;
+                                    salidasBanco += montoTotalConIva;
                                 }
-                
+                        
                                 const ordenAsociada = State.orders.find(o => Number(o.id) === Number(c.orden_id));
                                 listaComprasRefacciones.push({
                                     id: c.id,
@@ -1687,7 +1694,7 @@
                                     descripcion: c.descripcion,
                                     proveedor: c.proveedor || 'No especificado',
                                     metodo: c.metodo_pago,
-                                    costo: cTotal,
+                                    costo: montoTotalConIva,
                                     fecha: Utils.parseFechaLocal(c.fecha_compra)
                                 });
                             });
@@ -1720,6 +1727,14 @@
                     if (eDate >= start && eDate <= end) {
                         const mAmt = Math.round(parseFloat(e.monto || 0) * 100) / 100;
                         const metodo = (e.metodo_pago || '').trim().toLowerCase();
+                    
+                        // --- CÁLCULO DE IVA ACREDITABLE (8% DESGLOSADO DE GASTOS CON CFDI) ---
+                        if (e.tiene_cfdi && mAmt > 0) {
+                            // Desglosa el 8% de IVA del monto total ingresado (Monto / 1.08)
+                            const subtotalSinIva = mAmt / 1.08;
+                            const ivaGastos = mAmt - subtotalSinIva;
+                            totalIvaAcreditablePagado += ivaGastos;
+                        }
             
                         if (e.categoria === "Nómina" && mAmt < 0) {
                             deduccionesNomina += Math.abs(mAmt); 
