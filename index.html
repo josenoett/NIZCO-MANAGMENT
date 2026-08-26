@@ -257,22 +257,15 @@
                     </div>
                 </div>
 
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div class="bg-white p-4 border border-slate-200 rounded-2xl shadow-sm">
-                        <h4 class="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">Ingresos vs Gastos</h4>
-                        <div class="h-64"><canvas id="chart-ingresos-gastos"></canvas></div>
+                <div class="bg-white p-6 border border-slate-200 rounded-3xl shadow-sm max-w-2xl mx-auto w-full">
+                    <div class="flex items-center justify-between mb-4">
+                        <div>
+                            <h4 class="text-xs font-bold text-slate-700 uppercase tracking-wider">Distribución de Gastos por Categoría</h4>
+                            <p class="text-[11px] text-slate-400">Porcentaje y proporción de egresos directos acumulados en el periodo.</p>
+                        </div>
                     </div>
-                    <div class="bg-white p-4 border border-slate-200 rounded-2xl shadow-sm">
-                        <h4 class="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">Gastos por Categoría</h4>
-                        <div class="h-64"><canvas id="chart-gastos-categoria"></canvas></div>
-                    </div>
-                    <div class="bg-white p-4 border border-slate-200 rounded-2xl shadow-sm">
-                        <h4 class="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">Evolución Mensual de Ingresos</h4>
-                        <div class="h-64"><canvas id="chart-evolucion-ingresos"></canvas></div>
-                    </div>
-                    <div class="bg-white p-4 border border-slate-200 rounded-2xl shadow-sm">
-                        <h4 class="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">Utilidad Neta por Mes</h4>
-                        <div class="h-64"><canvas id="chart-utilidad-mes"></canvas></div>
+                    <div class="h-72 relative">
+                        <canvas id="chart-gastos-categoria"></canvas>
                     </div>
                 </div>
 
@@ -1330,7 +1323,7 @@
             }
         };
 
-        let chartInstance1 = null, chartInstance2 = null, chartInstance3 = null, chartInstance4 = null;
+        let chartInstanceCategoria = null;
 
         function showToast(message, isError = false) {
             const container = document.getElementById('toast-container');
@@ -1799,148 +1792,52 @@
                     }
                 }
     
-                this.renderCharts(ingresos, totalGastos, montosPorCategoria);
-            },
+                renderCharts(ingresos, totalGastos, montosPorCategoria) {
+                // 1. Destruir la instancia previa si existe para evitar canvas congelados
+                if (chartInstanceCategoria) {
+                    chartInstanceCategoria.destroy();
+                }
             
-            renderCharts(ingresos, totalGastos, montosPorCategoria) {
-                if(chartInstance1) chartInstance1.destroy();
-                if(chartInstance2) chartInstance2.destroy();
-                if(chartInstance3) chartInstance3.destroy();
-                if(chartInstance4) chartInstance4.destroy();
+                const ctx = document.getElementById('chart-gastos-categoria');
+                if (!ctx) return;
             
-                const ctx1 = document.getElementById('chart-ingresos-gastos');
-                const ctx2 = document.getElementById('chart-gastos-categoria');
-                const ctx3 = document.getElementById('chart-evolucion-ingresos');
-                const ctx4 = document.getElementById('chart-utilidad-mes');
-                
-                if(!ctx1 || !ctx2 || !ctx3 || !ctx4) return; 
-            
-                chartInstance1 = new Chart(ctx1, {
-                    type: 'bar',
-                    data: {
-                        labels: ['Ingresos', 'Gastos'],
-                        datasets: [{ data: [ingresos, totalGastos], backgroundColor: ['#10b981', '#f43f5e'], borderRadius: 8 }]
-                    },
-                    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
-                });
-            
+                // 2. Filtrar únicamente las categorías que tienen egresos (> 0)
                 const catLabels = Object.keys(montosPorCategoria).filter(k => montosPorCategoria[k] > 0);
                 const catData = catLabels.map(k => montosPorCategoria[k]);
+                const totalEgresos = catData.reduce((a, b) => a + b, 0);
             
-                chartInstance2 = new Chart(ctx2, {
+                // 3. Crear la gráfica de Dona con cálculo automático de porcentajes en tooltips
+                chartInstanceCategoria = new Chart(ctx, {
                     type: 'doughnut',
                     data: {
                         labels: catLabels.length > 0 ? catLabels : ['Sin gastos'],
-                        datasets: [{ data: catData.length > 0 ? catData : [0], backgroundColor: ['#3b82f6', '#10b981', '#ef4444', '#f59e0b', '#8b5cf6', '#ec4899', '#64748b', '#06b6d4', '#14b8a6', '#a855f7'] }]
-                    },
-                    options: { responsive: true, maintainAspectRatio: false }
-                });
-            
-                const mapaIngresos = {};
-                const mapaEgresos = {};
-    
-                if (State.pagos && State.pagos.length > 0) {
-                    State.pagos.forEach(p => {
-                        if (!p.fecha) return;
-                        const d = Utils.parseFechaLocal(p.fecha);
-                        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-                        mapaIngresos[key] = (mapaIngresos[key] || 0) + parseFloat(p.monto || 0);
-                    });
-                }
-    
-                if (State.expenses && State.expenses.length > 0) {
-                    State.expenses.forEach(e => {
-                        if (!e.fecha) return;
-                        const d = Utils.parseFechaLocal(e.fecha);
-                        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-                        mapaEgresos[key] = (mapaEgresos[key] || 0) + parseFloat(e.monto || 0);
-                    });
-                }
-    
-                if (State.orders && State.orders.length > 0) {
-                    State.orders.forEach(o => {
-                        if (o.estado === 'Cancelada') return;
-                        const d = Utils.parseFechaLocal(o.fecha_ingreso || o.fecha_registro);
-                        if (isNaN(d.getTime())) return;
-                        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-                        
-                        const refNeto = parseFloat(o.costo_refacciones || 0) / 1.08;
-                        mapaEgresos[key] = (mapaEgresos[key] || 0) + refNeto;
-                    });
-                }
-    
-                const todasLasLlaves = Array.from(new Set([...Object.keys(mapaIngresos), ...Object.keys(mapaEgresos)])).sort();
-    
-                let mesesLabels = [];
-                let dataIngresosMes = [];
-                let dataUtilidadMes = [];
-    
-                const fijosMensuales = (State.fixedCosts.renta || 0) + (State.fixedCosts.servicios || 0) + (State.fixedCosts.impuestos || 0);
-    
-                todasLasLlaves.forEach(key => {
-                    const [year, month] = key.split('-');
-                    const fechaObj = new Date(parseInt(year), parseInt(month) - 1, 1);
-                    const mesNombre = fechaObj.toLocaleDateString('es-MX', { month: 'short' });
-                    const labelFormateada = mesNombre.charAt(0).toUpperCase() + mesNombre.slice(1);
-    
-                    const inc = mapaIngresos[key] || 0;
-                    const egr = mapaEgresos[key] || 0;
-    
-                    mesesLabels.push(labelFormateada);
-                    dataIngresosMes.push(inc);
-                    dataUtilidadMes.push(inc - egr - fijosMensuales);
-                });
-    
-                if (mesesLabels.length === 0) {
-                    mesesLabels = ['Actual'];
-                    dataIngresosMes = [ingresos];
-                    dataUtilidadMes = [ingresos - totalGastos];
-                }
-    
-                chartInstance3 = new Chart(ctx3, {
-                    type: 'line',
-                    data: {
-                        labels: mesesLabels,
-                        datasets: [{ 
-                            label: 'Ingresos', 
-                            data: dataIngresosMes, 
-                            borderColor: '#3b82f6', 
-                            backgroundColor: 'rgba(59, 130, 246, 0.1)', 
-                            tension: 0.3, 
-                            fill: true 
-                        }]
-                    },
-                    options: { responsive: true, maintainAspectRatio: false }
-                });
-    
-                chartInstance4 = new Chart(ctx4, {
-                    type: 'line',
-                    data: {
-                        labels: mesesLabels,
                         datasets: [{
-                            label: 'Utilidad Neta',
-                            data: dataUtilidadMes,
-                            borderColor: '#10b981',
-                            backgroundColor: 'rgba(16, 185, 129, 0.1)',
-                            tension: 0.3,
-                            fill: 'origin'
+                            data: catData.length > 0 ? catData : [0],
+                            backgroundColor: [
+                                '#3b82f6', '#10b981', '#ef4444', '#f59e0b', 
+                                '#8b5cf6', '#ec4899', '#64748b', '#06b6d4', 
+                                '#14b8a6', '#a855f7'
+                            ]
                         }]
                     },
-                    options: { 
-                        responsive: true, 
+                    options: {
+                        responsive: true,
                         maintainAspectRatio: false,
-                        scales: {
-                            y: {
-                                grid: {
-                                    color: (context) => context.tick.value === 0 ? '#64748b' : '#f1f5f9',
-                                    lineWidth: (context) => context.tick.value === 0 ? 2 : 1
+                        plugins: {
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        const value = context.parsed || 0;
+                                        const pct = totalEgresos > 0 ? ((value / totalEgresos) * 100).toFixed(1) : 0;
+                                        const formattedMoney = Utils.formatter.format(value);
+                                        return ` ${context.label}: ${formattedMoney} (${pct}%)`;
+                                    }
                                 }
                             }
                         }
                     }
                 });
             }
-        };
 
         const API_Service = {
             _lastSync: { orders: 0, personal: 0, expenses: 0, pagos: 0 },
