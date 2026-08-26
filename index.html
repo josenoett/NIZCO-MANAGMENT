@@ -1740,33 +1740,29 @@
                 });
             
                 let costoNominaPeriodo = 0;
-                State.personal.forEach(p => {
-                    // Si el empleado está dado de baja antes del inicio del periodo, no se contabiliza
-                    if (p.fecha_egreso && Utils.parseFechaLocal(p.fecha_egreso) < start) return;
-                    // Si el empleado ingresó después del fin del periodo, no se contabiliza
-                    if (p.fecha_ingreso && Utils.parseFechaLocal(p.fecha_ingreso) > end) return;
-                
-                    const sueldoDiario = (parseFloat(p.sueldo) || 0) / 7;
+                    let costoNominaPeriodo = 0;
+                    const totalDiasMes = Utils.getDaysInRange(start, end); // Da exactamente 31 para Agosto
                     
-                    const empInicio = p.fecha_ingreso ? Utils.parseFechaLocal(p.fecha_ingreso) : start;
-                    const empFin = p.fecha_egreso ? Utils.parseFechaLocal(p.fecha_egreso) : end;
-                
-                    const inicioInterseccion = new Date(Math.max(start, empInicio));
-                    const finInterseccion = new Date(Math.min(end, empFin));
-                
-                    if (inicioInterseccion <= finInterseccion) {
-                        // Cálculo estricto de días entre fechas sin desfases
-                        const diffTime = Math.abs(finInterseccion - inicioInterseccion);
-                        const diasTrabajadosEnPeriodo = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) || 1;
-                        
-                        // Tope máximo al número de días reales del rango seleccionado
-                        const diasMaximosRango = Math.round((end - start) / (1000 * 60 * 60 * 24));
-                        const diasEfectivos = Math.min(diasTrabajadosEnPeriodo, diasMaximosRango);
-                
-                        costoNominaPeriodo += diasEfectivos * sueldoDiario;
-                    }
-                });
-            
+                    State.personal.forEach(p => {
+                        // Verificar si el empleado estuvo activo durante el periodo seleccionado
+                        const empInicio = p.fecha_ingreso ? Utils.parseFechaLocal(p.fecha_ingreso) : start;
+                        const empFin = p.fecha_egreso ? Utils.parseFechaLocal(p.fecha_egreso) : end;
+                    
+                        if (empInicio <= end && empFin >= start) {
+                            const sueldoSemanal = parseFloat(p.sueldo) || 0;
+                            const sueldoDiario = sueldoSemanal / 7;
+                    
+                            // Limitar la intersección estrictamente al rango del mes
+                            const fechaInicioEfectiva = empInicio < start ? start : empInicio;
+                            const fechaFinEfectiva = empFin > end ? end : empFin;
+                    
+                            const msDiferencia = Math.max(0, fechaFinEfectiva.getTime() - fechaInicioEfectiva.getTime());
+                            const diasTrabajados = Math.floor(msDiferencia / (1000 * 60 * 60 * 24)) + 1;
+                    
+                            costoNominaPeriodo += diasTrabajados * sueldoDiario;
+                        }
+                    });
+                                
                 const fijosMensuales = (State.fixedCosts.renta || 0) + (State.fixedCosts.servicios || 0) + (State.fixedCosts.impuestos || 0);
                 const fijosPorDia = fijosMensuales / 30.4;
                 const costoFijosPeriodo = fijosPorDia * totalDays;
