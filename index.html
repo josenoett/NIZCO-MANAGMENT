@@ -1740,28 +1740,27 @@
                 });
             
                 let costoNominaPeriodo = 0;
-                    let costoNominaPeriodo = 0;
-                    const totalDiasMes = Utils.getDaysInRange(start, end); // Da exactamente 31 para Agosto
-                    
-                    State.personal.forEach(p => {
-                        // Verificar si el empleado estuvo activo durante el periodo seleccionado
-                        const empInicio = p.fecha_ingreso ? Utils.parseFechaLocal(p.fecha_ingreso) : start;
-                        const empFin = p.fecha_egreso ? Utils.parseFechaLocal(p.fecha_egreso) : end;
-                    
-                        if (empInicio <= end && empFin >= start) {
-                            const sueldoSemanal = parseFloat(p.sueldo) || 0;
-                            const sueldoDiario = sueldoSemanal / 7;
-                    
-                            // Limitar la intersección estrictamente al rango del mes
-                            const fechaInicioEfectiva = empInicio < start ? start : empInicio;
-                            const fechaFinEfectiva = empFin > end ? end : empFin;
-                    
-                            const msDiferencia = Math.max(0, fechaFinEfectiva.getTime() - fechaInicioEfectiva.getTime());
-                            const diasTrabajados = Math.floor(msDiferencia / (1000 * 60 * 60 * 24)) + 1;
-                    
-                            costoNominaPeriodo += diasTrabajados * sueldoDiario;
-                        }
-                    });
+                const totalDiasMes = Utils.getDaysInRange(start, end); // Da exactamente 31 para Agosto
+                                                                                                                                                                        
+                State.personal.forEach(p => {
+                  // Verificar si el empleado estuvo activo durante el periodo seleccionado
+                  const empInicio = p.fecha_ingreso ? Utils.parseFechaLocal(p.fecha_ingreso) : start;
+                  const empFin = p.fecha_egreso ? Utils.parseFechaLocal(p.fecha_egreso) : end;
+                                                                                                                                                                                
+                  if (empInicio <= end && empFin >= start) {
+                  const sueldoSemanal = parseFloat(p.sueldo) || 0;
+                  const sueldoDiario = sueldoSemanal / 7;
+                                                                                                                                                                                
+                 // Limitar la intersección estrictamente al rango del mes
+                 const fechaInicioEfectiva = empInicio < start ? start : empInicio;
+                 const fechaFinEfectiva = empFin > end ? end : empFin;
+                                                                                                                                                                                
+                 const msDiferencia = Math.max(0, fechaFinEfectiva.getTime() - fechaInicioEfectiva.getTime());
+                 const diasTrabajados = Math.floor(msDiferencia / (1000 * 60 * 60 * 24)) + 1;
+                                                                                                                                                                                
+                 costoNominaPeriodo += diasTrabajados * sueldoDiario;
+                 }
+             });                                                                                                                                                        
                                 
                 const fijosMensuales = (State.fixedCosts.renta || 0) + (State.fixedCosts.servicios || 0) + (State.fixedCosts.impuestos || 0);
                 const fijosPorDia = fijosMensuales / 30.4;
