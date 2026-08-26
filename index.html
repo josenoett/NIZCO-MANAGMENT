@@ -1204,20 +1204,18 @@
                             </div>
 
                             <div class="grid grid-cols-1 sm:grid-cols-12 gap-2 items-center">
-                                <input type="file" id="pdf-gasto-input" accept="application/pdf" class="sm:col-span-5 text-xs text-slate-500 file:mr-2 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
-                                <input type="number" step="0.01" id="pdf-gasto-monto" placeholder="Monto (Opcional) $" class="sm:col-span-4 px-3 py-1.5 text-xs border border-slate-200 rounded-lg focus:outline-none bg-white">
-                                <button type="button" onclick="UI_Controller.subirPdfGasto()" class="sm:col-span-3 bg-slate-900 hover:bg-slate-800 text-white font-medium py-1.5 px-3 rounded-lg text-xs flex items-center justify-center gap-1 transition-colors">
+                                <input type="file" id="pdf-gasto-input" accept="application/pdf" class="sm:col-span-8 text-xs text-slate-500 file:mr-2 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
+                                <button type="button" onclick="UI_Controller.subirPdfGasto()" class="sm:col-span-4 bg-slate-900 hover:bg-slate-800 text-white font-medium py-1.5 px-3 rounded-lg text-xs flex items-center justify-center gap-1 transition-colors">
                                     <span class="material-icons text-sm">upload_file</span> Subir PDF
                                 </button>
                             </div>
-
+                            
                             <div class="overflow-x-auto border border-slate-200 rounded-xl bg-white">
                                 <table class="w-full text-left border-collapse text-xs">
                                     <thead>
                                         <tr class="bg-slate-100/80 text-slate-500 border-b border-slate-200">
                                             <th class="p-2">Fecha</th>
                                             <th class="p-2">Documento</th>
-                                            <th class="p-2 text-right">Monto</th>
                                             <th class="p-2 text-center">Acción</th>
                                         </tr>
                                     </thead>
@@ -3557,27 +3555,22 @@
             // --- VISTAS Y LOGICA PARA ARCHIVOS PDF DE GASTOS ---
             async cargarPdfsModal(ordenId) {
                 const tbody = document.getElementById('tbody-pdf-gastos');
-                const lblTotal = document.getElementById('lbl-total-pdf-gastos');
                 if (!tbody) return;
-
+            
                 try {
                     const documentos = await API_Service.obtenerPdfsPorOrden(ordenId);
                     tbody.innerHTML = '';
-                    let acumulado = 0;
-
+            
                     if (!documentos || documentos.length === 0) {
-                        tbody.innerHTML = `<tr><td colspan="4" class="p-3 text-center text-slate-400">Sin comprobantes adjuntos.</td></tr>`;
+                        tbody.innerHTML = `<tr><td colspan="3" class="p-3 text-center text-slate-400">Sin comprobantes adjuntos.</td></tr>`;
                     } else {
                         documentos.forEach(doc => {
-                            const montoVal = parseFloat(doc.monto || 0);
-                            acumulado += montoVal;
                             const fStr = Utils.parseFechaLocal(doc.created_at).toLocaleDateString('es-MX', { day: '2-digit', month: 'short' });
-
+            
                             tbody.innerHTML += `
                                 <tr class="hover:bg-slate-50 transition">
                                     <td class="p-2 text-[10px] text-slate-500 font-medium">${fStr}</td>
                                     <td class="p-2 font-semibold text-slate-800">${Utils.escapeHtml(doc.nombre_archivo)}</td>
-                                    <td class="p-2 text-right font-bold text-rose-600">${Utils.formatter.format(montoVal)}</td>
                                     <td class="p-2 text-center flex items-center justify-center gap-2">
                                         <a href="${doc.archivo_url}" target="_blank" class="text-blue-600 hover:text-blue-800" title="Ver PDF">
                                             <span class="material-icons text-sm">visibility</span>
@@ -3590,7 +3583,6 @@
                             `;
                         });
                     }
-                    if (lblTotal) lblTotal.innerText = Utils.formatter.format(acumulado);
                 } catch (err) {
                     showToast("Error al obtener los comprobantes PDF", true);
                 }
@@ -3598,29 +3590,25 @@
 
             async subirPdfGasto() {
                 const input = document.getElementById('pdf-gasto-input');
-                const montoInput = document.getElementById('pdf-gasto-monto');
                 const file = input.files[0];
-
+            
                 if (!file) {
                     showToast("Selecciona un archivo PDF primero", true);
                     return;
                 }
-
-                const monto = parseFloat(montoInput.value) || 0;
+            
                 showToast("Subiendo nota de gasto...");
-
+            
                 try {
-                    await API_Service.subirArchivoPdf(State.currentEditingOrderId, file, monto);
+                    await API_Service.subirArchivoPdf(State.currentEditingOrderId, file, 0);
                     showToast("Comprobante subido correctamente");
                     
                     input.value = '';
-                    montoInput.value = '';
                     await this.cargarPdfsModal(State.currentEditingOrderId);
                 } catch (err) {
                     showToast("Error al subir el archivo: " + err.message, true);
                 }
             },
-
             async borrarPdfGasto(id) {
                 customConfirm("¿Eliminar comprobante?", "Esta acción eliminará el registro de la nota de gasto.", async () => {
                     try {
