@@ -1740,6 +1740,7 @@
                 });
             
                 let costoNominaPeriodo = 0;
+                let __debugDesglosePersonal = []; // TEMPORAL: quitar cuando termines de depurar
 
                 State.personal.forEach(p => {
                     // Si el empleado está dado de baja antes del inicio del periodo, se ignora
@@ -1759,10 +1760,32 @@
                     if (inicioInterseccion <= finInterseccion) {
                         const diffTime = Math.abs(finInterseccion - inicioInterseccion);
                         const diasTrabajados = Math.floor(diffTime / (1000 * 60 * 60 * 24)) + 1;
+                        const montoEmpleado = diasTrabajados * sueldoDiario;
                 
-                        costoNominaPeriodo += diasTrabajados * sueldoDiario;
+                        costoNominaPeriodo += montoEmpleado;
+
+                        // TEMPORAL: quitar cuando termines de depurar
+                        __debugDesglosePersonal.push({
+                            nombre: p.nombre,
+                            rol: p.rol,
+                            sueldoSemanal: sueldoSemanal,
+                            fecha_ingreso: p.fecha_ingreso || '(sin fecha, cuenta desde inicio del periodo)',
+                            fecha_egreso: p.fecha_egreso || '(sin fecha, cuenta hasta fin del periodo)',
+                            empInicio_usado: inicioInterseccion.toString(),
+                            empFin_usado: finInterseccion.toString(),
+                            diasTrabajados: diasTrabajados,
+                            montoEmpleado: montoEmpleado.toFixed(2)
+                        });
                     }
-                });                                                                                                                                                      
+                });
+
+                // TEMPORAL: quitar cuando termines de depurar
+                console.log('--- DESGLOSE NÓMINA DASHBOARD (' + preset + ') ---');
+                console.table(__debugDesglosePersonal);
+                console.log('TOTAL costoNominaPeriodo:', costoNominaPeriodo.toFixed(2));
+                console.log('TOTAL deduccionesNomina:', deduccionesNomina.toFixed(2));
+                console.log('TOTAL nominaFinalConDescuentos:', (costoNominaPeriodo - deduccionesNomina).toFixed(2));
+                                                                                                                                                          
                                 
                 const fijosMensuales = (State.fixedCosts.renta || 0) + (State.fixedCosts.servicios || 0) + (State.fixedCosts.impuestos || 0);
                 const fijosPorDia = fijosMensuales / 30.4;
