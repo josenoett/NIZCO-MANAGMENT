@@ -3127,7 +3127,18 @@
                         const textMonto = amt < 0 ? `+${Utils.formatter.format(Math.abs(amt))} (Desc.)` : `-${Utils.formatter.format(amt)}`;
                         const classMonto = amt < 0 ? 'text-emerald-600 font-bold' : 'text-rose-600 font-bold';
                         const badgeCfdi = e.tiene_cfdi ? '<span class="ml-1 text-[8px] bg-blue-100 text-blue-700 font-bold px-1 rounded">CFDI</span>' : '';
-                        const usuarioCaptura = e.registrado_por || e.creado_por || 'No registrado';
+                        // 1. Obtener el ID del usuario que creó el registro en Supabase
+                        const usuarioId = e.user_id || e.created_by || e.registrado_por;
+                        
+                        // 2. Buscar al colaborador en la lista de personal usando su ID o correo
+                        const usuarioEncontrado = State.personal.find(p => 
+                            (p.user_id && p.user_id === usuarioId) || 
+                            (p.id && p.id == usuarioId) ||
+                            (p.email && p.email === usuarioId)
+                        );
+                        
+                        // 3. Si encuentra al usuario, muestra su nombre; si no, muestra quien registró el dato o 'Histórico'
+                        const usuarioCaptura = usuarioEncontrado ? usuarioEncontrado.nombre : (e.registrado_por || 'Histórico / S/I');
                 
                         return `
                             <tr class="border-b">
