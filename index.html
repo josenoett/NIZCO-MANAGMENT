@@ -1821,12 +1821,39 @@
                                     <span class="font-bold text-slate-800">${Utils.formatter.format(montosPorCategoria[cName])}</span>
                                 </div>`)
                             .join('');
-
+                    
                         if (!categoriesHtml) {
                             categoriesHtml = `<p class="text-xs text-slate-400 text-center py-2">Sin gastos registrados por categoría en este periodo.</p>`;
                         }
-
-                        catContainer.innerHTML = categoriesHtml;
+                    
+                        // --- SECCIÓN FISCAL DE IVA DE PREFERENCIA ---
+                        const balanceIva = totalIva16Cobrado - totalIvaAcreditablePagado;
+                        const ivaHtml = `
+                            <div class="mt-3 pt-2 border-t border-slate-200 flex flex-col gap-1.5 bg-slate-50 p-2.5 rounded-xl border">
+                                <span class="text-[10px] font-black text-slate-400 uppercase tracking-wider block">Balance de IVA del Periodo</span>
+                                
+                                <div class="flex justify-between items-center text-xs">
+                                    <span class="text-emerald-700 font-medium flex items-center gap-1">
+                                        <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> IVA Trasladado (Cobrado):
+                                    </span>
+                                    <span class="font-bold text-emerald-700">${Utils.formatter.format(totalIva16Cobrado)}</span>
+                                </div>
+                    
+                                <div class="flex justify-between items-center text-xs">
+                                    <span class="text-rose-700 font-medium flex items-center gap-1">
+                                        <span class="w-1.5 h-1.5 rounded-full bg-rose-500"></span> IVA Acreditable (Pagado):
+                                    </span>
+                                    <span class="font-bold text-rose-700">${Utils.formatter.format(totalIvaAcreditablePagado)}</span>
+                                </div>
+                    
+                                <div class="flex justify-between items-center text-xs pt-1 border-t border-slate-200 font-extrabold ${balanceIva >= 0 ? 'text-amber-700' : 'text-blue-700'}">
+                                    <span>${balanceIva >= 0 ? '🏛️ IVA Estimado a Pagar:' : '🏛️ IVA a Favor / Acreditable:'}</span>
+                                    <span>${Utils.formatter.format(Math.abs(balanceIva))}</span>
+                                </div>
+                            </div>
+                        `;
+                    
+                        catContainer.innerHTML = categoriesHtml + ivaHtml;
                     }
                 }
 
