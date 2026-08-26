@@ -257,15 +257,39 @@
                     </div>
                 </div>
 
-                <div class="bg-white p-6 border border-slate-200 rounded-3xl shadow-sm max-w-2xl mx-auto w-full">
-                    <div class="flex items-center justify-between mb-4">
-                        <div>
-                            <h4 class="text-xs font-bold text-slate-700 uppercase tracking-wider">Distribución de Gastos por Categoría</h4>
-                            <p class="text-[11px] text-slate-400">Porcentaje y proporción de egresos directos acumulados en el periodo.</p>
+               <!-- CUADRÍCULA DE 3 GRÁFICAS DEL DASHBOARD -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <!-- GRÁFICA 1: GASTOS POR CATEGORÍA -->
+                    <div class="bg-white p-5 border border-slate-200 rounded-3xl shadow-sm flex flex-col justify-between">
+                        <div class="mb-3">
+                            <h4 class="text-xs font-bold text-slate-700 uppercase tracking-wider">Gastos por Categoría</h4>
+                            <p class="text-[10px] text-slate-400">Distribución porcentual de egresos.</p>
+                        </div>
+                        <div class="h-60 relative">
+                            <canvas id="chart-gastos-categoria"></canvas>
                         </div>
                     </div>
-                    <div class="h-72 relative">
-                        <canvas id="chart-gastos-categoria"></canvas>
+                
+                    <!-- GRÁFICA 2: TOP SERVICIOS MÁS VENDIDOS -->
+                    <div class="bg-white p-5 border border-slate-200 rounded-3xl shadow-sm flex flex-col justify-between">
+                        <div class="mb-3">
+                            <h4 class="text-xs font-bold text-slate-700 uppercase tracking-wider">Top Servicios / Conceptos</h4>
+                            <p class="text-[10px] text-slate-400">Los 5 trabajos con mayor demanda.</p>
+                        </div>
+                        <div class="h-60 relative">
+                            <canvas id="chart-top-servicios"></canvas>
+                        </div>
+                    </div>
+                
+                    <!-- GRÁFICA 3: MANO DE OBRA VS REFACCIONES -->
+                    <div class="bg-white p-5 border border-slate-200 rounded-3xl shadow-sm flex flex-col justify-between">
+                        <div class="mb-3">
+                            <h4 class="text-xs font-bold text-slate-700 uppercase tracking-wider">Mano de Obra vs. Refacciones</h4>
+                            <p class="text-[10px] text-slate-400">Composición del volumen de trabajo.</p>
+                        </div>
+                        <div class="h-60 relative">
+                            <canvas id="chart-mo-vs-ref"></canvas>
+                        </div>
                     </div>
                 </div>
 
@@ -848,7 +872,7 @@
                                     <div class="col-span-7 flex flex-col gap-4 text-[11px] leading-relaxed">
                                         <div>
                                             <p class="font-bold text-slate-700 mb-1">Notas y Condiciones:</p>
-                                            <p class="text-slate-400">Garantía de 3 meses en refacciones originales y mano de obra.</p>
+                                            <p class="text-slate-400">Garantía de 2 meses en mano de obra.</p>
                                         </div>
                                         <div>
                                             <p class="text-blue-600 font-bold" id="pdf-validity-view">Válido por 15 días hábiles.</p>
@@ -1324,6 +1348,8 @@
         };
 
         let chartInstanceCategoria = null;
+        let chartInstanceTopServicios = null;
+        let chartInstanceMoVsRef = null;
 
         function showToast(message, isError = false) {
             const container = document.getElementById('toast-container');
@@ -1426,6 +1452,7 @@
             }
         };
 
+        Financial_Engine
         const Financial_Engine = {
             getDateRange(preset, customStartId = 'erp-start-date', customEndId = 'erp-end-date') {
                 const now = new Date();
@@ -1503,11 +1530,30 @@
                 let montosPorCategoria = {};
                 State.categories.forEach(cat => montosPorCategoria[cat] = 0);
             
+                // Acumuladores de conceptos para gráficas sin recalcular
+                let conteoServicios = {};
+                let acumuladoManoObraOrdenes = 0;
+                let acumuladoRefaccionesOrdenes = 0;
+
                 State.orders.forEach(o => {
                     if (o.estado === 'Cancelada') return;
                     const oDate = Utils.parseFechaLocal(o.fecha_ingreso || o.fecha_registro);
                     if (oDate >= start && oDate <= end) {
                         vehiculosAtendidos++;
+
+                        acumuladoManoObraOrdenes += parseFloat(o.costo_mano_obra || 0);
+                        acumuladoRefaccionesOrdenes += parseFloat(o.costo_refacciones || 0);
+
+                        // Contabilizar frecuencia de conceptos/servicios
+                        if (Array.isArray(o.conceptos)) {
+                            o.conceptos.forEach(c => {
+                                const desc = (c.descripcion || '').trim();
+                                if (desc) {
+                                    const cant = parseInt(c.cantidad) || 1;
+                                    conteoServicios[desc] = (conteoServicios[desc] || 0) + cant;
+                                }
+                            });
+                        }
                     }
                 });
             
@@ -1551,7 +1597,6 @@
                 let refaccionesCostBruto = 0;
                 let refaccionesCostNeto = 0;
                 let totalIvaAcreditablePagado = 0;
-                
                 let ordenesConComprasSet = new Set();
                 
                 if (supabaseClient) {
@@ -1701,14 +1746,14 @@
                     if (document.getElementById('er-ingresos')) document.getElementById('er-ingresos').innerText = Utils.formatter.format(ventasNetasSinIva16);
                     if (document.getElementById('er-refacciones')) document.getElementById('er-refacciones').innerText = Utils.formatter.format(montosPorCategoria["Refacciones"]);
                     if (document.getElementById('er-nomina')) document.getElementById('er-nomina').innerText = Utils.formatter.format(montosPorCategoria["Nómina"]);
-                    if (document.getElementById('er-gasolina')) document.getElementById('er-gasolina').innerText = Utils.formatter.format(montosPorCategoria["Gasolina"] + montosPorCategoria["Diesel"]);
-                    if (document.getElementById('er-consumibles')) document.getElementById('er-consumibles').innerText = Utils.formatter.format(montosPorCategoria["Consumibles"]);
+                    if (document.getElementById('er-gasolina')) document.getElementById('er-gasolina').innerText = Utils.formatter.format((montosPorCategoria["Gasolina"] || 0) + (montosPorCategoria["Diesel"] || 0));
+                    if (document.getElementById('er-consumibles')) document.getElementById('er-consumibles').innerText = Utils.formatter.format(montosPorCategoria["Consumibles"] || 0);
                     
-                    const sumServiciosAcumulados = montosPorCategoria["Renta"] + montosPorCategoria["Agua"] + montosPorCategoria["Luz"] + montosPorCategoria["Internet"];
+                    const sumServiciosAcumulados = (montosPorCategoria["Renta"] || 0) + (montosPorCategoria["Agua"] || 0) + (montosPorCategoria["Luz"] || 0) + (montosPorCategoria["Internet"] || 0);
                     if (document.getElementById('er-servicios')) document.getElementById('er-servicios').innerText = Utils.formatter.format(sumServiciosAcumulados);
-                    if (document.getElementById('er-publicidad')) document.getElementById('er-publicidad').innerText = Utils.formatter.format(montosPorCategoria["Publicidad"]);
+                    if (document.getElementById('er-publicidad')) document.getElementById('er-publicidad').innerText = Utils.formatter.format(montosPorCategoria["Publicidad"] || 0);
                     
-                    const otrosAcumulados = totalGastos - (montosPorCategoria["Refacciones"] + montosPorCategoria["Nómina"] + montosPorCategoria["Gasolina"] + montosPorCategoria["Diesel"] + montosPorCategoria["Consumibles"] + sumServiciosAcumulados + montosPorCategoria["Publicidad"]);
+                    const otrosAcumulados = totalGastos - (montosPorCategoria["Refacciones"] + montosPorCategoria["Nómina"] + (montosPorCategoria["Gasolina"] || 0) + (montosPorCategoria["Diesel"] || 0) + (montosPorCategoria["Consumibles"] || 0) + sumServiciosAcumulados + (montosPorCategoria["Publicidad"] || 0));
                     if (document.getElementById('er-otros')) document.getElementById('er-otros').innerText = Utils.formatter.format(otrosAcumulados > 0 ? otrosAcumulados : 0);
                     if (document.getElementById('er-utilidad-neta')) document.getElementById('er-utilidad-neta').innerText = Utils.formatter.format(utilidadNeta);
 
@@ -1786,62 +1831,145 @@
                     }
                 }
     
-                this.renderCharts(ingresos, totalGastos, montosPorCategoria);
+                // Llamar al renderizador enviando los datos acumulados
+                this.renderCharts(montosPorCategoria, conteoServicios, acumuladoManoObraOrdenes, acumuladoRefaccionesOrdenes);
             },
             
-            renderCharts(ingresos, totalGastos, montosPorCategoria) {
-                if (chartInstanceCategoria) {
-                    chartInstanceCategoria.destroy();
-                }
+            renderCharts(montosPorCategoria, conteoServicios, acumuladoMO, acumuladoRef) {
+                // 1. Limpieza de instancias previas
+                if (chartInstanceCategoria) chartInstanceCategoria.destroy();
+                if (chartInstanceTopServicios) chartInstanceTopServicios.destroy();
+                if (chartInstanceMoVsRef) chartInstanceMoVsRef.destroy();
 
-                const ctx = document.getElementById('chart-gastos-categoria');
-                if (!ctx) return;
+                // -------------------------------------------------------------
+                // GRÁFICA 1: GASTOS POR CATEGORÍA (Dona con porcentaje)
+                // -------------------------------------------------------------
+                const ctx1 = document.getElementById('chart-gastos-categoria');
+                if (ctx1) {
+                    const catLabels = Object.keys(montosPorCategoria).filter(k => (montosPorCategoria[k] || 0) > 0);
+                    const catData = catLabels.map(k => montosPorCategoria[k]);
+                    const totalEgresos = catData.reduce((a, b) => a + b, 0);
 
-                // 1. Filtrar únicamente las categorías que tienen egresos reales (> 0)
-                const catLabels = Object.keys(montosPorCategoria).filter(k => (montosPorCategoria[k] || 0) > 0);
-                const catData = catLabels.map(k => montosPorCategoria[k]);
-                const totalEgresos = catData.reduce((a, b) => a + b, 0);
-
-                chartInstanceCategoria = new Chart(ctx, {
-                    type: 'doughnut',
-                    data: {
-                        labels: catLabels.length > 0 ? catLabels : ['Sin gastos'],
-                        datasets: [{
-                            data: catData.length > 0 ? catData : [0],
-                            backgroundColor: [
-                                '#3b82f6', '#10b981', '#ef4444', '#f59e0b', 
-                                '#8b5cf6', '#ec4899', '#64748b', '#06b6d4', 
-                                '#14b8a6', '#a855f7'
-                            ]
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        plugins: {
-                            legend: {
-                                position: 'top',
-                                labels: {
-                                    boxWidth: 12,
-                                    font: { size: 11 }
-                                }
-                            },
-                            tooltip: {
-                                callbacks: {
-                                    label: function(context) {
-                                        const value = context.parsed || 0;
-                                        const pct = totalEgresos > 0 ? ((value / totalEgresos) * 100).toFixed(1) : 0;
-                                        const formattedMoney = Utils.formatter.format(value);
-                                        return ` ${context.label}: ${formattedMoney} (${pct}%)`;
+                    chartInstanceCategoria = new Chart(ctx1, {
+                        type: 'doughnut',
+                        data: {
+                            labels: catLabels.length > 0 ? catLabels : ['Sin gastos'],
+                            datasets: [{
+                                data: catData.length > 0 ? catData : [0],
+                                backgroundColor: [
+                                    '#3b82f6', '#10b981', '#ef4444', '#f59e0b', 
+                                    '#8b5cf6', '#ec4899', '#64748b', '#06b6d4', 
+                                    '#14b8a6', '#a855f7'
+                                ]
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                legend: {
+                                    labels: {
+                                        font: { size: 10 },
+                                        filter: function(item, chartData) {
+                                            const val = chartData.datasets[0].data[item.index];
+                                            return val > 0;
+                                        }
+                                    }
+                                },
+                                tooltip: {
+                                    callbacks: {
+                                        label: function(context) {
+                                            const value = context.parsed || 0;
+                                            const pct = totalEgresos > 0 ? ((value / totalEgresos) * 100).toFixed(1) : 0;
+                                            return ` ${context.label}: ${Utils.formatter.format(value)} (${pct}%)`;
+                                        }
                                     }
                                 }
                             }
                         }
-                    }
-                });
+                    });
+                }
+
+                // -------------------------------------------------------------
+                // GRÁFICA 2: TOP 5 SERVICIOS MÁS VENDIDOS (Barras Horizontales)
+                // -------------------------------------------------------------
+                const ctx2 = document.getElementById('chart-top-servicios');
+                if (ctx2) {
+                    const sortedServicios = Object.keys(conteoServicios)
+                        .map(key => ({ nombre: key, cantidad: conteoServicios[key] }))
+                        .sort((a, b) => b.cantidad - a.cantidad)
+                        .slice(0, 5);
+
+                    const topLabels = sortedServicios.length > 0 ? sortedServicios.map(s => s.nombre) : ['Sin datos'];
+                    const topData = sortedServicios.length > 0 ? sortedServicios.map(s => s.cantidad) : [0];
+
+                    chartInstanceTopServicios = new Chart(ctx2, {
+                        type: 'bar',
+                        data: {
+                            labels: topLabels,
+                            datasets: [{
+                                label: 'Servicios Ejecutados',
+                                data: topData,
+                                backgroundColor: '#3b82f6',
+                                borderRadius: 6
+                            }]
+                        },
+                        options: {
+                            indexAxis: 'y',
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                legend: { display: false },
+                                tooltip: {
+                                    callbacks: {
+                                        label: (ctx) => ` Cantidad: ${ctx.parsed.x} unidades`
+                                    }
+                                }
+                            },
+                            scales: {
+                                x: { ticks: { stepSize: 1, font: { size: 10 } } },
+                                y: { ticks: { font: { size: 10 } } }
+                            }
+                        }
+                    });
+                }
+
+                // -------------------------------------------------------------
+                // GRÁFICA 3: MANO DE OBRA VS REFACCIONES (Anillo Comparativo)
+                // -------------------------------------------------------------
+                const ctx3 = document.getElementById('chart-mo-vs-ref');
+                if (ctx3) {
+                    const totalCombinado = acumuladoMO + acumuladoRef;
+
+                    chartInstanceMoVsRef = new Chart(ctx3, {
+                        type: 'doughnut',
+                        data: {
+                            labels: ['Mano de Obra', 'Refacciones'],
+                            datasets: [{
+                                data: totalCombinado > 0 ? [acumuladoMO, acumuladoRef] : [0, 0],
+                                backgroundColor: ['#10b981', '#f59e0b']
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                legend: { labels: { font: { size: 10 } } },
+                                tooltip: {
+                                    callbacks: {
+                                        label: function(context) {
+                                            const value = context.parsed || 0;
+                                            const pct = totalCombinado > 0 ? ((value / totalCombinado) * 100).toFixed(1) : 0;
+                                            return ` ${context.label}: ${Utils.formatter.format(value)} (${pct}%)`;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    });
+                }
             }
         };
-        
 
         const API_Service = {
             _lastSync: { orders: 0, personal: 0, expenses: 0, pagos: 0 },
