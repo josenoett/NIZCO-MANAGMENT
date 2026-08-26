@@ -3895,8 +3895,9 @@
                 
                 Auth_Engine.checkExistingSession().then(async () => {
                     UI_Controller.applyRolePermissions();
-                    if (typeof API_Service !== 'undefined' && API_Service.fetchPersonal) {
-                        await API_Service.fetchPersonal(true);
+                    if (typeof API_Service !== 'undefined') {
+                        // Carga y espera a que todos los datos estén listos antes de calcular
+                        await API_Service.refreshAll();
                     }
                 });
             
