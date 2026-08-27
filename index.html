@@ -3711,6 +3711,8 @@
                 const modalEgresoDate = document.getElementById('modal-fecha-egreso').value;
 
                 const targetUserVal = document.getElementById('modal-tecnico').value || null;
+                const mecObj = State.personal.find(p => (p.user_id && p.user_id === targetUserVal) || p.id == targetUserVal);
+
                 const ordenActual = (State.orders || []).find(o => Number(o.id) === Number(State.currentEditingOrderId));
 
                 let fields = {
@@ -3721,7 +3723,7 @@
                     fecha_egreso: modalEgresoDate ? Utils.parseFechaLocal(modalEgresoDate).toISOString() : null,
                     tecnico_user_id: mecObj ? (mecObj.user_id || null) : null,
                     tecnico_asignado: mecObj ? mecObj.nombre : 'Sin Asignar',
-                    facturado: ordenActual ? ordenActual.facturado : false
+                    facturado: ordenActual ? (ordenActual.facturado || false) : false
                 };
                 
                 let montoAbonoIngresado = 0;
