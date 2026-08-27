@@ -2077,7 +2077,7 @@
                     try {
                         const { data: ordersData, error: ordersError } = await supabaseClient
                             .from('ordenes_trabajo')
-                            .select('id, cliente_nombre, cliente_telefono, auto_marca, auto_modelo, auto_placas, kilometraje, tecnico_asignado, tecnico_user_id, estado, costo_mano_obra, costo_refacciones, total_cobrado, estado_pago, metodo_pago, fecha_ingreso, fecha_egreso, requiere_factura, total_iva, conceptos')
+                           .select('id, cliente_nombre, cliente_telefono, auto_marca, auto_modelo, auto_placas, kilometraje, tecnico_asignado, tecnico_user_id, estado, costo_mano_obra, costo_refacciones, total_cobrado, estado_pago, metodo_pago, fecha_ingreso, fecha_egreso, requiere_factura, total_iva, conceptos, facturado')
                             .order('id', { ascending: false });
                         
                         if (ordersError) throw ordersError;
@@ -3711,7 +3711,7 @@
                 const modalEgresoDate = document.getElementById('modal-fecha-egreso').value;
 
                 const targetUserVal = document.getElementById('modal-tecnico').value || null;
-                const mecObj = State.personal.find(p => (p.user_id && p.user_id === targetUserVal) || p.id == targetUserVal);
+                const ordenActual = (State.orders || []).find(o => Number(o.id) === Number(State.currentEditingOrderId));
 
                 let fields = {
                     estado: document.getElementById('modal-estado-trabajo').value,
@@ -3720,7 +3720,8 @@
                     fecha_ingreso: modalManualDate ? Utils.parseFechaLocal(modalManualDate).toISOString() : new Date().toISOString(),
                     fecha_egreso: modalEgresoDate ? Utils.parseFechaLocal(modalEgresoDate).toISOString() : null,
                     tecnico_user_id: mecObj ? (mecObj.user_id || null) : null,
-                    tecnico_asignado: mecObj ? mecObj.nombre : 'Sin Asignar'
+                    tecnico_asignado: mecObj ? mecObj.nombre : 'Sin Asignar',
+                    facturado: ordenActual ? ordenActual.facturado : false
                 };
                 
                 let montoAbonoIngresado = 0;
