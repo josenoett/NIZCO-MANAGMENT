@@ -57,7 +57,7 @@
        <div class="flex items-center gap-3">
             <!-- Logotipo con mayor escala y presencia -->
             <div class="h-16 flex items-center justify-center">
-                <img src="https://krhauwvbbjlihkeasrju..co/storage/v1/object/public/assets/Logo_blaco_negro-removebg-preview.png" 
+                <img src="https://krhauwvbbjlihkeasrju.supabase.co/storage/v1/object/public/assets/Logo_blaco_negro-removebg-preview.png" 
                      alt="beFix Garage Logo" 
                      class="h-[60px] w-auto object-contain drop-shadow-md">
             </div>
@@ -3983,33 +3983,8 @@
                 if (result && typeof State.confirmCallback === 'function') State.confirmCallback();
                 State.confirmCallback = null;
             }
-        },
-        // Declaración explícita global para el evento onclick
-        toggleFacturado: async function(orderId, nuevoEstado) {
-            try {
-                const order = (State.orders || []).find(o => Number(o.id) === Number(orderId));
-                if (order) {
-                    order.facturado = nuevoEstado;
-                }
-    
-                UI_Controller.renderOrdersList();
-    
-                const { error } = await supabaseClient
-                    .from('ordenes_trabajo')
-                    .update({ facturado: nuevoEstado })
-                    .eq('id', Number(orderId));
-    
-                if (error) throw error;
-    
-                const mensaje = nuevoEstado ? 'Orden marcada como Facturada' : 'Orden marcada como Pendiente de Factura';
-                if (typeof showToast === 'function') showToast(mensaje);
-    
-            } catch (err) {
-                console.error("Error al actualizar estado de facturación:", err);
-                if (typeof showToast === 'function') showToast("No se pudo actualizar el estado de la factura", true);
-            }
-        },
-        
+        };
+
         let supabaseClient = null;
 
         function initArchitecture() {
