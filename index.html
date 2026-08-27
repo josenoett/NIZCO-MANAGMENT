@@ -3991,24 +3991,24 @@
                 if (order) {
                     order.facturado = nuevoEstado;
                 }
-        
+    
                 UI_Controller.renderOrdersList();
-        
+    
                 const { error } = await supabaseClient
                     .from('ordenes_trabajo')
                     .update({ facturado: nuevoEstado })
                     .eq('id', Number(orderId));
-        
+    
                 if (error) throw error;
-        
+    
                 const mensaje = nuevoEstado ? 'Orden marcada como Facturada' : 'Orden marcada como Pendiente de Factura';
                 if (typeof showToast === 'function') showToast(mensaje);
-        
+    
             } catch (err) {
                 console.error("Error al actualizar estado de facturación:", err);
                 if (typeof showToast === 'function') showToast("No se pudo actualizar el estado de la factura", true);
             }
-        };
+        },
         
         let supabaseClient = null;
 
