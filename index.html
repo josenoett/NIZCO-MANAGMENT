@@ -3983,8 +3983,35 @@
                 if (result && typeof State.confirmCallback === 'function') State.confirmCallback();
                 State.confirmCallback = null;
             }
+        },
+        // Declaración explícita global para el evento onclick
+        window.toggleFacturado = async function(orderId, nuevoEstado) {
+            try {
+                // 1. Actualización inmediata en memoria
+                const order = (State.orders || []).find(o => Number(o.id) === Number(orderId));
+                if (order) {
+                    order.facturado = nuevoEstado;
+                }
+        
+                // 2. Refrescar la tabla en pantalla
+                UI_Controller.renderOrdersList();
+        
+                // 3. Guardar el cambio en Supabase
+                const { error } = await supabaseClient
+                    .from('ordenes_trabajo')
+                    .update({ facturado: nuevoEstado })
+                    .eq('id', Number(orderId));
+        
+                if (error) throw error;
+        
+                const mensaje = nuevoEstado ? 'Orden marcada como Facturada' : 'Orden marcada como Pendiente de Factura';
+                if (typeof showToast === 'function') showToast(mensaje);
+        
+            } catch (err) {
+                console.error("Error al actualizar estado de facturación:", err);
+                if (typeof showToast === 'function') showToast("No se pudo actualizar el estado de la factura", true);
+            }
         };
-
         let supabaseClient = null;
 
         function initArchitecture() {
