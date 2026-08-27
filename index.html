@@ -2205,7 +2205,9 @@
 
             // --- MÉTODOS SUPABASE STORAGE Y REGISTRO DE NOTAS PDF ---
             async subirArchivoPdf(ordenId, file, monto) {
-                const filePath = `orden_${ordenId}/${Date.now()}_${file.name}`;
+                // Sanitiza el nombre quitando acentos, espacios y caracteres especiales
+                const cleanFileName = file.name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-zA-Z0-9.-]/g, "_");
+                const filePath = `orden_${ordenId}/${Date.now()}_${cleanFileName}`;
                 
                 const { data: storageData, error: storageError } = await supabaseClient
                     .storage
