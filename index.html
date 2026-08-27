@@ -57,7 +57,7 @@
        <div class="flex items-center gap-3">
             <!-- Logotipo con mayor escala y presencia -->
             <div class="h-16 flex items-center justify-center">
-                <img src="https://krhauwvbbjlihkeasrju.supabase.co/storage/v1/object/public/assets/Logo_blaco_negro-removebg-preview.png" 
+                <img src="https://krhauwvbbjlihkeasrju..co/storage/v1/object/public/assets/Logo_blaco_negro-removebg-preview.png" 
                      alt="beFix Garage Logo" 
                      class="h-[60px] w-auto object-contain drop-shadow-md">
             </div>
@@ -1415,10 +1415,10 @@
                 showToast("Autenticando...");
 
                 try {
-                    const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
+                    const { data, error } = await Client.auth.signInWithPassword({ email, password });
                     if (error) { showToast("Acceso denegado: " + error.message, true); return; }
 
-                    const { data: profile, error: profileError } = await supabaseClient
+                    const { data: profile, error: profileError } = await Client
                         .from('directorio_tecnicos')
                         .select('rol, nombre')
                         .eq('user_id', data.user.id)
@@ -2858,17 +2858,17 @@
                                 <span class="font-semibold text-slate-800">${Utils.escapeHtml(o.cliente_nombre)}</span>
                                 <p class="text-xs text-slate-400">${Utils.escapeHtml(o.auto_marca)} ${Utils.escapeHtml(o.auto_modelo)} - Placas: <strong>${Utils.escapeHtml(o.auto_placas)}</strong> - <strong>${Number(o.kilometraje) || 0} KM</strong></p>
                                 ${(() => {
-                                    if (!o.requiere_factura) return '';
-                                    if (o.facturado) {
-                                        return `<button onclick="toggleFacturado(${o.id}, false)" title="Clic para marcar como no facturado" class="inline-block mt-1 px-1.5 py-0.5 text-[9px] font-bold bg-emerald-100 text-emerald-800 rounded border border-emerald-300 uppercase cursor-pointer hover:bg-emerald-200 transition">
-                                            ✓ Facturado
-                                        </button>`;
-                                    } else {
-                                        return `<button onclick="toggleFacturado(${o.id}, true)" title="Clic para marcar como emitido/facturado" class="inline-block mt-1 px-1.5 py-0.5 text-[9px] font-bold bg-amber-100 text-amber-800 rounded border border-amber-300 uppercase cursor-pointer hover:bg-amber-200 transition">
-                                            ⏳ Factura 16%
-                                        </button>`;
-                                    }
-                                })()}
+                                if (!o.requiere_factura) return '';
+                                if (o.facturado) {
+                                    return `<button onclick="UI_Controller.toggleFacturado(${o.id}, false)" title="Clic para marcar como no facturado" class="inline-block mt-1 px-1.5 py-0.5 text-[9px] font-bold bg-emerald-100 text-emerald-800 rounded border border-emerald-300 uppercase cursor-pointer hover:bg-emerald-200 transition">
+                                        ✓ Facturado
+                                    </button>`;
+                                } else {
+                                    return `<button onclick="UI_Controller.toggleFacturado(${o.id}, true)" title="Clic para marcar como emitido/facturado" class="inline-block mt-1 px-1.5 py-0.5 text-[9px] font-bold bg-amber-100 text-amber-800 rounded border border-amber-300 uppercase cursor-pointer hover:bg-amber-200 transition">
+                                        ⏳ Factura 16%
+                                    </button>`;
+                                }
+                            })()}
                             </td>
                             <td class="py-3 px-6">
                                 <span class="text-xs font-semibold text-slate-700 flex items-center gap-1">
@@ -3985,7 +3985,7 @@
             }
         },
         // Declaración explícita global para el evento onclick
-        window.toggleFacturado = async function(orderId, nuevoEstado) {
+        toggleFacturado: async function(orderId, nuevoEstado) {
             try {
                 // 1. Actualización inmediata en memoria
                 const order = (State.orders || []).find(o => Number(o.id) === Number(orderId));
@@ -4011,7 +4011,7 @@
                 console.error("Error al actualizar estado de facturación:", err);
                 if (typeof showToast === 'function') showToast("No se pudo actualizar el estado de la factura", true);
             }
-        };
+        },
         let supabaseClient = null;
 
         function initArchitecture() {
