@@ -2804,6 +2804,8 @@
                 const filtered = State.orders.filter(o => {
                     const matchQuery = (o.cliente_nombre?.toLowerCase().includes(query) ?? false) || 
                                        (o.auto_placas?.toLowerCase().includes(query) ?? false) || 
+                                       (o.auto_marca?.toLowerCase().includes(query) ?? false) || 
+                                       (o.auto_modelo?.toLowerCase().includes(query) ?? false) || 
                                        (o.tecnico_asignado?.toLowerCase().includes(query) ?? false);
                     
                     const oDate = Utils.parseFechaLocal(o.fecha_ingreso || o.fecha_registro);
