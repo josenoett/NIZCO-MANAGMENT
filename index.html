@@ -1793,7 +1793,7 @@
                 const ventasNetasSinIva16 = ingresos - totalIva16Cobrado;
                 
                 const utilidadBruta = ingresos - refaccionesCostNeto;
-                const utilidadNeta = ingresos - totalGastos;
+                const utilidadNeta = ventasNetasSinIva16 - totalGastos;
                 const margenUtilidad = ingresos > 0 ? (utilidadNeta / ingresos) * 100 : 0;
                 const ticketPromedio = vehiculosAtendidos > 0 ? ingresos / vehiculosAtendidos : 0;
             
