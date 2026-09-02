@@ -2524,6 +2524,8 @@
             
                 const balEfectivo = entradasEfectivo - salidasEfectivo;
                 const balBanco = entradasBanco - salidasBanco;
+
+                const utilidadDisponibleTrasIva = esIvaPorPagar ? (utilidadNetaPL - balanceIvaNeto) : utilidadNetaPL;
             
                 const printArea = document.createElement('div');
                 printArea.className = "bg-white font-sans text-slate-800 text-xs";
@@ -2558,7 +2560,7 @@
                                     <span class="font-bold text-rose-600">${Utils.formatter.format(salidasEfectivo)}</span>
                                 </div>
                                 <div class="flex justify-between text-slate-900 font-black text-xs pt-2 border-t mt-1">
-                                    <span>BALANCE EN CAJA:</span>
+                                    <span>FLUJO NETO DE EFECTIVO:</span>
                                     <span class="text-blue-600">${Utils.formatter.format(balEfectivo)}</span>
                                 </div>
                             </div>
@@ -2576,7 +2578,7 @@
                                     <span class="font-bold text-rose-600">${Utils.formatter.format(salidasBanco)}</span>
                                 </div>
                                 <div class="flex justify-between text-slate-900 font-black text-xs pt-2 border-t mt-1">
-                                    <span>BALANCE EN BANCO:</span>
+                                    <span>FLUJO NETO BANCARIO:</span>
                                     <span class="text-blue-600">${Utils.formatter.format(balBanco)}</span>
                                 </div>
                             </div>
@@ -2690,6 +2692,11 @@
                                 <div class="flex justify-between text-[10px] pt-1.5 border-t border-dashed border-blue-300 ${esIvaPorPagar ? 'text-amber-800' : 'text-emerald-800'} font-semibold">
                                     <span>🏛️ ${esIvaPorPagar ? 'IVA Estimado a Pagar (Cobrado 16% - Pagado 8%):' : 'IVA Estimado a Favor / Acreditable:'}</span>
                                     <span class="font-bold">${Utils.formatter.format(Math.abs(balanceIvaNeto))}</span>
+                                </div>
+
+                                <div class="flex justify-between text-[11px] pt-1.5 border-t border-blue-300 font-black text-slate-900">
+                                    <span>✅ UTILIDAD DISPONIBLE PARA REPARTIR (DESPUÉS DE APARTAR IVA):</span>
+                                    <span class="${utilidadDisponibleTrasIva >= 0 ? 'text-emerald-700' : 'text-rose-700'}">${Utils.formatter.format(utilidadDisponibleTrasIva)}</span>
                                 </div>
                             </div>
                         </div>
