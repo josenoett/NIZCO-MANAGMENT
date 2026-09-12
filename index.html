@@ -820,7 +820,7 @@
                         </div>
                         <div>
                             <h3 class="font-bold text-slate-900 text-sm">Flujo de Caja Diario</h3>
-                            <p class="text-xs text-slate-400">Entradas y salidas de efectivo/banco día por día, con saldo acumulado.</p>
+                            <p class="text-xs text-slate-400">Entradas y salidas día por día, con saldo acumulado. Separado por Efectivo y Banco para que puedas cuadrar cada uno por su lado.</p>
                         </div>
                     </div>
 
@@ -844,11 +844,24 @@
                             </div>
                         </div>
 
-                        <div class="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5">
-                            <label for="caja-saldo-inicial-input" class="text-[10px] font-bold text-slate-500 uppercase whitespace-nowrap">Saldo Inicial</label>
-                            <input type="number" step="0.01" id="caja-saldo-inicial-input" onchange="Cashflow_Engine.updateSaldoInicial()" placeholder="0.00" class="w-24 border-0 bg-transparent text-xs font-bold text-slate-800 focus:outline-none">
+                        <div class="flex items-center gap-3 bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5">
+                            <div class="flex items-center gap-1.5">
+                                <label for="caja-saldo-inicial-efectivo-input" class="text-[10px] font-bold text-slate-500 uppercase whitespace-nowrap">💵 Inicial Efvo.</label>
+                                <input type="number" step="0.01" id="caja-saldo-inicial-efectivo-input" onchange="Cashflow_Engine.updateSaldoInicial()" placeholder="0.00" class="w-20 border-0 bg-transparent text-xs font-bold text-slate-800 focus:outline-none">
+                            </div>
+                            <div class="w-px h-4 bg-slate-200"></div>
+                            <div class="flex items-center gap-1.5">
+                                <label for="caja-saldo-inicial-banco-input" class="text-[10px] font-bold text-slate-500 uppercase whitespace-nowrap">🏦 Inicial Banco</label>
+                                <input type="number" step="0.01" id="caja-saldo-inicial-banco-input" onchange="Cashflow_Engine.updateSaldoInicial()" placeholder="0.00" class="w-20 border-0 bg-transparent text-xs font-bold text-slate-800 focus:outline-none">
+                            </div>
                         </div>
                     </div>
+                </div>
+
+                <div class="flex items-center gap-2 bg-slate-100 p-1.5 rounded-xl w-fit">
+                    <button type="button" id="caja-view-btn-efectivo" onclick="Cashflow_Engine.setView('efectivo')" class="px-4 py-2 rounded-lg text-xs font-bold transition">💵 Efectivo</button>
+                    <button type="button" id="caja-view-btn-banco" onclick="Cashflow_Engine.setView('banco')" class="px-4 py-2 rounded-lg text-xs font-bold transition">🏦 Banco / Tarjeta</button>
+                    <button type="button" id="caja-view-btn-combinado" onclick="Cashflow_Engine.setView('combinado')" class="px-4 py-2 rounded-lg text-xs font-bold transition">Σ Combinado</button>
                 </div>
 
                 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 font-sans">
@@ -885,7 +898,7 @@
                 <div class="bg-white p-5 border border-slate-200 rounded-3xl shadow-sm">
                     <div class="mb-3">
                         <h4 class="text-xs font-bold text-slate-700 uppercase tracking-wider">Movimiento Diario y Saldo Acumulado</h4>
-                        <p class="text-[10px] text-slate-400">Barras: entradas/salidas del día. Línea: saldo acumulado (eje derecho).</p>
+                        <p id="caja-chart-subtitle" class="text-[10px] text-slate-400">Barras: entradas/salidas del día. Línea: saldo acumulado (eje derecho).</p>
                     </div>
                     <div class="h-72 relative">
                         <canvas id="chart-flujo-caja"></canvas>
@@ -2266,18 +2279,55 @@
 
         const Cashflow_Engine = {
             dailyData: [],
+            currentView: 'efectivo', // 'efectivo' | 'banco' | 'combinado'
+            lastSaldoInicialEfectivo: 0,
+            lastSaldoInicialBanco: 0,
 
-            getSaldoInicial() {
-                const val = parseFloat(localStorage.getItem('befix_saldo_inicial_caja'));
-                return isNaN(val) ? 0 : val;
+            getSaldoInicial(metodo) {
+                const key = metodo === 'banco' ? 'befix_saldo_inicial_caja_banco' : 'befix_saldo_inicial_caja_efectivo';
+                const val = parseFloat(localStorage.getItem(key));
+                if (!isNaN(val)) return val;
+
+                // Migración de la versión anterior (un solo saldo inicial combinado):
+                // si existe el valor viejo y aún no se separó, se usa como punto de partida para Efectivo.
+                if (metodo !== 'banco') {
+                    const legacy = parseFloat(localStorage.getItem('befix_saldo_inicial_caja'));
+                    if (!isNaN(legacy)) return legacy;
+                }
+                return 0;
             },
 
             updateSaldoInicial() {
-                const input = document.getElementById('caja-saldo-inicial-input');
-                if (!input) return;
-                const val = parseFloat(input.value) || 0;
-                localStorage.setItem('befix_saldo_inicial_caja', val);
+                const inputEf = document.getElementById('caja-saldo-inicial-efectivo-input');
+                const inputBc = document.getElementById('caja-saldo-inicial-banco-input');
+                if (inputEf) localStorage.setItem('befix_saldo_inicial_caja_efectivo', parseFloat(inputEf.value) || 0);
+                if (inputBc) localStorage.setItem('befix_saldo_inicial_caja_banco', parseFloat(inputBc.value) || 0);
                 this.recalculate();
+            },
+
+            setView(view) {
+                this.currentView = view;
+                this.updateViewButtons();
+                this.render();
+            },
+
+            updateViewButtons() {
+                const views = ['efectivo', 'banco', 'combinado'];
+                views.forEach(v => {
+                    const btn = document.getElementById(`caja-view-btn-${v}`);
+                    if (!btn) return;
+                    if (v === this.currentView) {
+                        btn.className = 'px-4 py-2 rounded-lg text-xs font-bold transition bg-white shadow text-slate-900';
+                    } else {
+                        btn.className = 'px-4 py-2 rounded-lg text-xs font-bold transition text-slate-500 hover:text-slate-700';
+                    }
+                });
+
+                const subtitle = document.getElementById('caja-chart-subtitle');
+                if (subtitle) {
+                    const label = this.currentView === 'efectivo' ? 'Efectivo físico' : this.currentView === 'banco' ? 'Banco / Tarjeta' : 'Efectivo + Banco combinados';
+                    subtitle.textContent = `Vista: ${label}. Barras: entradas/salidas del día. Línea: saldo acumulado (eje derecho).`;
+                }
             },
 
             handlePresetChange() {
@@ -2296,14 +2346,22 @@
                 return `${y}-${m}-${day}`;
             },
 
+            esEfectivo(metodo) {
+                return (metodo || '').trim().toLowerCase() === 'efectivo';
+            },
+
             async recalculate() {
                 const section = document.getElementById('tab-flujo-caja');
                 if (!section || section.classList.contains('hidden')) return;
 
-                const saldoInput = document.getElementById('caja-saldo-inicial-input');
-                if (saldoInput && saldoInput.value === '') {
-                    saldoInput.value = this.getSaldoInicial();
-                }
+                this.updateViewButtons();
+
+                const inputEf = document.getElementById('caja-saldo-inicial-efectivo-input');
+                const inputBc = document.getElementById('caja-saldo-inicial-banco-input');
+                const saldoInicialEfectivo = this.getSaldoInicial('efectivo');
+                const saldoInicialBanco = this.getSaldoInicial('banco');
+                if (inputEf && inputEf.value === '') inputEf.value = saldoInicialEfectivo;
+                if (inputBc && inputBc.value === '') inputBc.value = saldoInicialBanco;
 
                 const preset = document.getElementById('caja-date-preset').value;
                 const { start, end } = Financial_Engine.getDateRange(preset, 'caja-start-date', 'caja-end-date');
@@ -2318,7 +2376,7 @@
                 let cursor = new Date(start.getFullYear(), start.getMonth(), start.getDate());
                 const finalDay = new Date(end.getFullYear(), end.getMonth(), end.getDate());
                 while (cursor <= finalDay) {
-                    buckets[this.dayKey(cursor)] = { ingreso: 0, egreso: 0 };
+                    buckets[this.dayKey(cursor)] = { ingresoEfectivo: 0, ingresoBanco: 0, egresoEfectivo: 0, egresoBanco: 0 };
                     cursor.setDate(cursor.getDate() + 1);
                 }
 
@@ -2330,7 +2388,9 @@
                     if (pDate >= start && pDate <= end) {
                         const key = this.dayKey(pDate);
                         if (!buckets[key]) return;
-                        buckets[key].ingreso += Math.round(parseFloat(p.monto || 0) * 100) / 100;
+                        const monto = Math.round(parseFloat(p.monto || 0) * 100) / 100;
+                        if (this.esEfectivo(p.metodo_pago)) buckets[key].ingresoEfectivo += monto;
+                        else buckets[key].ingresoBanco += monto;
                     }
                 });
 
@@ -2342,7 +2402,9 @@
                     if (iDate >= start && iDate <= end) {
                         const key = this.dayKey(iDate);
                         if (!buckets[key]) return;
-                        buckets[key].ingreso += Math.round(parseFloat(i.monto || 0) * 100) / 100;
+                        const monto = Math.round(parseFloat(i.monto || 0) * 100) / 100;
+                        if (this.esEfectivo(i.metodo_pago)) buckets[key].ingresoEfectivo += monto;
+                        else buckets[key].ingresoBanco += monto;
                     }
                 });
 
@@ -2354,7 +2416,8 @@
                         const monto = Math.round(parseFloat(e.monto || 0) * 100) / 100;
                         // Los ajustes internos de nómina (monto negativo) no son una salida real de caja
                         if (e.categoria === 'Nómina' && monto < 0) return;
-                        buckets[key].egreso += monto;
+                        if (this.esEfectivo(e.metodo_pago)) buckets[key].egresoEfectivo += monto;
+                        else buckets[key].egresoBanco += monto;
                     }
                 });
 
@@ -2362,7 +2425,7 @@
                     try {
                         const { data: compras } = await supabaseClient
                             .from('compras_refacciones')
-                            .select('costo_neto, total_pagado, fecha_compra')
+                            .select('costo_neto, total_pagado, metodo_pago, fecha_compra')
                             .gte('fecha_compra', start.toISOString())
                             .lte('fecha_compra', end.toISOString());
 
@@ -2370,30 +2433,63 @@
                             const cDate = Utils.parseFechaLocal(c.fecha_compra);
                             const key = this.dayKey(cDate);
                             if (!buckets[key]) return;
-                            buckets[key].egreso += Math.round(parseFloat(c.costo_neto || c.total_pagado || 0) * 100) / 100;
+                            const monto = Math.round(parseFloat(c.costo_neto || c.total_pagado || 0) * 100) / 100;
+                            if (this.esEfectivo(c.metodo_pago)) buckets[key].egresoEfectivo += monto;
+                            else buckets[key].egresoBanco += monto;
                         });
                     } catch (e) {
                         console.error('Error al obtener compras de refacciones para flujo de caja:', e);
                     }
                 }
 
-                const saldoInicial = this.getSaldoInicial();
-                let saldoAcumulado = saldoInicial;
+                let saldoEfectivo = saldoInicialEfectivo;
+                let saldoBanco = saldoInicialBanco;
                 const dias = Object.keys(buckets).sort();
                 this.dailyData = dias.map(key => {
                     const b = buckets[key];
-                    const neto = Math.round((b.ingreso - b.egreso) * 100) / 100;
-                    saldoAcumulado = Math.round((saldoAcumulado + neto) * 100) / 100;
-                    return { fecha: key, ingreso: b.ingreso, egreso: b.egreso, neto, saldoAcumulado };
+                    const netoEfectivo = Math.round((b.ingresoEfectivo - b.egresoEfectivo) * 100) / 100;
+                    const netoBanco = Math.round((b.ingresoBanco - b.egresoBanco) * 100) / 100;
+                    saldoEfectivo = Math.round((saldoEfectivo + netoEfectivo) * 100) / 100;
+                    saldoBanco = Math.round((saldoBanco + netoBanco) * 100) / 100;
+                    return {
+                        fecha: key,
+                        ingresoEfectivo: b.ingresoEfectivo, egresoEfectivo: b.egresoEfectivo, netoEfectivo, saldoEfectivo,
+                        ingresoBanco: b.ingresoBanco, egresoBanco: b.egresoBanco, netoBanco, saldoBanco,
+                        ingresoTotal: Math.round((b.ingresoEfectivo + b.ingresoBanco) * 100) / 100,
+                        egresoTotal: Math.round((b.egresoEfectivo + b.egresoBanco) * 100) / 100,
+                        netoTotal: Math.round((netoEfectivo + netoBanco) * 100) / 100,
+                        saldoTotal: Math.round((saldoEfectivo + saldoBanco) * 100) / 100
+                    };
                 });
 
-                this.render(saldoInicial);
+                this.lastSaldoInicialEfectivo = saldoInicialEfectivo;
+                this.lastSaldoInicialBanco = saldoInicialBanco;
+
+                this.render();
             },
 
-            render(saldoInicial) {
-                const totalIngresos = this.dailyData.reduce((a, d) => a + d.ingreso, 0);
-                const totalEgresos = this.dailyData.reduce((a, d) => a + d.egreso, 0);
-                const saldoFinal = this.dailyData.length > 0 ? this.dailyData[this.dailyData.length - 1].saldoAcumulado : saldoInicial;
+            // Extrae del registro del día los 4 valores según la vista actual (efectivo/banco/combinado)
+            getViewFields(d) {
+                if (this.currentView === 'efectivo') {
+                    return { ingreso: d.ingresoEfectivo, egreso: d.egresoEfectivo, neto: d.netoEfectivo, saldo: d.saldoEfectivo };
+                } else if (this.currentView === 'banco') {
+                    return { ingreso: d.ingresoBanco, egreso: d.egresoBanco, neto: d.netoBanco, saldo: d.saldoBanco };
+                }
+                return { ingreso: d.ingresoTotal, egreso: d.egresoTotal, neto: d.netoTotal, saldo: d.saldoTotal };
+            },
+
+            getSaldoInicialVista() {
+                if (this.currentView === 'efectivo') return this.lastSaldoInicialEfectivo;
+                if (this.currentView === 'banco') return this.lastSaldoInicialBanco;
+                return this.lastSaldoInicialEfectivo + this.lastSaldoInicialBanco;
+            },
+
+            render() {
+                const saldoInicial = this.getSaldoInicialVista();
+                const rows = this.dailyData.map(d => this.getViewFields(d));
+                const totalIngresos = rows.reduce((a, r) => a + r.ingreso, 0);
+                const totalEgresos = rows.reduce((a, r) => a + r.egreso, 0);
+                const saldoFinal = rows.length > 0 ? rows[rows.length - 1].saldo : saldoInicial;
 
                 const setText = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
                 setText('caja-kpi-saldo-inicial', Utils.formatter.format(saldoInicial));
@@ -2410,17 +2506,18 @@
                         body.innerHTML = `<tr><td colspan="5" class="p-4 text-center text-slate-400">Sin movimientos en el periodo seleccionado.</td></tr>`;
                     } else {
                         body.innerHTML = this.dailyData.map(d => {
+                            const r = this.getViewFields(d);
                             const fechaObj = Utils.parseFechaLocal(d.fecha);
                             const fStr = fechaObj.toLocaleDateString('es-MX', { weekday: 'short', day: '2-digit', month: 'short' });
-                            const netoColor = d.neto >= 0 ? 'text-emerald-600' : 'text-rose-600';
-                            const saldoColor = d.saldoAcumulado >= 0 ? 'text-slate-800' : 'text-rose-600';
+                            const netoColor = r.neto >= 0 ? 'text-emerald-600' : 'text-rose-600';
+                            const saldoColor = r.saldo >= 0 ? 'text-slate-800' : 'text-rose-600';
                             return `
                                 <tr class="hover:bg-slate-50 transition border-b border-slate-100">
                                     <td class="py-2.5 px-4 font-semibold text-slate-700 capitalize">${fStr}</td>
-                                    <td class="py-2.5 px-4 text-right text-emerald-600 font-medium">${d.ingreso > 0 ? Utils.formatter.format(d.ingreso) : '—'}</td>
-                                    <td class="py-2.5 px-4 text-right text-rose-600 font-medium">${d.egreso > 0 ? Utils.formatter.format(d.egreso) : '—'}</td>
-                                    <td class="py-2.5 px-4 text-right font-bold ${netoColor}">${Utils.formatter.format(d.neto)}</td>
-                                    <td class="py-2.5 px-4 text-right font-bold ${saldoColor}">${Utils.formatter.format(d.saldoAcumulado)}</td>
+                                    <td class="py-2.5 px-4 text-right text-emerald-600 font-medium">${r.ingreso > 0 ? Utils.formatter.format(r.ingreso) : '—'}</td>
+                                    <td class="py-2.5 px-4 text-right text-rose-600 font-medium">${r.egreso > 0 ? Utils.formatter.format(r.egreso) : '—'}</td>
+                                    <td class="py-2.5 px-4 text-right font-bold ${netoColor}">${Utils.formatter.format(r.neto)}</td>
+                                    <td class="py-2.5 px-4 text-right font-bold ${saldoColor}">${Utils.formatter.format(r.saldo)}</td>
                                 </tr>
                             `;
                         }).join('');
@@ -2435,6 +2532,8 @@
                 const ctx = document.getElementById('chart-flujo-caja');
                 if (!ctx) return;
 
+                const rows = this.dailyData.map(d => this.getViewFields(d));
+
                 const labels = this.dailyData.map(d => {
                     const f = Utils.parseFechaLocal(d.fecha);
                     return f.toLocaleDateString('es-MX', { day: '2-digit', month: 'short' });
@@ -2447,21 +2546,21 @@
                             {
                                 type: 'bar',
                                 label: 'Entradas del día',
-                                data: this.dailyData.map(d => d.ingreso),
+                                data: rows.map(r => r.ingreso),
                                 backgroundColor: '#10b981',
                                 borderRadius: 4
                             },
                             {
                                 type: 'bar',
                                 label: 'Salidas del día',
-                                data: this.dailyData.map(d => -d.egreso),
+                                data: rows.map(r => -r.egreso),
                                 backgroundColor: '#ef4444',
                                 borderRadius: 4
                             },
                             {
                                 type: 'line',
                                 label: 'Saldo acumulado',
-                                data: this.dailyData.map(d => d.saldoAcumulado),
+                                data: rows.map(r => r.saldo),
                                 borderColor: '#3b82f6',
                                 backgroundColor: '#3b82f6',
                                 tension: 0.3,
