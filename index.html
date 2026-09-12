@@ -642,61 +642,111 @@
                 </div>
 
                 <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
-                    <div class="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm flex flex-col gap-4">
-                        <h3 class="font-bold text-slate-800 text-sm uppercase tracking-wider flex items-center gap-2">
-                            <span class="material-icons text-rose-500">money_off</span>Registrar Egreso / Gasto
-                        </h3>
-                        <form id="expense-form" onsubmit="UI_Controller.handleCreateExpense(event)" class="flex flex-col gap-3.5 text-xs">
-                            <div class="grid grid-cols-2 gap-3">
-                                <div class="flex flex-col gap-1">
-                                    <label class="font-bold text-slate-500 uppercase">Fecha *</label>
-                                    <input type="date" id="expense-date" required class="border rounded-xl px-3 py-2 text-slate-700 focus:outline-none bg-slate-50">
+                    <div class="flex flex-col gap-6">
+                        <div class="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm flex flex-col gap-4">
+                            <h3 class="font-bold text-slate-800 text-sm uppercase tracking-wider flex items-center gap-2">
+                                <span class="material-icons text-rose-500">money_off</span>Registrar Egreso / Gasto
+                            </h3>
+                            <form id="expense-form" onsubmit="UI_Controller.handleCreateExpense(event)" class="flex flex-col gap-3.5 text-xs">
+                                <div class="grid grid-cols-2 gap-3">
+                                    <div class="flex flex-col gap-1">
+                                        <label class="font-bold text-slate-500 uppercase">Fecha *</label>
+                                        <input type="date" id="expense-date" required class="border rounded-xl px-3 py-2 text-slate-700 focus:outline-none bg-slate-50">
+                                    </div>
+                                    <div class="flex flex-col gap-1">
+                                        <label class="font-bold text-slate-500 uppercase">Monto ($ MXN) *</label>
+                                        <input type="number" id="expense-amount" step="0.01" required placeholder="0.00" class="border rounded-xl px-3 py-2 text-slate-700 focus:outline-none bg-slate-50">
+                                    </div>
                                 </div>
-                                <div class="flex flex-col gap-1">
-                                    <label class="font-bold text-slate-500 uppercase">Monto ($ MXN) *</label>
-                                    <input type="number" id="expense-amount" step="0.01" required placeholder="0.00" class="border rounded-xl px-3 py-2 text-slate-700 focus:outline-none bg-slate-50">
+
+                                <div class="grid grid-cols-2 gap-3">
+                                    <div class="flex flex-col gap-1">
+                                        <label class="font-bold text-slate-500 uppercase">Categoría *</label>
+                                        <select id="expense-category" required class="border rounded-xl px-3 py-2 text-slate-700 bg-slate-50 focus:outline-none"></select>
+                                    </div>
+                                    <div class="flex flex-col gap-1">
+                                        <label class="font-bold text-slate-500 uppercase">Método de Pago *</label>
+                                        <select id="expense-method" required class="border rounded-xl px-3 py-2 text-slate-700 bg-slate-50 focus:outline-none">
+                                            <option value="Efectivo">💵 Efectivo</option>
+                                            <option value="Transferencia">🏦 Transferencia SPEI</option>
+                                            <option value="Tarjeta">💳 Tarjeta Débito/Crédito</option>
+                                        </select>
+                                    </div>
                                 </div>
-                            </div>
 
-                            <div class="grid grid-cols-2 gap-3">
                                 <div class="flex flex-col gap-1">
-                                    <label class="font-bold text-slate-500 uppercase">Categoría *</label>
-                                    <select id="expense-category" required class="border rounded-xl px-3 py-2 text-slate-700 bg-slate-50 focus:outline-none"></select>
+                                    <label class="font-bold text-slate-500 uppercase">Concepto Corto *</label>
+                                    <input type="text" id="expense-concept" required placeholder="Ej. Compra de anticongelantes" class="border rounded-xl px-3 py-2 text-slate-700 focus:outline-none bg-slate-50">
                                 </div>
+
                                 <div class="flex flex-col gap-1">
-                                    <label class="font-bold text-slate-500 uppercase">Método de Pago *</label>
-                                    <select id="expense-method" required class="border rounded-xl px-3 py-2 text-slate-700 bg-slate-50 focus:outline-none">
-                                        <option value="Efectivo">💵 Efectivo</option>
-                                        <option value="Transferencia">🏦 Transferencia SPEI</option>
-                                        <option value="Tarjeta">💳 Tarjeta Débito/Crédito</option>
-                                    </select>
+                                    <label class="font-bold text-slate-500 uppercase">Descripción Extendida (Opcional)</label>
+                                    <input type="text" id="expense-description" placeholder="Detalle técnico..." class="border rounded-xl px-3 py-2 text-slate-700 focus:outline-none bg-slate-50">
                                 </div>
-                            </div>
 
-                            <div class="flex flex-col gap-1">
-                                <label class="font-bold text-slate-500 uppercase">Concepto Corto *</label>
-                                <input type="text" id="expense-concept" required placeholder="Ej. Compra de anticongelantes" class="border rounded-xl px-3 py-2 text-slate-700 focus:outline-none bg-slate-50">
-                            </div>
+                                <div class="flex flex-col gap-1">
+                                    <label class="font-bold text-slate-500 uppercase">Observaciones Internas (Opcional)</label>
+                                    <textarea id="expense-notes" rows="2" placeholder="Notas sobre facturación o proveedores..." class="border rounded-xl p-2 text-slate-700 focus:outline-none bg-slate-50 resize-none"></textarea>
+                                </div>
 
-                            <div class="flex flex-col gap-1">
-                                <label class="font-bold text-slate-500 uppercase">Descripción Extendida (Opcional)</label>
-                                <input type="text" id="expense-description" placeholder="Detalle técnico..." class="border rounded-xl px-3 py-2 text-slate-700 focus:outline-none bg-slate-50">
-                            </div>
+                                <div class="flex items-center gap-2 bg-slate-50 border border-slate-200 p-2.5 rounded-xl">
+                                    <input type="checkbox" id="expense-cfdi" class="w-4 h-4 text-blue-600 rounded">
+                                    <label for="expense-cfdi" class="text-xs font-bold text-slate-700 cursor-pointer">¿El gasto incluye factura fiscal (CFDI)?</label>
+                                </div>
 
-                            <div class="flex flex-col gap-1">
-                                <label class="font-bold text-slate-500 uppercase">Observaciones Internas (Opcional)</label>
-                                <textarea id="expense-notes" rows="2" placeholder="Notas sobre facturación o proveedores..." class="border rounded-xl p-2 text-slate-700 focus:outline-none bg-slate-50 resize-none"></textarea>
-                            </div>
+                                <button type="submit" class="bg-slate-900 hover:bg-slate-800 text-white font-bold py-2.5 rounded-xl text-xs transition mt-1 flex items-center justify-center gap-2 shadow-lg shadow-slate-100">
+                                    <span class="material-icons text-sm">assignment_turned_in</span><span>Asentar en Caja</span>
+                                </button>
+                            </form>
+                        </div>
 
-                            <div class="flex items-center gap-2 bg-slate-50 border border-slate-200 p-2.5 rounded-xl">
-                                <input type="checkbox" id="expense-cfdi" class="w-4 h-4 text-blue-600 rounded">
-                                <label for="expense-cfdi" class="text-xs font-bold text-slate-700 cursor-pointer">¿El gasto incluye factura fiscal (CFDI)?</label>
-                            </div>
+                        <div class="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm flex flex-col gap-4">
+                            <h3 class="font-bold text-slate-800 text-sm uppercase tracking-wider flex items-center gap-2">
+                                <span class="material-icons text-emerald-500">savings</span>Registrar Ingreso Adicional
+                            </h3>
+                            <p class="text-[10px] text-slate-400 -mt-3">Capital de trabajo, créditos, préstamos o aportaciones de socios — dinero que entra sin venir de una orden de trabajo.</p>
+                            <form id="extra-income-form" onsubmit="UI_Controller.handleCreateIngresoExtra(event)" class="flex flex-col gap-3.5 text-xs">
+                                <div class="grid grid-cols-2 gap-3">
+                                    <div class="flex flex-col gap-1">
+                                        <label class="font-bold text-slate-500 uppercase">Fecha *</label>
+                                        <input type="date" id="extra-income-date" required class="border rounded-xl px-3 py-2 text-slate-700 focus:outline-none bg-slate-50">
+                                    </div>
+                                    <div class="flex flex-col gap-1">
+                                        <label class="font-bold text-slate-500 uppercase">Monto ($ MXN) *</label>
+                                        <input type="number" id="extra-income-amount" step="0.01" required placeholder="0.00" class="border rounded-xl px-3 py-2 text-slate-700 focus:outline-none bg-slate-50">
+                                    </div>
+                                </div>
 
-                            <button type="submit" class="bg-slate-900 hover:bg-slate-800 text-white font-bold py-2.5 rounded-xl text-xs transition mt-1 flex items-center justify-center gap-2 shadow-lg shadow-slate-100">
-                                <span class="material-icons text-sm">assignment_turned_in</span><span>Asentar en Caja</span>
-                            </button>
-                        </form>
+                                <div class="grid grid-cols-2 gap-3">
+                                    <div class="flex flex-col gap-1">
+                                        <label class="font-bold text-slate-500 uppercase">Categoría *</label>
+                                        <select id="extra-income-category" required class="border rounded-xl px-3 py-2 text-slate-700 bg-slate-50 focus:outline-none"></select>
+                                    </div>
+                                    <div class="flex flex-col gap-1">
+                                        <label class="font-bold text-slate-500 uppercase">Método *</label>
+                                        <select id="extra-income-method" required class="border rounded-xl px-3 py-2 text-slate-700 bg-slate-50 focus:outline-none">
+                                            <option value="Efectivo">💵 Efectivo</option>
+                                            <option value="Transferencia">🏦 Transferencia SPEI</option>
+                                            <option value="Tarjeta">💳 Tarjeta Débito/Crédito</option>
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <div class="flex flex-col gap-1">
+                                    <label class="font-bold text-slate-500 uppercase">Concepto Corto *</label>
+                                    <input type="text" id="extra-income-concept" required placeholder="Ej. Préstamo bancario para refacciones" class="border rounded-xl px-3 py-2 text-slate-700 focus:outline-none bg-slate-50">
+                                </div>
+
+                                <div class="flex flex-col gap-1">
+                                    <label class="font-bold text-slate-500 uppercase">Observaciones Internas (Opcional)</label>
+                                    <textarea id="extra-income-notes" rows="2" placeholder="Notas, plazos, condiciones..." class="border rounded-xl p-2 text-slate-700 focus:outline-none bg-slate-50 resize-none"></textarea>
+                                </div>
+
+                                <button type="submit" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 rounded-xl text-xs transition mt-1 flex items-center justify-center gap-2 shadow-lg shadow-emerald-100">
+                                    <span class="material-icons text-sm">add_card</span><span>Registrar Ingreso</span>
+                                </button>
+                            </form>
+                        </div>
                     </div>
 
                     <div class="lg:col-span-2 flex flex-col gap-5">
@@ -715,6 +765,25 @@
                                         </tr>
                                     </thead>
                                     <tbody id="treasury-income-body" class="divide-y text-slate-600"></tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <div class="bg-white border border-slate-200 rounded-3xl p-5 shadow-sm">
+                            <h3 class="font-bold text-slate-800 text-sm uppercase tracking-wider flex items-center gap-2 mb-3">
+                                <span class="material-icons text-emerald-500">account_balance</span> Bitácora de Ingresos Adicionales (Capital / Créditos / Aportaciones)
+                            </h3>
+                            <div class="overflow-x-auto max-h-56 no-scrollbar">
+                                <table class="w-full text-left text-xs border-collapse">
+                                    <thead>
+                                        <tr class="text-slate-400 font-bold border-b pb-2">
+                                            <th class="pb-2">Fecha</th>
+                                            <th class="pb-2">Categoría / Concepto</th>
+                                            <th class="pb-2">Método</th>
+                                            <th class="pb-2 text-right">Monto Registrado</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="treasury-extra-income-body" class="divide-y text-slate-600"></tbody>
                                 </table>
                             </div>
                         </div>
@@ -1442,6 +1511,7 @@
             personal: [],
             expenses: [],
             pagos: [],
+            ingresosExtra: [],
             currentEditingOrderId: null,
             currentRole: "Mecánico",
             confirmCallback: null,
@@ -1449,7 +1519,8 @@
             modalEditingConcepts: [],
             quoteItems: [],
             fixedCosts: { renta: 0, servicios: 0, impuestos: 0 },
-            categories: ["Gasolina", "Diesel", "Consumibles", "Refacciones", "Nómina", "Renta", "Agua", "Luz", "Internet", "Herramientas", "Publicidad", "Papelería", "Transporte", "Comisiones bancarias", "Impuestos", "Otros"]
+            categories: ["Gasolina", "Diesel", "Consumibles", "Refacciones", "Nómina", "Renta", "Agua", "Luz", "Internet", "Herramientas", "Publicidad", "Papelería", "Transporte", "Comisiones bancarias", "Impuestos", "Pago de Préstamos / Socios", "Otros"],
+            extraIncomeCategories: ["Capital de Trabajo", "Crédito o Préstamo", "Aportación de Socios", "Otro Ingreso"]
         };
 
         const Utils = {
@@ -1847,6 +1918,21 @@
             
                         if (e.categoria === "Nómina" && mAmt < 0) {
                             deduccionesNomina += Math.abs(mAmt); 
+                        } else if (e.categoria === "Pago de Préstamos / Socios") {
+                            // Devolución de un préstamo/aportación personal: sí sale de caja, pero NO es un
+                            // gasto operativo — el costo real ya se contó cuando se hizo la compra original.
+                            // Se excluye de egresosManuales (y por lo tanto de la Utilidad Neta) para no
+                            // restar el mismo gasto dos veces.
+                            if (metodo === 'efectivo') {
+                                salidasEfectivo += mAmt;
+                            } else if (metodo === 'transferencia' || metodo === 'tarjeta') {
+                                salidasBanco += mAmt;
+                            }
+                            if (montosPorCategoria[e.categoria] !== undefined) {
+                                montosPorCategoria[e.categoria] += mAmt;
+                            } else {
+                                montosPorCategoria[e.categoria] = mAmt;
+                            }
                         } else {
                             egresosManuales += mAmt;
                             if (metodo === 'efectivo') {
@@ -2248,6 +2334,18 @@
                     }
                 });
 
+                // Ingresos adicionales: capital de trabajo, créditos/préstamos, aportaciones de socios, etc.
+                // Se incluyen en el flujo de caja (sí es dinero que entra), pero NO en el Estado de Resultados/Dashboard,
+                // ya que no son ingresos operativos del taller.
+                State.ingresosExtra.forEach(i => {
+                    const iDate = Utils.parseFechaLocal(i.fecha);
+                    if (iDate >= start && iDate <= end) {
+                        const key = this.dayKey(iDate);
+                        if (!buckets[key]) return;
+                        buckets[key].ingreso += Math.round(parseFloat(i.monto || 0) * 100) / 100;
+                    }
+                });
+
                 State.expenses.forEach(e => {
                     const eDate = Utils.parseFechaLocal(e.fecha);
                     if (eDate >= start && eDate <= end) {
@@ -2398,7 +2496,7 @@
         };
 
         const API_Service = {
-            _lastSync: { orders: 0, personal: 0, expenses: 0, pagos: 0 },
+            _lastSync: { orders: 0, personal: 0, expenses: 0, pagos: 0, ingresosExtra: 0 },
             STALE_MS: 60000,
 
             async fetchOrders(force = false) {
@@ -2501,8 +2599,22 @@
                 Cashflow_Engine.recalculate();
             },
 
+            async fetchIngresosExtra(force = false) {
+                const isFresh = !force && (Date.now() - this._lastSync.ingresosExtra) < this.STALE_MS;
+                if (!isFresh && supabaseClient) {
+                    try {
+                        const { data, error } = await supabaseClient.from('ingresos_extra').select('*').order('fecha', { ascending: false });
+                        if (error) throw error;
+                        State.ingresosExtra = data || [];
+                        this._lastSync.ingresosExtra = Date.now();
+                    } catch (error) { State.ingresosExtra = []; showToast(`No fue posible cargar los ingresos adicionales: ${error.message}`, true); }
+                }
+                UI_Controller.renderTreasuryData();
+                Cashflow_Engine.recalculate();
+            },
+
             async refreshAll() {
-                await Promise.all([this.fetchOrders(true), this.fetchPersonal(true), this.fetchExpenses(true)]);
+                await Promise.all([this.fetchOrders(true), this.fetchPersonal(true), this.fetchExpenses(true), this.fetchIngresosExtra(true)]);
             },
 
             async registrarCompraRefaccion(datosCompra) {
@@ -2604,6 +2716,7 @@
                     API_Service.fetchOrders();
                     API_Service.fetchPersonal();
                     API_Service.fetchExpenses();
+                    API_Service.fetchIngresosExtra();
                 }
 
                 if (tabId === 'dashboard') {
@@ -2758,9 +2871,29 @@
             
                 gastosPeriodo.forEach(g => {
                     const m = parseFloat(g.monto || 0);
-                    egresosManuales += m;
-                    if ((g.metodo_pago || '').toLowerCase() === 'efectivo') salidasEfectivo += m;
+                    const metodo = (g.metodo_pago || '').toLowerCase();
+                    if (metodo === 'efectivo') salidasEfectivo += m;
                     else salidasBanco += m;
+
+                    // Devolución de préstamos/aportaciones de socios: sale de caja pero NO es gasto
+                    // operativo (el costo ya se contó cuando se hizo la compra original). No se suma
+                    // a egresosManuales para no restarlo dos veces de la utilidad a repartir.
+                    if (g.categoria !== "Pago de Préstamos / Socios") {
+                        egresosManuales += m;
+                    }
+                });
+
+                // Ingresos adicionales (capital de trabajo, créditos/préstamos, aportaciones de socios):
+                // entran a la caja física, pero NO son ingresos operativos — se suman a
+                // entradas Efectivo/Banco para el balance real de caja, NO a ventasNetasSinIva16/utilidadNetaPL.
+                const ingresosExtraPeriodo = State.ingresosExtra.filter(i => {
+                    const iDate = Utils.parseFechaLocal(i.fecha);
+                    return iDate >= start && iDate <= end;
+                });
+                ingresosExtraPeriodo.forEach(i => {
+                    const m = parseFloat(i.monto || 0);
+                    if ((i.metodo_pago || '').toLowerCase() === 'efectivo') entradasEfectivo += m;
+                    else entradasBanco += m;
                 });
             
                 let costoNominaPeriodo = 0;
@@ -2852,7 +2985,7 @@
                     });
                 });
             
-                const totalIngresosCobrados = entradasEfectivo + entradasBanco;
+                const totalIngresosCobrados = ingresosPeriodo.reduce((acc, p) => acc + (parseFloat(p.monto) || 0), 0);
                 const ventasNetasSinIva16 = totalIngresosCobrados - totalIva16Cobrado;
                 
                 const utilidadNetaPL = ventasNetasSinIva16 - (refaccionesCostNeto + egresosManuales + costoNominaPeriodo + totalGastosFijosProrrateados);
@@ -3499,6 +3632,9 @@
             populateCategoriesDropdown() {
                 const cSel = document.getElementById('expense-category'); if(!cSel) return;
                 cSel.innerHTML = State.categories.map(cat => `<option value="${cat}">${cat}</option>`).join('');
+
+                const eSel = document.getElementById('extra-income-category');
+                if (eSel) eSel.innerHTML = State.extraIncomeCategories.map(cat => `<option value="${cat}">${cat}</option>`).join('');
             },
 
             renderTreasuryData() {
@@ -3520,6 +3656,25 @@
                                 <td class="py-2 text-right font-bold text-emerald-600">${Utils.formatter.format(amt)}</td>
                             </tr>`;
                     }).join('');
+                }
+
+                const extraIncomeBody = document.getElementById('treasury-extra-income-body');
+                if (extraIncomeBody) {
+                    if (State.ingresosExtra.length === 0) {
+                        extraIncomeBody.innerHTML = `<tr><td colspan="4" class="py-3 text-center text-slate-400">Sin ingresos adicionales registrados.</td></tr>`;
+                    } else {
+                        extraIncomeBody.innerHTML = State.ingresosExtra.map(i => {
+                            const amt = parseFloat(i.monto || 0);
+                            const iFecha = Utils.parseFechaLocal(i.fecha).toLocaleDateString('es-MX', { day: '2-digit', month: 'short' });
+                            return `
+                                <tr class="border-b">
+                                    <td class="py-2 text-slate-500 font-medium">${iFecha}</td>
+                                    <td class="py-2 font-bold">${Utils.escapeHtml(i.concepto)}<span class="text-[10px] text-emerald-600 font-bold block">${Utils.escapeHtml(i.categoria)}</span></td>
+                                    <td class="py-2 text-slate-400">${Utils.escapeHtml(i.metodo_pago)}</td>
+                                    <td class="py-2 text-right font-bold text-emerald-600">${Utils.formatter.format(amt)}</td>
+                                </tr>`;
+                        }).join('');
+                    }
                 }
 
                 const expenseBody = document.getElementById('treasury-expenses-body');
@@ -3584,6 +3739,27 @@
                 document.getElementById('expense-form').reset();
                 document.getElementById('expense-date').value = new Date().toISOString().split('T')[0];
                 API_Service.fetchExpenses(true);
+            },
+
+            async handleCreateIngresoExtra(e) {
+                e.preventDefault();
+                const ingreso = {
+                    fecha: document.getElementById('extra-income-date').value,
+                    monto: parseFloat(document.getElementById('extra-income-amount').value) || 0,
+                    categoria: document.getElementById('extra-income-category').value,
+                    metodo_pago: document.getElementById('extra-income-method').value,
+                    concepto: document.getElementById('extra-income-concept').value,
+                    observaciones: document.getElementById('extra-income-notes').value || '',
+                    registrado_por: document.getElementById('user-display-name')?.innerText || 'Administrador'
+                };
+
+                const { error } = await supabaseClient.from('ingresos_extra').insert([ingreso]);
+                if (error) { showToast("Error Supabase: " + error.message, true); return; }
+
+                showToast("Ingreso adicional asentado en tesorería.");
+                document.getElementById('extra-income-form').reset();
+                document.getElementById('extra-income-date').value = new Date().toISOString().split('T')[0];
+                API_Service.fetchIngresosExtra(true);
             },
 
             addNewOrderConceptRow() { State.newOrderConcepts.push({ descripcion: '', cantidad: 1, precio: 0, categoria: 'refacciones' }); this.renderNewOrderConcepts(); },
@@ -4345,6 +4521,7 @@
             
             const todayStr = new Date().toISOString().split('T')[0];
             if(document.getElementById('expense-date')) { document.getElementById('expense-date').value = todayStr; }
+            if(document.getElementById('extra-income-date')) { document.getElementById('extra-income-date').value = todayStr; }
             if(document.getElementById('form-fecha-ingreso')) { document.getElementById('form-fecha-ingreso').value = todayStr; }
             if(document.getElementById('personal-fecha-ingreso')) { document.getElementById('personal-fecha-ingreso').value = todayStr; }
             
