@@ -115,6 +115,11 @@
                     <span class="hidden md:inline">Prod. Mecánicos</span>
                 </button>
 
+                <button onclick="UI_Controller.switchTab('flujo-caja')" id="btn-flujo-caja" class="nav-btn flex flex-col md:flex-row items-center gap-3 px-3 py-3 rounded-xl transition text-slate-500 hover:bg-slate-50 text-sm w-full">
+                    <span class="material-icons">swap_vert</span>
+                    <span class="hidden md:inline">Flujo de Caja</span>
+                </button>
+
                 <button onclick="UI_Controller.switchTab('tesoreria')" id="btn-tesoreria" class="nav-btn flex flex-col md:flex-row items-center gap-3 px-3 py-3 rounded-xl transition text-slate-500 hover:bg-slate-50 text-sm w-full">
                     <span class="material-icons">account_balance</span>
                     <span class="hidden md:inline">Tesorería</span>
@@ -733,6 +738,108 @@
                                 </table>
                             </div>
                         </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- PESTAÑA: FLUJO DE CAJA DIARIO -->
+            <section id="tab-flujo-caja" class="tab-content hidden flex flex-col gap-6">
+                <div class="bg-white p-5 border border-slate-200 rounded-3xl flex flex-col lg:flex-row items-center justify-between gap-5 shadow-sm">
+                    <div class="flex items-center gap-3">
+                        <div class="bg-blue-50 text-blue-600 p-2 rounded-xl">
+                            <span class="material-icons">swap_vert</span>
+                        </div>
+                        <div>
+                            <h3 class="font-bold text-slate-900 text-sm">Flujo de Caja Diario</h3>
+                            <p class="text-xs text-slate-400">Entradas y salidas de efectivo/banco día por día, con saldo acumulado.</p>
+                        </div>
+                    </div>
+
+                    <div class="flex flex-wrap items-center gap-4 w-full lg:w-auto justify-end">
+                        <select id="caja-date-preset" onchange="Cashflow_Engine.handlePresetChange()" class="bg-slate-50 border border-slate-200 text-xs font-bold rounded-xl px-4 py-2.5 text-slate-700 focus:outline-none w-full sm:w-56 cursor-pointer">
+                            <option value="this-week" selected>📅 Esta Semana</option>
+                            <option value="today">☀️ Hoy</option>
+                            <option value="this-month">🗓️ Este Mes</option>
+                            <option value="last-month">⏮️ Mes Pasado</option>
+                            <option value="custom">🛠️ Rango Personalizado...</option>
+                        </select>
+
+                        <div id="caja-custom-dates" class="hidden flex flex-wrap items-center gap-3 text-xs font-semibold text-slate-600 bg-slate-50 p-2 rounded-xl border border-slate-100">
+                            <div class="flex items-center gap-1.5">
+                                <span>Desde:</span>
+                                <input type="date" id="caja-start-date" onchange="Cashflow_Engine.recalculate()" class="border border-slate-200 px-3 py-1.5 rounded-lg bg-white focus:outline-none">
+                            </div>
+                            <div class="flex items-center gap-1.5">
+                                <span>Hasta:</span>
+                                <input type="date" id="caja-end-date" onchange="Cashflow_Engine.recalculate()" class="border border-slate-200 px-3 py-1.5 rounded-lg bg-white focus:outline-none">
+                            </div>
+                        </div>
+
+                        <div class="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5">
+                            <label for="caja-saldo-inicial-input" class="text-[10px] font-bold text-slate-500 uppercase whitespace-nowrap">Saldo Inicial</label>
+                            <input type="number" step="0.01" id="caja-saldo-inicial-input" onchange="Cashflow_Engine.updateSaldoInicial()" placeholder="0.00" class="w-24 border-0 bg-transparent text-xs font-bold text-slate-800 focus:outline-none">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 font-sans">
+                    <div class="bg-white border border-slate-200 p-5 rounded-2xl flex items-center justify-between shadow-sm">
+                        <div>
+                            <p class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Saldo Inicial</p>
+                            <h3 id="caja-kpi-saldo-inicial" class="text-2xl font-extrabold text-slate-800 mt-1">$0.00</h3>
+                        </div>
+                        <div class="bg-slate-100 text-slate-600 p-3 rounded-xl"><span class="material-icons">account_balance_wallet</span></div>
+                    </div>
+                    <div class="bg-white border border-slate-200 p-5 rounded-2xl flex items-center justify-between shadow-sm">
+                        <div>
+                            <p class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Entradas del Periodo</p>
+                            <h3 id="caja-kpi-ingresos" class="text-2xl font-extrabold text-emerald-600 mt-1">$0.00</h3>
+                        </div>
+                        <div class="bg-emerald-50 text-emerald-600 p-3 rounded-xl"><span class="material-icons">arrow_downward</span></div>
+                    </div>
+                    <div class="bg-white border border-slate-200 p-5 rounded-2xl flex items-center justify-between shadow-sm">
+                        <div>
+                            <p class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Salidas del Periodo</p>
+                            <h3 id="caja-kpi-egresos" class="text-2xl font-extrabold text-rose-600 mt-1">$0.00</h3>
+                        </div>
+                        <div class="bg-rose-50 text-rose-600 p-3 rounded-xl"><span class="material-icons">arrow_upward</span></div>
+                    </div>
+                    <div class="bg-white border border-slate-200 p-5 rounded-2xl flex items-center justify-between shadow-sm">
+                        <div>
+                            <p class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Saldo Final</p>
+                            <h3 id="caja-kpi-saldo-final" class="text-2xl font-extrabold text-slate-800 mt-1">$0.00</h3>
+                        </div>
+                        <div class="bg-blue-50 text-blue-600 p-3 rounded-xl"><span class="material-icons">savings</span></div>
+                    </div>
+                </div>
+
+                <div class="bg-white p-5 border border-slate-200 rounded-3xl shadow-sm">
+                    <div class="mb-3">
+                        <h4 class="text-xs font-bold text-slate-700 uppercase tracking-wider">Movimiento Diario y Saldo Acumulado</h4>
+                        <p class="text-[10px] text-slate-400">Barras: entradas/salidas del día. Línea: saldo acumulado (eje derecho).</p>
+                    </div>
+                    <div class="h-72 relative">
+                        <canvas id="chart-flujo-caja"></canvas>
+                    </div>
+                </div>
+
+                <div class="bg-white border border-slate-200 rounded-3xl p-5 shadow-sm">
+                    <h3 class="font-bold text-slate-800 text-sm uppercase tracking-wider flex items-center gap-2 mb-3">
+                        <span class="material-icons text-blue-500">calendar_month</span> Detalle por Día
+                    </h3>
+                    <div class="overflow-x-auto max-h-[28rem] no-scrollbar">
+                        <table class="w-full text-left text-xs border-collapse">
+                            <thead class="sticky top-0 bg-white">
+                                <tr class="text-slate-400 font-bold border-b pb-2">
+                                    <th class="pb-2">Día</th>
+                                    <th class="pb-2 text-right">Entradas</th>
+                                    <th class="pb-2 text-right">Salidas</th>
+                                    <th class="pb-2 text-right">Neto del Día</th>
+                                    <th class="pb-2 text-right">Saldo Acumulado</th>
+                                </tr>
+                            </thead>
+                            <tbody id="caja-diaria-body" class="divide-y text-slate-600"></tbody>
+                        </table>
                     </div>
                 </div>
             </section>
@@ -2069,6 +2176,227 @@
             }
         };
 
+        let chartInstanceFlujoCaja = null;
+
+        const Cashflow_Engine = {
+            dailyData: [],
+
+            getSaldoInicial() {
+                const val = parseFloat(localStorage.getItem('befix_saldo_inicial_caja'));
+                return isNaN(val) ? 0 : val;
+            },
+
+            updateSaldoInicial() {
+                const input = document.getElementById('caja-saldo-inicial-input');
+                if (!input) return;
+                const val = parseFloat(input.value) || 0;
+                localStorage.setItem('befix_saldo_inicial_caja', val);
+                this.recalculate();
+            },
+
+            handlePresetChange() {
+                const preset = document.getElementById('caja-date-preset').value;
+                const customDiv = document.getElementById('caja-custom-dates');
+                if (preset === 'custom') {
+                    customDiv.classList.remove('hidden');
+                } else {
+                    customDiv.classList.add('hidden');
+                    this.recalculate();
+                }
+            },
+
+            dayKey(d) {
+                const y = d.getFullYear(), m = String(d.getMonth() + 1).padStart(2, '0'), day = String(d.getDate()).padStart(2, '0');
+                return `${y}-${m}-${day}`;
+            },
+
+            async recalculate() {
+                const section = document.getElementById('tab-flujo-caja');
+                if (!section || section.classList.contains('hidden')) return;
+
+                const saldoInput = document.getElementById('caja-saldo-inicial-input');
+                if (saldoInput && saldoInput.value === '') {
+                    saldoInput.value = this.getSaldoInicial();
+                }
+
+                const preset = document.getElementById('caja-date-preset').value;
+                const { start, end } = Financial_Engine.getDateRange(preset, 'caja-start-date', 'caja-end-date');
+
+                const totalDias = Utils.getDaysInRange(start, end);
+                if (totalDias > 92) {
+                    showToast('El rango es muy amplio (máx. 92 días) para el detalle diario. Acórtalo un poco.', true);
+                    return;
+                }
+
+                const buckets = {};
+                let cursor = new Date(start.getFullYear(), start.getMonth(), start.getDate());
+                const finalDay = new Date(end.getFullYear(), end.getMonth(), end.getDate());
+                while (cursor <= finalDay) {
+                    buckets[this.dayKey(cursor)] = { ingreso: 0, egreso: 0 };
+                    cursor.setDate(cursor.getDate() + 1);
+                }
+
+                const pagosProcesadosIds = new Set();
+                State.pagos.forEach(p => {
+                    if (p.id && pagosProcesadosIds.has(p.id)) return;
+                    if (p.id) pagosProcesadosIds.add(p.id);
+                    const pDate = Utils.parseFechaLocal(p.fecha);
+                    if (pDate >= start && pDate <= end) {
+                        const key = this.dayKey(pDate);
+                        if (!buckets[key]) return;
+                        buckets[key].ingreso += Math.round(parseFloat(p.monto || 0) * 100) / 100;
+                    }
+                });
+
+                State.expenses.forEach(e => {
+                    const eDate = Utils.parseFechaLocal(e.fecha);
+                    if (eDate >= start && eDate <= end) {
+                        const key = this.dayKey(eDate);
+                        if (!buckets[key]) return;
+                        const monto = Math.round(parseFloat(e.monto || 0) * 100) / 100;
+                        // Los ajustes internos de nómina (monto negativo) no son una salida real de caja
+                        if (e.categoria === 'Nómina' && monto < 0) return;
+                        buckets[key].egreso += monto;
+                    }
+                });
+
+                if (supabaseClient) {
+                    try {
+                        const { data: compras } = await supabaseClient
+                            .from('compras_refacciones')
+                            .select('costo_neto, total_pagado, fecha_compra')
+                            .gte('fecha_compra', start.toISOString())
+                            .lte('fecha_compra', end.toISOString());
+
+                        (compras || []).forEach(c => {
+                            const cDate = Utils.parseFechaLocal(c.fecha_compra);
+                            const key = this.dayKey(cDate);
+                            if (!buckets[key]) return;
+                            buckets[key].egreso += Math.round(parseFloat(c.costo_neto || c.total_pagado || 0) * 100) / 100;
+                        });
+                    } catch (e) {
+                        console.error('Error al obtener compras de refacciones para flujo de caja:', e);
+                    }
+                }
+
+                const saldoInicial = this.getSaldoInicial();
+                let saldoAcumulado = saldoInicial;
+                const dias = Object.keys(buckets).sort();
+                this.dailyData = dias.map(key => {
+                    const b = buckets[key];
+                    const neto = Math.round((b.ingreso - b.egreso) * 100) / 100;
+                    saldoAcumulado = Math.round((saldoAcumulado + neto) * 100) / 100;
+                    return { fecha: key, ingreso: b.ingreso, egreso: b.egreso, neto, saldoAcumulado };
+                });
+
+                this.render(saldoInicial);
+            },
+
+            render(saldoInicial) {
+                const totalIngresos = this.dailyData.reduce((a, d) => a + d.ingreso, 0);
+                const totalEgresos = this.dailyData.reduce((a, d) => a + d.egreso, 0);
+                const saldoFinal = this.dailyData.length > 0 ? this.dailyData[this.dailyData.length - 1].saldoAcumulado : saldoInicial;
+
+                const setText = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+                setText('caja-kpi-saldo-inicial', Utils.formatter.format(saldoInicial));
+                setText('caja-kpi-ingresos', Utils.formatter.format(totalIngresos));
+                setText('caja-kpi-egresos', Utils.formatter.format(totalEgresos));
+                setText('caja-kpi-saldo-final', Utils.formatter.format(saldoFinal));
+
+                const saldoFinalEl = document.getElementById('caja-kpi-saldo-final');
+                if (saldoFinalEl) saldoFinalEl.classList.toggle('text-rose-600', saldoFinal < 0);
+
+                const body = document.getElementById('caja-diaria-body');
+                if (body) {
+                    if (this.dailyData.length === 0) {
+                        body.innerHTML = `<tr><td colspan="5" class="p-4 text-center text-slate-400">Sin movimientos en el periodo seleccionado.</td></tr>`;
+                    } else {
+                        body.innerHTML = this.dailyData.map(d => {
+                            const fechaObj = Utils.parseFechaLocal(d.fecha);
+                            const fStr = fechaObj.toLocaleDateString('es-MX', { weekday: 'short', day: '2-digit', month: 'short' });
+                            const netoColor = d.neto >= 0 ? 'text-emerald-600' : 'text-rose-600';
+                            const saldoColor = d.saldoAcumulado >= 0 ? 'text-slate-800' : 'text-rose-600';
+                            return `
+                                <tr class="hover:bg-slate-50 transition border-b border-slate-100">
+                                    <td class="py-2.5 px-4 font-semibold text-slate-700 capitalize">${fStr}</td>
+                                    <td class="py-2.5 px-4 text-right text-emerald-600 font-medium">${d.ingreso > 0 ? Utils.formatter.format(d.ingreso) : '—'}</td>
+                                    <td class="py-2.5 px-4 text-right text-rose-600 font-medium">${d.egreso > 0 ? Utils.formatter.format(d.egreso) : '—'}</td>
+                                    <td class="py-2.5 px-4 text-right font-bold ${netoColor}">${Utils.formatter.format(d.neto)}</td>
+                                    <td class="py-2.5 px-4 text-right font-bold ${saldoColor}">${Utils.formatter.format(d.saldoAcumulado)}</td>
+                                </tr>
+                            `;
+                        }).join('');
+                    }
+                }
+
+                this.renderChart();
+            },
+
+            renderChart() {
+                if (chartInstanceFlujoCaja) chartInstanceFlujoCaja.destroy();
+                const ctx = document.getElementById('chart-flujo-caja');
+                if (!ctx) return;
+
+                const labels = this.dailyData.map(d => {
+                    const f = Utils.parseFechaLocal(d.fecha);
+                    return f.toLocaleDateString('es-MX', { day: '2-digit', month: 'short' });
+                });
+
+                chartInstanceFlujoCaja = new Chart(ctx, {
+                    data: {
+                        labels,
+                        datasets: [
+                            {
+                                type: 'bar',
+                                label: 'Entradas del día',
+                                data: this.dailyData.map(d => d.ingreso),
+                                backgroundColor: '#10b981',
+                                borderRadius: 4
+                            },
+                            {
+                                type: 'bar',
+                                label: 'Salidas del día',
+                                data: this.dailyData.map(d => -d.egreso),
+                                backgroundColor: '#ef4444',
+                                borderRadius: 4
+                            },
+                            {
+                                type: 'line',
+                                label: 'Saldo acumulado',
+                                data: this.dailyData.map(d => d.saldoAcumulado),
+                                borderColor: '#3b82f6',
+                                backgroundColor: '#3b82f6',
+                                tension: 0.3,
+                                yAxisID: 'y1',
+                                pointRadius: 2
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        interaction: { mode: 'index', intersect: false },
+                        plugins: {
+                            legend: { labels: { font: { size: 10 } } },
+                            tooltip: {
+                                callbacks: {
+                                    label: (ctx) => {
+                                        const val = ctx.dataset.label === 'Salidas del día' ? Math.abs(ctx.parsed.y) : ctx.parsed.y;
+                                        return ` ${ctx.dataset.label}: ${Utils.formatter.format(val)}`;
+                                    }
+                                }
+                            }
+                        },
+                        scales: {
+                            x: { ticks: { font: { size: 10 } } },
+                            y: { ticks: { font: { size: 10 } } },
+                            y1: { position: 'right', grid: { drawOnChartArea: false }, ticks: { font: { size: 10 } } }
+                        }
+                    }
+                });
+            }
+        };
+
         const API_Service = {
             _lastSync: { orders: 0, personal: 0, expenses: 0, pagos: 0 },
             STALE_MS: 60000,
@@ -2109,6 +2437,7 @@
                 UI_Controller.renderTreasuryData();
                 UI_Controller.renderMecanicosStats();
                 Financial_Engine.recalculate();
+                Cashflow_Engine.recalculate();
             },
 
             async fetchPagos(force = false) {
@@ -2169,6 +2498,7 @@
                 }
                 UI_Controller.renderTreasuryData();
                 Financial_Engine.recalculate();
+                Cashflow_Engine.recalculate();
             },
 
             async refreshAll() {
@@ -2270,7 +2600,7 @@
                 const btn = document.getElementById(`btn-${tabId}`);
                 if(btn) btn.classList.add('text-blue-600', 'bg-blue-50/80');
                 
-                if (['dashboard','ordenes','personal','cotizaciones','tesoreria','rendimiento-mecanicos'].includes(tabId)) {
+                if (['dashboard','ordenes','personal','cotizaciones','tesoreria','flujo-caja','rendimiento-mecanicos'].includes(tabId)) {
                     API_Service.fetchOrders();
                     API_Service.fetchPersonal();
                     API_Service.fetchExpenses();
@@ -2281,10 +2611,16 @@
                         Financial_Engine.recalculate();
                     }, 50);
                 }
+
+                if (tabId === 'flujo-caja') {
+                    setTimeout(() => {
+                        Cashflow_Engine.recalculate();
+                    }, 50);
+                }
             },
 
             applyRolePermissions() {
-                const elms = ['btn-dashboard', 'btn-personal', 'btn-config', 'btn-cotizaciones', 'btn-tesoreria', 'btn-rendimiento-mecanicos'];
+                const elms = ['btn-dashboard', 'btn-personal', 'btn-config', 'btn-cotizaciones', 'btn-tesoreria', 'btn-flujo-caja', 'btn-rendimiento-mecanicos'];
                 
                 if (State.currentRole === 'Mecánico' || State.currentRole === 'Mecánico Specialist') {
                     elms.forEach(id => {
@@ -2299,7 +2635,7 @@
                         if (el) el.classList.add('hidden');
                     });
                     
-                    ['btn-personal', 'btn-cotizaciones', 'btn-tesoreria'].forEach(id => {
+                    ['btn-personal', 'btn-cotizaciones', 'btn-tesoreria', 'btn-flujo-caja'].forEach(id => {
                         const el = document.getElementById(id);
                         if (el) el.classList.remove('hidden');
                     });
@@ -2312,7 +2648,7 @@
                         if (el) el.classList.add('hidden');
                     });
             
-                    ['btn-dashboard', 'btn-personal', 'btn-cotizaciones', 'btn-tesoreria'].forEach(id => {
+                    ['btn-dashboard', 'btn-personal', 'btn-cotizaciones', 'btn-tesoreria', 'btn-flujo-caja'].forEach(id => {
                         const el = document.getElementById(id);
                         if (el) el.classList.remove('hidden');
                     });
