@@ -747,6 +747,42 @@
                                 </button>
                             </form>
                         </div>
+
+                        <div class="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm flex flex-col gap-4">
+                            <h3 class="font-bold text-slate-800 text-sm uppercase tracking-wider flex items-center gap-2">
+                                <span class="material-icons text-blue-500">sync_alt</span>Registrar Traspaso entre Cuentas
+                            </h3>
+                            <p class="text-[10px] text-slate-400 -mt-3">Depósitos de caja al banco, o retiros del banco a caja. Genera automáticamente el movimiento de salida y de entrada — no afecta tu Utilidad Neta ni el reparto.</p>
+                            <form id="transfer-form" onsubmit="UI_Controller.handleCreateTraspaso(event)" class="flex flex-col gap-3.5 text-xs">
+                                <div class="grid grid-cols-2 gap-3">
+                                    <div class="flex flex-col gap-1">
+                                        <label class="font-bold text-slate-500 uppercase">Fecha *</label>
+                                        <input type="date" id="transfer-date" required class="border rounded-xl px-3 py-2 text-slate-700 focus:outline-none bg-slate-50">
+                                    </div>
+                                    <div class="flex flex-col gap-1">
+                                        <label class="font-bold text-slate-500 uppercase">Monto ($ MXN) *</label>
+                                        <input type="number" id="transfer-amount" step="0.01" required placeholder="0.00" class="border rounded-xl px-3 py-2 text-slate-700 focus:outline-none bg-slate-50">
+                                    </div>
+                                </div>
+
+                                <div class="flex flex-col gap-1">
+                                    <label class="font-bold text-slate-500 uppercase">Dirección *</label>
+                                    <select id="transfer-direction" required class="border rounded-xl px-3 py-2 text-slate-700 bg-slate-50 focus:outline-none">
+                                        <option value="caja-a-banco">💵 → 🏦 De Caja a Banco (depósito)</option>
+                                        <option value="banco-a-caja">🏦 → 💵 De Banco a Caja (retiro)</option>
+                                    </select>
+                                </div>
+
+                                <div class="flex flex-col gap-1">
+                                    <label class="font-bold text-slate-500 uppercase">Notas (Opcional)</label>
+                                    <input type="text" id="transfer-notes" placeholder="Ej. Depósito ventanilla Banorte" class="border rounded-xl px-3 py-2 text-slate-700 focus:outline-none bg-slate-50">
+                                </div>
+
+                                <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 rounded-xl text-xs transition mt-1 flex items-center justify-center gap-2 shadow-lg shadow-blue-100">
+                                    <span class="material-icons text-sm">sync_alt</span><span>Registrar Traspaso</span>
+                                </button>
+                            </form>
+                        </div>
                     </div>
 
                     <div class="lg:col-span-2 flex flex-col gap-5">
@@ -1532,8 +1568,8 @@
             modalEditingConcepts: [],
             quoteItems: [],
             fixedCosts: { renta: 0, servicios: 0, impuestos: 0 },
-            categories: ["Gasolina", "Diesel", "Consumibles", "Refacciones", "Nómina", "Renta", "Agua", "Luz", "Internet", "Herramientas", "Publicidad", "Papelería", "Transporte", "Comisiones bancarias", "Impuestos", "Pago de Préstamos / Socios", "Otros"],
-            extraIncomeCategories: ["Capital de Trabajo", "Crédito o Préstamo", "Aportación de Socios", "Otro Ingreso"]
+            categories: ["Gasolina", "Diesel", "Consumibles", "Refacciones", "Nómina", "Renta", "Agua", "Luz", "Internet", "Herramientas", "Publicidad", "Papelería", "Transporte", "Comisiones bancarias", "Impuestos", "Pago de Préstamos / Socios", "Traspaso entre Cuentas (Caja/Banco)", "Otros"],
+            extraIncomeCategories: ["Capital de Trabajo", "Crédito o Préstamo", "Aportación de Socios", "Traspaso entre Cuentas (Caja/Banco)", "Otro Ingreso"]
         };
 
         const Utils = {
@@ -1931,11 +1967,9 @@
             
                         if (e.categoria === "Nómina" && mAmt < 0) {
                             deduccionesNomina += Math.abs(mAmt); 
-                        } else if (e.categoria === "Pago de Préstamos / Socios") {
-                            // Devolución de un préstamo/aportación personal: sí sale de caja, pero NO es un
-                            // gasto operativo — el costo real ya se contó cuando se hizo la compra original.
-                            // Se excluye de egresosManuales (y por lo tanto de la Utilidad Neta) para no
-                            // restar el mismo gasto dos veces.
+                        } else if (e.categoria === "Pago de Préstamos / Socios" || e.categoria === "Traspaso entre Cuentas (Caja/Banco)") {
+                            // Devolución de un préstamo/aportación personal, o traspaso interno entre caja y banco:
+                            // sí sale de caja, pero NO es un gasto operativo — no se resta de la Utilidad Neta.
                             if (metodo === 'efectivo') {
                                 salidasEfectivo += mAmt;
                             } else if (metodo === 'transferencia' || metodo === 'tarjeta') {
@@ -2974,10 +3008,10 @@
                     if (metodo === 'efectivo') salidasEfectivo += m;
                     else salidasBanco += m;
 
-                    // Devolución de préstamos/aportaciones de socios: sale de caja pero NO es gasto
-                    // operativo (el costo ya se contó cuando se hizo la compra original). No se suma
-                    // a egresosManuales para no restarlo dos veces de la utilidad a repartir.
-                    if (g.categoria !== "Pago de Préstamos / Socios") {
+                    // Devolución de préstamos/aportaciones de socios, o traspasos internos entre caja y banco:
+                    // salen de caja pero NO son gasto operativo (no se restan dos veces / no son costo real).
+                    // No se suman a egresosManuales para no afectar la utilidad a repartir.
+                    if (g.categoria !== "Pago de Préstamos / Socios" && g.categoria !== "Traspaso entre Cuentas (Caja/Banco)") {
                         egresosManuales += m;
                     }
                 });
@@ -3861,6 +3895,57 @@
                 API_Service.fetchIngresosExtra(true);
             },
 
+            async handleCreateTraspaso(e) {
+                e.preventDefault();
+                const fecha = document.getElementById('transfer-date').value;
+                const monto = parseFloat(document.getElementById('transfer-amount').value) || 0;
+                const direccion = document.getElementById('transfer-direction').value;
+                const notas = document.getElementById('transfer-notes').value || '';
+                const registrador = document.getElementById('user-display-name')?.innerText || 'Administrador';
+                const CATEGORIA_TRASPASO = "Traspaso entre Cuentas (Caja/Banco)";
+
+                const metodoOrigen = direccion === 'caja-a-banco' ? 'Efectivo' : 'Transferencia';
+                const metodoDestino = direccion === 'caja-a-banco' ? 'Transferencia' : 'Efectivo';
+                const conceptoBase = direccion === 'caja-a-banco' ? 'Depósito de caja a banco' : 'Retiro de banco a caja';
+
+                const gastoSalida = {
+                    fecha, monto,
+                    categoria: CATEGORIA_TRASPASO,
+                    metodo_pago: metodoOrigen,
+                    concepto: conceptoBase,
+                    description: '',
+                    observaciones: notas,
+                    tiene_cfdi: false,
+                    iva: 0,
+                    registrado_por: registrador
+                };
+
+                const ingresoEntrada = {
+                    fecha, monto,
+                    categoria: CATEGORIA_TRASPASO,
+                    metodo_pago: metodoDestino,
+                    concepto: conceptoBase,
+                    observaciones: notas,
+                    registrado_por: registrador
+                };
+
+                const [resGasto, resIngreso] = await Promise.all([
+                    supabaseClient.from('gastos').insert([gastoSalida]),
+                    supabaseClient.from('ingresos_extra').insert([ingresoEntrada])
+                ]);
+
+                if (resGasto.error || resIngreso.error) {
+                    showToast("Error Supabase: " + (resGasto.error?.message || resIngreso.error?.message), true);
+                    return;
+                }
+
+                showToast("Traspaso registrado en ambas cuentas.");
+                document.getElementById('transfer-form').reset();
+                document.getElementById('transfer-date').value = new Date().toISOString().split('T')[0];
+                API_Service.fetchExpenses(true);
+                API_Service.fetchIngresosExtra(true);
+            },
+
             addNewOrderConceptRow() { State.newOrderConcepts.push({ descripcion: '', cantidad: 1, precio: 0, categoria: 'refacciones' }); this.renderNewOrderConcepts(); },
             deleteNewOrderConceptRow(idx) { State.newOrderConcepts.splice(idx, 1); this.renderNewOrderConcepts(); },
             updateNewOrderConceptRow(idx, field, val) {
@@ -4621,6 +4706,7 @@
             const todayStr = new Date().toISOString().split('T')[0];
             if(document.getElementById('expense-date')) { document.getElementById('expense-date').value = todayStr; }
             if(document.getElementById('extra-income-date')) { document.getElementById('extra-income-date').value = todayStr; }
+            if(document.getElementById('transfer-date')) { document.getElementById('transfer-date').value = todayStr; }
             if(document.getElementById('form-fecha-ingreso')) { document.getElementById('form-fecha-ingreso').value = todayStr; }
             if(document.getElementById('personal-fecha-ingreso')) { document.getElementById('personal-fecha-ingreso').value = todayStr; }
             
