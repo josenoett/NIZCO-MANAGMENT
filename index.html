@@ -3737,17 +3737,28 @@
             populateTecnicosDropdowns() {
                 const fSel = document.getElementById('form-tecnico'), mSel = document.getElementById('modal-tecnico'), pSel = document.getElementById('prod-mechanic-filter');
                 if(!fSel || !mSel) return;
-                
-                const mecOptions = State.personal
-                    .filter(p => p.rol && p.rol.includes('Mecánico'))
+
+                // Solo mecánicos activos (sin fecha de baja) para asignar trabajo nuevo.
+                const mecOptionsActivos = State.personal
+                    .filter(p => p.rol && p.rol.includes('Mecánico') && !p.fecha_egreso)
                     .map(m => {
                         const val = Utils.escapeHtml(m.user_id || m.id);
                         return `<option value="${val}">🔧 ${Utils.escapeHtml(m.nombre)}</option>`;
                     })
                     .join('');
 
-                const html = '<option value="">👤 Sin Asignar</option>' + mecOptions;
-                const htmlFilter = '<option value="ALL">👥 Todos los Mecánicos</option>' + mecOptions;
+                // Todos los mecánicos (activos + dados de baja) para el filtro de reportes históricos.
+                const mecOptionsTodos = State.personal
+                    .filter(p => p.rol && p.rol.includes('Mecánico'))
+                    .map(m => {
+                        const val = Utils.escapeHtml(m.user_id || m.id);
+                        const etiquetaBaja = m.fecha_egreso ? ' (Baja)' : '';
+                        return `<option value="${val}">🔧 ${Utils.escapeHtml(m.nombre)}${etiquetaBaja}</option>`;
+                    })
+                    .join('');
+
+                const html = '<option value="">👤 Sin Asignar</option>' + mecOptionsActivos;
+                const htmlFilter = '<option value="ALL">👥 Todos los Mecánicos</option>' + mecOptionsTodos;
 
                 fSel.innerHTML = html; 
                 mSel.innerHTML = html;
@@ -4158,7 +4169,19 @@
                 document.getElementById('modal-estado-pago').value = o.estado_pago;
                 
                 const targetVal = o.tecnico_user_id || (State.personal.find(p => p.nombre === o.tecnico_asignado)?.id || "");
-                document.getElementById('modal-tecnico').value = targetVal;
+                const mSelEdit = document.getElementById('modal-tecnico');
+                mSelEdit.value = targetVal;
+                // Si el mecánico ya asignado fue dado de baja, no aparece en las opciones activas.
+                // Se agrega temporalmente para no perder ni pisar accidentalmente la asignación existente.
+                if (targetVal && mSelEdit.value != targetVal) {
+                    const mecBaja = State.personal.find(p => (p.user_id || p.id) == targetVal);
+                    const nombreMec = mecBaja ? mecBaja.nombre : (o.tecnico_asignado || 'Mecánico dado de baja');
+                    const opt = document.createElement('option');
+                    opt.value = targetVal;
+                    opt.textContent = `🔧 ${nombreMec} (Baja)`;
+                    mSelEdit.appendChild(opt);
+                    mSelEdit.value = targetVal;
+                }
 
                 document.getElementById('modal-diagnostico').value = o.diagnostico_tecnico || '';
                 document.getElementById('modal-kilometraje').value = o.kilometraje || 0;
@@ -4639,7 +4662,17 @@
 
             downloadQuotePDF() {
                 const docType = document.getElementById('quote-doc-type').value;
-                const filename = docType === 'NOTA DE VENTA' ? 'Nota_de_Venta_BEFIX_GARAGE.pdf' : 'Cotizacion_BEFIX_GARAGE.pdf';
+                const orderLoader = document.getElementById('quote-order-loader').value;
+                const tipoArchivo = docType === 'NOTA DE VENTA' ? 'Nota_de_Venta' : 'Cotizacion';
+
+                let filename;
+                if (orderLoader) {
+                    filename = `${tipoArchivo}_Orden_${orderLoader}_BEFIX_GARAGE.pdf`;
+                } else {
+                    const hoy = new Date().toISOString().split('T')[0];
+                    filename = `${tipoArchivo}_BEFIX_GARAGE_${hoy}.pdf`;
+                }
+
                 showToast("Generando archivo PDF...");
                 html2pdf().set({ margin: 0.2, filename: filename, image: { type: 'jpeg', quality: 0.98 }, html2canvas: { scale: 2 }, jsPDF: { format: 'letter', orientation: 'portrait' } })
                     .from(document.getElementById('pdf-capture-area')).save();
