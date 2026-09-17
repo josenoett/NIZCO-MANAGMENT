@@ -1,4 +1,4 @@
-        const Auth_Engine = {
+const Auth_Engine = {
             async handleLogin(e) {
                 e.preventDefault();
                 const email = document.getElementById('login-email').value;
@@ -6,10 +6,10 @@
                 showToast("Autenticando...");
 
                 try {
-                    const { data, error } = await Client.auth.signInWithPassword({ email, password });
+                    const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
                     if (error) { showToast("Acceso denegado: " + error.message, true); return; }
 
-                    const { data: profile, error: profileError } = await Client
+                    const { data: profile, error: profileError } = await supabaseClient
                         .from('directorio_tecnicos')
                         .select('rol, nombre')
                         .eq('user_id', data.user.id)
@@ -88,4 +88,3 @@
                 document.getElementById('erp-login-screen').classList.remove('hidden');
             }
         };
-
