@@ -19,26 +19,39 @@ jobs:
       - name: Generar el respaldo (pg_dump)
         env:
           PGCONNECT_TIMEOUT: "30"
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
         run: |
           set -euo pipefail
           TIMESTAMP=$(date -u +"%Y-%m-%d_%H%M")UTC
           FILENAME="befix_backup_${TIMESTAMP}.sql.gz"
           echo "FILENAME=${FILENAME}" >> "$GITHUB_ENV"
 
-          pg_dump "${{ secrets.SUPABASE_DB_URL }}" \
+          # quita espacios/saltos de línea accidentales al pegar el secreto
+          DB_URL=$(printf '%s' "$SUPABASE_DB_URL" | tr -d '\r\n ')
+
+          echo "Probando conexión..."
+          if ! pg_isready -d "$DB_URL"; then
+            echo "::error::No se pudo conectar a la base de datos. Revisa que SUPABASE_DB_URL sea correcta y que la contraseña esté URL-encoded (@ → %40, # → %23, etc.)."
+            exit 1
+          fi
+
+          pg_dump "$DB_URL" \
             --no-owner --no-privileges --format=plain \
             | gzip -9 > "${FILENAME}"
 
           ls -lh "${FILENAME}"
 
       - name: Configurar rclone (cuenta de servicio de Google)
+        env:
+          GDRIVE_SA_KEY_JSON: ${{ secrets.GDRIVE_SA_KEY_JSON }}
         run: |
           mkdir -p ~/.config/rclone
-          cat > ~/.config/rclone/rclone.conf <<'EOF'
+          printf '%s' "$GDRIVE_SA_KEY_JSON" > "$HOME/gdrive-sa.json"
+          cat > ~/.config/rclone/rclone.conf <<EOF
           [gdrive]
           type = drive
           scope = drive.file
-          service_account_credentials = ${{ secrets.GDRIVE_SA_KEY_JSON }}
+          service_account_file = $HOME/gdrive-sa.json
           EOF
 
       - name: Subir respaldo a Google Drive
