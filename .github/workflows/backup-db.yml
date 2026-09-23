@@ -1,0 +1,58 @@
+name: Respaldo diario de la base de datos (Supabase → Google Drive)
+
+on:
+  schedule:
+    # 09:00 UTC = 03:00 hora de Ciudad Juárez (UTC-6)
+    - cron: "0 9 * * *"
+  workflow_dispatch: {} # permite correrlo manualmente desde la pestaña "Actions"
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Instalar herramientas (postgresql-client + rclone)
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends postgresql-client
+          curl -fsSL https://rclone.org/install.sh | sudo bash
+
+      - name: Generar el respaldo (pg_dump)
+        env:
+          PGCONNECT_TIMEOUT: "30"
+        run: |
+          set -euo pipefail
+          TIMESTAMP=$(date -u +"%Y-%m-%d_%H%M")UTC
+          FILENAME="befix_backup_${TIMESTAMP}.sql.gz"
+          echo "FILENAME=${FILENAME}" >> "$GITHUB_ENV"
+
+          pg_dump "${{ secrets.SUPABASE_DB_URL }}" \
+            --no-owner --no-privileges --format=plain \
+            | gzip -9 > "${FILENAME}"
+
+          ls -lh "${FILENAME}"
+
+      - name: Configurar rclone (cuenta de servicio de Google)
+        run: |
+          mkdir -p ~/.config/rclone
+          cat > ~/.config/rclone/rclone.conf <<'EOF'
+          [gdrive]
+          type = drive
+          scope = drive.file
+          service_account_credentials = ${{ secrets.GDRIVE_SA_KEY_JSON }}
+          EOF
+
+      - name: Subir respaldo a Google Drive
+        run: |
+          rclone copy "${FILENAME}" "gdrive:" \
+            --drive-root-folder-id "${{ secrets.GDRIVE_FOLDER_ID }}" \
+            -v
+
+      - name: Borrar respaldos con más de 30 días (retención)
+        run: |
+          rclone delete "gdrive:" --drive-root-folder-id "${{ secrets.GDRIVE_FOLDER_ID }}" \
+            --min-age 30d -v
+
+      - name: Verificación rápida
+        run: |
+          echo "Respaldo '${FILENAME}' subido correctamente a Google Drive."
+          echo "Se conservan los últimos 30 días de respaldos en la carpeta configurada."
