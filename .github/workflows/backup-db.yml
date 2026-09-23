@@ -62,29 +62,32 @@ jobs:
 
           ls -lh "${FILENAME}"
 
-      - name: Configurar rclone (cuenta de servicio de Google)
+      - name: Configurar rclone (tu cuenta de Google, vía OAuth)
         env:
-          GDRIVE_SA_KEY_JSON: ${{ secrets.GDRIVE_SA_KEY_JSON }}
+          GDRIVE_RCLONE_TOKEN: ${{ secrets.GDRIVE_RCLONE_TOKEN }}
+          GDRIVE_FOLDER_ID: ${{ secrets.GDRIVE_FOLDER_ID }}
+          GDRIVE_CLIENT_ID: ${{ secrets.GDRIVE_CLIENT_ID }}
+          GDRIVE_CLIENT_SECRET: ${{ secrets.GDRIVE_CLIENT_SECRET }}
         run: |
+          set -euo pipefail
           mkdir -p ~/.config/rclone
-          printf '%s' "$GDRIVE_SA_KEY_JSON" > "$HOME/gdrive-sa.json"
           cat > ~/.config/rclone/rclone.conf <<EOF
           [gdrive]
           type = drive
           scope = drive
-          service_account_file = $HOME/gdrive-sa.json
+          root_folder_id = ${GDRIVE_FOLDER_ID}
+          client_id = ${GDRIVE_CLIENT_ID}
+          client_secret = ${GDRIVE_CLIENT_SECRET}
+          token = ${GDRIVE_RCLONE_TOKEN}
           EOF
 
       - name: Subir respaldo a Google Drive
         run: |
-          rclone copy "${FILENAME}" "gdrive:" \
-            --drive-root-folder-id "${{ secrets.GDRIVE_FOLDER_ID }}" \
-            -v
+          rclone copy "${FILENAME}" "gdrive:" -v
 
       - name: Borrar respaldos con más de 30 días (retención)
         run: |
-          rclone delete "gdrive:" --drive-root-folder-id "${{ secrets.GDRIVE_FOLDER_ID }}" \
-            --min-age 30d -v
+          rclone delete "gdrive:" --min-age 30d -v
 
       - name: Verificación rápida
         run: |
