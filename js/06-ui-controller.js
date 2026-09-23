@@ -1,4 +1,4 @@
-        const UI_Controller = {
+const UI_Controller = {
             ordenActivaId: null,
 
             switchTab(tabId) {
@@ -946,7 +946,8 @@
                 e.preventDefault();
                 const montoTotal = parseFloat(document.getElementById('expense-amount').value) || 0;
                 const tieneCfdi = document.getElementById('expense-cfdi').checked;
-                const ivaCalculado = tieneCfdi ? Math.round((montoTotal - (montoTotal / 1.16)) * 100) / 100 : 0;
+                // IVA de compras/gastos: tasa 8% (Zona Fronteriza). Las ventas a clientes sí van al 16%.
+                const ivaCalculado = tieneCfdi ? Math.round((montoTotal - (montoTotal / 1.08)) * 100) / 100 : 0;
 
                 const expense = {
                     fecha: document.getElementById('expense-date').value,
@@ -1396,7 +1397,7 @@
                 const costoTotal = parseFloat(document.getElementById('ref-costo').value) || 0;
                 const tieneCfdi = document.getElementById('ref-tiene-cfdi').checked;
 
-                const ivaCalculado = tieneCfdi ? Math.round((costoTotal - (costoTotal / 1.16)) * 100) / 100 : 0;
+                const ivaCalculado = tieneCfdi ? Math.round((costoTotal - (costoTotal / 1.08)) * 100) / 100 : 0;
                 const subtotalCalculado = costoTotal - ivaCalculado;
                 const fechaInput = document.getElementById('ref-fecha').value;
                 const fechaISO = fechaInput ? new Date(fechaInput).toISOString() : new Date().toISOString();
@@ -1909,4 +1910,3 @@
                 State.confirmCallback = null;
             }
         };
-
