@@ -10,10 +10,24 @@ jobs:
   backup:
     runs-on: ubuntu-latest
     steps:
-      - name: Instalar herramientas (postgresql-client + rclone)
+      - name: Instalar herramientas (postgresql-client 17 + rclone)
         run: |
+          set -euo pipefail
           sudo apt-get update -qq
-          sudo apt-get install -y --no-install-recommends postgresql-client
+          sudo apt-get install -y --no-install-recommends wget ca-certificates gnupg lsb-release
+
+          # el repo de Ubuntu trae pg_dump 16, pero Supabase corre Postgres 17,
+          # así que agregamos el repositorio oficial de PostgreSQL (PGDG) para
+          # instalar la versión 17 del cliente y evitar el "server version mismatch"
+          sudo install -d /usr/share/postgresql-common/pgdg
+          sudo wget --quiet -O /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc \
+            https://www.postgresql.org/media/keys/ACCC4CF8.asc
+          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" \
+            | sudo tee /etc/apt/sources.list.d/pgdg.list > /dev/null
+
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends postgresql-client-17
+
           curl -fsSL https://rclone.org/install.sh | sudo bash
 
       - name: Generar el respaldo (pg_dump)
