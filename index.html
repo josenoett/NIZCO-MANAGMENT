@@ -1238,6 +1238,90 @@
                         </div>
                     </div>
                 </div>
+
+                <!-- CONTROL DE ASISTENCIA -->
+                <div class="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm flex flex-col gap-5">
+                    <div class="flex items-center gap-3">
+                        <div class="bg-amber-50 border text-amber-600 p-2 rounded-xl"><span class="material-icons">event_available</span></div>
+                        <div>
+                            <h3 class="font-bold text-slate-900">Control de Asistencia</h3>
+                            <p class="text-xs text-slate-500">Registra solo las incidencias. Jornada lunes a sábado: 1 día = sueldo semanal ÷ 6. Si lleva descuento, se aplica solo a la nómina y al botón "Nómina de la Semana".</p>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 lg:grid-cols-5 gap-6">
+                        <form onsubmit="Attendance_Engine.save(event)" class="lg:col-span-2 flex flex-col gap-3 text-xs bg-slate-50 border rounded-2xl p-4">
+                            <div class="flex flex-col gap-1">
+                                <label class="font-bold text-slate-500 uppercase">Colaborador *</label>
+                                <select id="asis-personal" required onchange="Attendance_Engine.recalcDescuento()" class="border rounded-xl px-3 py-2 bg-white"></select>
+                            </div>
+                            <div class="flex flex-col gap-1">
+                                <label class="font-bold text-slate-500 uppercase">Tipo *</label>
+                                <select id="asis-tipo" onchange="Attendance_Engine.onTipoChange()" class="border rounded-xl px-3 py-2 bg-white">
+                                    <option value="falta_injustificada">❌ Falta injustificada</option>
+                                    <option value="falta_justificada">📝 Falta justificada</option>
+                                    <option value="retardo">⏰ Retardo</option>
+                                    <option value="permiso">🚪 Permiso / salida temprano</option>
+                                    <option value="vacaciones">🏖️ Vacaciones</option>
+                                    <option value="incapacidad">🩹 Incapacidad</option>
+                                </select>
+                            </div>
+                            <div class="grid grid-cols-2 gap-3">
+                                <div class="flex flex-col gap-1">
+                                    <label class="font-bold text-slate-500 uppercase">Fecha *</label>
+                                    <input type="date" id="asis-fecha" required onchange="Attendance_Engine.renderPreview()" class="border rounded-xl px-3 py-2 bg-white">
+                                </div>
+                                <div id="asis-hasta-wrap" class="flex flex-col gap-1">
+                                    <label class="font-bold text-slate-500 uppercase">Hasta (opcional)</label>
+                                    <input type="date" id="asis-hasta" onchange="Attendance_Engine.renderPreview()" class="border rounded-xl px-3 py-2 bg-white">
+                                </div>
+                                <div id="asis-minutos-wrap" class="flex flex-col gap-1 hidden">
+                                    <label class="font-bold text-slate-500 uppercase">Minutos tarde</label>
+                                    <input type="number" id="asis-minutos" min="1" placeholder="Ej. 30" class="border rounded-xl px-3 py-2 bg-white">
+                                </div>
+                                <div id="asis-duracion-wrap" class="flex flex-col gap-1 hidden">
+                                    <label class="font-bold text-slate-500 uppercase">Duración</label>
+                                    <select id="asis-duracion" onchange="Attendance_Engine.onDuracionChange()" class="border rounded-xl px-3 py-2 bg-white">
+                                        <option value="medio">Medio día</option>
+                                        <option value="completo">Día completo</option>
+                                        <option value="horas">Por horas</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div id="asis-horas-wrap" class="flex flex-col gap-1 hidden">
+                                <label class="font-bold text-slate-500 uppercase">Horas de permiso (jornada de 8 h)</label>
+                                <input type="number" id="asis-horas" min="0.5" max="8" step="0.5" value="2" oninput="Attendance_Engine.recalcDescuento()" class="border rounded-xl px-3 py-2 bg-white">
+                            </div>
+                            <label class="flex items-center gap-2 font-semibold text-slate-700 pt-1">
+                                <input type="checkbox" id="asis-descontar" onchange="Attendance_Engine.recalcDescuento()"> Descontar de nómina
+                            </label>
+                            <div id="asis-descuento-wrap" class="flex flex-col gap-1 hidden">
+                                <label class="font-bold text-slate-500 uppercase">Descuento por día ($)</label>
+                                <input type="number" id="asis-descuento" min="0" step="0.01" oninput="this.dataset.manual='1'; Attendance_Engine.renderPreview()" class="border rounded-xl px-3 py-2 bg-white">
+                                <span id="asis-ref-diario" class="text-[10px] text-slate-400"></span>
+                            </div>
+                            <input type="text" id="asis-notas" placeholder="Notas (opcional) — ej. avisó por WhatsApp" class="border rounded-xl px-3 py-2 bg-white">
+                            <p id="asis-preview" class="text-[11px] text-blue-700 font-semibold"></p>
+                            <button type="submit" class="bg-amber-500 hover:bg-amber-600 text-white font-bold py-2.5 rounded-xl flex items-center justify-center gap-2">
+                                <span class="material-icons text-sm">event_busy</span>Registrar incidencia
+                            </button>
+                        </form>
+
+                        <div class="lg:col-span-3 flex flex-col gap-3">
+                            <div class="flex items-center justify-between">
+                                <h4 class="text-xs font-black text-slate-400 uppercase tracking-wider">Resumen del mes</h4>
+                                <input type="month" id="asis-mes" onchange="Attendance_Engine.render()" class="border rounded-xl px-3 py-1.5 text-xs">
+                            </div>
+                            <div id="asis-resumen" class="grid grid-cols-1 sm:grid-cols-2 gap-3"></div>
+                            <div class="overflow-x-auto max-h-72 no-scrollbar border rounded-2xl">
+                                <table class="w-full text-left">
+                                    <thead><tr class="text-[10px] uppercase text-slate-400 border-b bg-slate-50"><th class="py-2 px-2">Fecha</th><th class="py-2 px-2">Colaborador</th><th class="py-2 px-2">Incidencia</th><th class="py-2 px-2 text-right">Descuento</th><th></th></tr></thead>
+                                    <tbody id="asis-lista"></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </section>
 
             <!-- PESTAÑA 6: CONFIGURACIÓN GENERAL -->
@@ -1377,6 +1461,11 @@
                     <div class="flex flex-col gap-1.5 max-w-xs">
                         <label class="text-xs font-semibold text-slate-500 uppercase">Fecha de arranque</label>
                         <input type="date" id="nomina-control-inicio" onchange="UI_Controller.saveNominaControlInicio()" class="border rounded-xl px-4 py-2 text-sm focus:outline-none">
+                    </div>
+                    <div class="flex flex-col gap-2 pt-2 border-t">
+                        <label class="text-xs font-semibold text-slate-500 uppercase">Cobran con semana desfasada</label>
+                        <p class="text-[11px] text-slate-400 -mt-1">Se les paga el viernes/sábado la semana ANTERIOR trabajada. Sus descuentos por faltas se aplican en el pago de la semana siguiente.</p>
+                        <div id="nomina-desfase-list" class="flex flex-col gap-1.5"></div>
                     </div>
                 </div>
 
@@ -1712,10 +1801,11 @@
                     <p class="text-[11px] text-slate-500 pb-2">Sueldos semanales en Nómina y Personal: <strong id="nomina-ref-personal">$0.00</strong></p>
                 </div>
                 <div class="hidden sm:grid grid-cols-12 gap-2 text-[10px] font-bold text-slate-400 uppercase">
-                    <span class="col-span-4">Concepto</span><span class="col-span-2 text-right">Monto</span><span class="col-span-2">Forma de pago</span><span class="col-span-2">Día</span><span class="col-span-2"></span>
+                    <span class="col-span-3">Concepto</span><span class="col-span-2">Colaborador</span><span class="col-span-2 text-right">Monto</span><span class="col-span-2">Forma de pago</span><span class="col-span-1">Día</span><span class="col-span-2"></span>
                 </div>
                 <div id="nomina-rows" class="flex flex-col gap-2"></div>
                 <button type="button" onclick="UI_Controller.addNominaRow()" class="self-start text-xs font-semibold text-blue-600 hover:bg-blue-50 px-2 py-1 rounded-lg">+ Agregar pago</button>
+                <p id="nomina-descuentos" class="hidden text-[11px] text-slate-700 bg-rose-50 border border-rose-200 rounded-lg px-3 py-2 leading-relaxed"></p>
                 <p id="nomina-aviso-diferencia" class="hidden text-[11px] text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2"></p>
                 <div class="flex flex-wrap items-center justify-between gap-3 pt-3 border-t">
                     <label class="flex items-center gap-2 text-xs text-slate-600"><input type="checkbox" id="nomina-guardar-plantilla"> Guardar estos pagos como plantilla para las próximas semanas</label>
@@ -1743,5 +1833,6 @@
     <script src="js/06-ui-controller.js"></script>
     <script src="js/07-app-init.js"></script>
     <script src="js/08-maintenance-engine.js"></script>
+    <script src="js/09-attendance-engine.js"></script>
 </body>
 </html>
