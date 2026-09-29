@@ -36,6 +36,12 @@
 
                 if (tabId === 'config') {
                     Maintenance_Engine.loadCatalogoConfig();
+                    Promise.resolve(API_Service.fetchPersonal()).then(() => UI_Controller.loadNominaConfig());
+                }
+
+                if (tabId === 'personal') {
+                    // Espera a tener el personal cargado para llenar el selector de asistencia
+                    Promise.resolve(API_Service.fetchPersonal()).then(() => Attendance_Engine.load());
                 }
             },
 
@@ -305,7 +311,7 @@
                                     <div class="flex justify-between"><span>Nómina correspondiente (neta de descuentos):</span><span class="font-bold">${Utils.formatter.format(nominaCorrespondienteControl)}</span></div>
                                     <div class="flex justify-between"><span>Pagada según Tesorería (ya restada de Caja/Banco):</span><span class="font-bold">${Utils.formatter.format(nominaPagadaControl)}</span></div>
                                     <div class="flex justify-between font-black ${estado.cls}"><span>${estado.txt}:</span><span>${Utils.formatter.format(Math.abs(pend))}</span></div>
-                                    <span class="text-[9px] text-slate-400">Los pagos de nómina salen de Caja/Banco pero no se restan otra vez de la Utilidad: ahí ya entra la nómina devengada.</span>
+                                    <span class="text-[9px] text-slate-400">Los pagos de nómina salen de Caja/Banco pero no se restan otra vez de la Utilidad: ahí ya entra la nómina devengada. Para quien cobra con semana desfasada, los descuentos por asistencia se comparan contra el pago de la semana siguiente.</span>
                                 </div>`;
                             })() : `<p class="mt-2 text-[9px] text-slate-400">Pagos de nómina en Tesorería durante el periodo: ${Utils.formatter.format(nominaPagadaPeriodo)} (restados de Caja/Banco, no de la Utilidad).</p>`}
                         </div>
@@ -1894,6 +1900,25 @@
             loadNominaConfig() {
                 const input = document.getElementById('nomina-control-inicio');
                 if (input) input.value = State.nominaControlInicio || '';
+                const cont = document.getElementById('nomina-desfase-list');
+                if (cont) {
+                    const activos = (State.personal || []).filter(p => !p.fecha_egreso || Utils.parseFechaLocal(p.fecha_egreso) >= new Date());
+                    const set = new Set((State.nominaDesfase || []).map(String));
+                    cont.innerHTML = activos.length === 0 ? '<p class="text-xs text-slate-400">Sin colaboradores activos.</p>' : activos.map(p => `
+                        <label class="flex items-center gap-2 text-sm text-slate-700">
+                            <input type="checkbox" ${set.has(String(p.id)) ? 'checked' : ''} onchange="UI_Controller.toggleNominaDesfase('${p.id}', this.checked)">
+                            ${Utils.escapeHtml(p.nombre)} <span class="text-[11px] text-slate-400">(${Utils.escapeHtml(p.rol || '')})</span>
+                        </label>`).join('');
+                }
+            },
+
+            toggleNominaDesfase(personalId, on) {
+                const set = new Set((State.nominaDesfase || []).map(String));
+                if (on) set.add(String(personalId)); else set.delete(String(personalId));
+                State.nominaDesfase = Array.from(set);
+                API_Service.saveConfigValue('nomina_desfase', State.nominaDesfase);
+                showToast(on ? 'Marcado: cobra con semana desfasada.' : 'Desmarcado: cobra la semana en curso.');
+                Financial_Engine.recalculate();
             },
 
             saveNominaControlInicio() {
@@ -1922,11 +1947,14 @@
                 return this._isoLocal(d);
             },
 
-            openNominaSemanal() {
+            async openNominaSemanal() {
                 const plantilla = (State.nominaPlantilla && State.nominaPlantilla.length > 0)
                     ? State.nominaPlantilla
                     : [{ concepto: 'Nómina', monto: 0, metodo: 'Efectivo', dia: 0 }];
-                this._nominaRows = plantilla.map(r => ({ concepto: r.concepto || '', monto: parseFloat(r.monto) || 0, metodo: r.metodo || 'Efectivo', dia: Number(r.dia) || 0 }));
+                this._nominaRows = plantilla.map(r => {
+                    const base = parseFloat(r.monto) || 0;
+                    return { concepto: r.concepto || '', base, monto: base, metodo: r.metodo || 'Efectivo', dia: Number(r.dia) || 0, personal_id: r.personal_id ?? null };
+                });
                 document.getElementById('nomina-viernes').value = this._viernesReciente();
                 document.getElementById('nomina-guardar-plantilla').checked = false;
 
@@ -1937,6 +1965,7 @@
                 if (ref) ref.textContent = Utils.formatter.format(semanalPersonal);
                 this._nominaSemanalPersonal = semanalPersonal;
 
+                await Attendance_Engine.fetchAll();
                 this.renderNominaRows();
                 document.getElementById('modal-nomina').classList.remove('hidden');
             },
@@ -1945,24 +1974,70 @@
                 document.getElementById('modal-nomina').classList.add('hidden');
             },
 
+            // Aplica los descuentos de asistencia de la semana al pago del colaborador
+            // (al renglón en efectivo del último día; si no hay, al del último día).
+            aplicarDescuentosNomina() {
+                const viernes = document.getElementById('nomina-viernes').value;
+                this._nominaRows.forEach(r => { r.monto = r.base; r.descuentoAplicado = 0; });
+                this._descuentosSemana = 0;
+                const aviso = document.getElementById('nomina-descuentos');
+                if (!viernes || !aviso) return;
+                // Semana en curso para quien cobra al día; semana anterior para quien cobra desfasado
+                const desfaseSet = new Set((State.nominaDesfase || []).map(String));
+                const actual = Attendance_Engine.descuentosSemana(viernes, 0);
+                const anterior = Attendance_Engine.descuentosSemana(viernes, 1);
+                const ids = new Set([...Object.keys(actual), ...Object.keys(anterior)]);
+                const lineas = [];
+                ids.forEach(pid => {
+                    const info = desfaseSet.has(pid) ? anterior[pid] : actual[pid];
+                    if (!info) return;
+                    const persona = (State.personal || []).find(p => String(p.id) === pid);
+                    const nombre = persona ? persona.nombre : (info.detalle[0]?.personal_nombre || 'Colaborador');
+                    this._descuentosSemana += info.total;
+                    const candidatos = this._nominaRows.filter(r => r.personal_id !== null && String(r.personal_id) === pid);
+                    const motivo = info.detalle.map(i => `${Attendance_Engine.TIPOS[i.tipo]?.label.toLowerCase() || i.tipo} ${Utils.parseFechaLocal(String(i.fecha).split('T')[0]).toLocaleDateString('es-MX', { weekday: 'short', day: '2-digit' })}`).join(', ');
+                    if (candidatos.length === 0) {
+                        lineas.push(`<span class="text-rose-700">⚠️ ${Utils.escapeHtml(nombre)}: descuento de ${Utils.formatter.format(info.total)} (${Utils.escapeHtml(motivo)}) <strong>no aplicado</strong> — asígnale sus pagos en la columna "Colaborador".</span>`);
+                        return;
+                    }
+                    const destino = candidatos.slice().sort((x, y) => (y.dia - x.dia) || ((y.metodo === 'Efectivo') - (x.metodo === 'Efectivo')))[0];
+                    const aplicado = Math.min(destino.base, info.total);
+                    destino.monto = Math.round((destino.base - aplicado) * 100) / 100;
+                    destino.descuentoAplicado = aplicado;
+                    const semTxt = desfaseSet.has(pid) ? ' · semana anterior (desfasada)' : '';
+                    lineas.push(`${Utils.escapeHtml(nombre)}: −${Utils.formatter.format(aplicado)} en "${Utils.escapeHtml(destino.concepto)}" (${Utils.escapeHtml(motivo)}${semTxt})`);
+                });
+                aviso.classList.toggle('hidden', lineas.length === 0);
+                aviso.innerHTML = lineas.length ? `<strong>Descuentos de asistencia de la semana:</strong><br>${lineas.join('<br>')}` : '';
+            },
+
             renderNominaRows() {
                 const cont = document.getElementById('nomina-rows');
                 if (!cont) return;
+                this.aplicarDescuentosNomina();
                 const viernes = document.getElementById('nomina-viernes').value;
+                const activos = (State.personal || []).filter(p => !p.fecha_egreso || Utils.parseFechaLocal(p.fecha_egreso) >= new Date());
                 cont.innerHTML = this._nominaRows.map((r, idx) => {
                     const fecha = viernes ? this._sumarDias(viernes, r.dia) : '';
                     const fStr = fecha ? Utils.parseFechaLocal(fecha).toLocaleDateString('es-MX', { weekday: 'short', day: '2-digit', month: 'short' }) : '';
                     return `
                         <div class="grid grid-cols-12 gap-2 items-center text-xs">
-                            <input value="${Utils.escapeHtml(r.concepto)}" oninput="UI_Controller.updateNominaRow(${idx}, 'concepto', this.value)" placeholder="Concepto (ej. Nómina Mecánico 1)" class="col-span-12 sm:col-span-4 border rounded-lg px-2 py-1.5 bg-slate-50">
-                            <input type="number" step="0.01" min="0" value="${r.monto}" oninput="UI_Controller.updateNominaRow(${idx}, 'monto', this.value)" class="col-span-4 sm:col-span-2 border rounded-lg px-2 py-1.5 bg-slate-50 text-right">
+                            <input value="${Utils.escapeHtml(r.concepto)}" oninput="UI_Controller.updateNominaRow(${idx}, 'concepto', this.value)" placeholder="Concepto (ej. Nómina Mecánico 1)" class="col-span-12 sm:col-span-3 border rounded-lg px-2 py-1.5 bg-slate-50">
+                            <select onchange="UI_Controller.updateNominaRow(${idx}, 'personal_id', this.value)" class="col-span-6 sm:col-span-2 border rounded-lg px-2 py-1.5 bg-slate-50" title="Colaborador (para aplicar descuentos de asistencia)">
+                                <option value="">— Colaborador —</option>
+                                ${activos.map(p => `<option value="${p.id}" ${String(p.id) === String(r.personal_id) ? 'selected' : ''}>${Utils.escapeHtml(p.nombre)}</option>`).join('')}
+                            </select>
+                            <div class="col-span-6 sm:col-span-2 flex flex-col">
+                                <input type="number" step="0.01" min="0" value="${r.monto}" oninput="UI_Controller.updateNominaRow(${idx}, 'monto', this.value)" class="border rounded-lg px-2 py-1.5 bg-slate-50 text-right ${r.descuentoAplicado ? 'border-rose-300 text-rose-700' : ''}">
+                                ${r.descuentoAplicado ? `<span class="text-[9px] text-rose-600 text-right">${Utils.formatter.format(r.base)} − ${Utils.formatter.format(r.descuentoAplicado)}</span>` : ''}
+                            </div>
                             <select onchange="UI_Controller.updateNominaRow(${idx}, 'metodo', this.value)" class="col-span-4 sm:col-span-2 border rounded-lg px-2 py-1.5 bg-slate-50">
                                 ${['Efectivo', 'Transferencia', 'Tarjeta'].map(m => `<option ${m === r.metodo ? 'selected' : ''}>${m}</option>`).join('')}
                             </select>
-                            <select onchange="UI_Controller.updateNominaRow(${idx}, 'dia', this.value)" class="col-span-3 sm:col-span-2 border rounded-lg px-2 py-1.5 bg-slate-50">
-                                ${this.NOMINA_DIAS.map(d => `<option value="${d.offset}" ${d.offset === r.dia ? 'selected' : ''}>${d.label}</option>`).join('')}
+                            <select onchange="UI_Controller.updateNominaRow(${idx}, 'dia', this.value)" class="col-span-4 sm:col-span-1 border rounded-lg px-1 py-1.5 bg-slate-50">
+                                ${this.NOMINA_DIAS.map(d => `<option value="${d.offset}" ${d.offset === r.dia ? 'selected' : ''}>${d.label.slice(0, 3)}</option>`).join('')}
                             </select>
-                            <span class="col-span-11 sm:col-span-1 text-[10px] text-slate-400 capitalize">${fStr}</span>
+                            <span class="col-span-3 sm:col-span-1 text-[10px] text-slate-400 capitalize leading-tight">${fStr}</span>
                             <button type="button" onclick="UI_Controller.removeNominaRow(${idx})" class="col-span-1 text-rose-400 hover:text-rose-600"><span class="material-icons text-base">delete</span></button>
                         </div>`;
                 }).join('') || `<p class="text-xs text-slate-400">Agrega al menos un pago.</p>`;
@@ -1972,14 +2047,17 @@
             updateNominaRow(idx, field, value) {
                 const r = this._nominaRows[idx];
                 if (!r) return;
-                if (field === 'monto') r.monto = parseFloat(value) || 0;
-                else if (field === 'dia') { r.dia = Number(value) || 0; this.renderNominaRows(); return; }
+                if (field === 'monto') {
+                    r.monto = parseFloat(value) || 0;
+                    if (!r.descuentoAplicado) r.base = r.monto; // sin descuento: el monto capturado es el monto base
+                } else if (field === 'dia') { r.dia = Number(value) || 0; this.renderNominaRows(); return; }
+                else if (field === 'personal_id') { r.personal_id = value || null; this.renderNominaRows(); return; }
                 else r[field] = value;
                 this.updateNominaTotal();
             },
 
             addNominaRow() {
-                this._nominaRows.push({ concepto: '', monto: 0, metodo: 'Efectivo', dia: 1 });
+                this._nominaRows.push({ concepto: '', base: 0, monto: 0, metodo: 'Efectivo', dia: 1, personal_id: null });
                 this.renderNominaRows();
             },
 
@@ -1994,10 +2072,11 @@
                 if (el) el.textContent = Utils.formatter.format(total);
                 const aviso = document.getElementById('nomina-aviso-diferencia');
                 if (aviso) {
-                    const dif = Math.round((total - (this._nominaSemanalPersonal || 0)) * 100) / 100;
+                    const esperado = (this._nominaSemanalPersonal || 0) - (this._descuentosSemana || 0);
+                    const dif = Math.round((total - esperado) * 100) / 100;
                     if (Math.abs(dif) >= 1 && this._nominaSemanalPersonal > 0) {
                         aviso.classList.remove('hidden');
-                        aviso.textContent = `⚠️ El total a pagar difiere ${Utils.formatter.format(Math.abs(dif))} de los sueldos en Nómina y Personal (${dif > 0 ? 'pagas más' : 'pagas menos'}). Si es permanente, corrige el sueldo allá para que la Utilidad cuadre.`;
+                        aviso.textContent = `⚠️ El total a pagar difiere ${Utils.formatter.format(Math.abs(dif))} de los sueldos en Nómina y Personal${this._descuentosSemana ? ' menos los descuentos de asistencia' : ''} (${dif > 0 ? 'pagas más' : 'pagas menos'}). Si es permanente, corrige el sueldo allá para que la Utilidad cuadre.`;
                     } else {
                         aviso.classList.add('hidden');
                     }
@@ -2029,7 +2108,8 @@
                     if (error) { showToast('No se pudo registrar la nómina: ' + error.message, true); return; }
 
                     if (document.getElementById('nomina-guardar-plantilla').checked) {
-                        State.nominaPlantilla = this._nominaRows.map(r => ({ concepto: r.concepto, monto: r.monto, metodo: r.metodo, dia: r.dia }));
+                        // Se guarda el monto BASE (sin descuentos de la semana) y el colaborador de cada pago
+                        State.nominaPlantilla = this._nominaRows.map(r => ({ concepto: r.concepto, monto: r.base, metodo: r.metodo, dia: r.dia, personal_id: r.personal_id }));
                         await API_Service.saveConfigValue('nomina_plantilla', State.nominaPlantilla);
                     }
                     showToast(`Nómina registrada: ${rows.length} pago(s) por ${Utils.formatter.format(rows.reduce((a, r) => a + r.monto, 0))}.`);
@@ -2055,7 +2135,7 @@
                     cont.innerHTML = `<p class="text-xs text-slate-400 flex items-center gap-2"><span class="material-icons text-sm animate-spin">progress_activity</span> Ejecutando pruebas...</p>`;
                 }
 
-                const results = [...(await Financial_Engine.runSelfTest()), ...Maintenance_Engine.runSelfTest()];
+                const results = [...(await Financial_Engine.runSelfTest()), ...Maintenance_Engine.runSelfTest(), ...Attendance_Engine.runSelfTest()];
                 const okCount = results.filter(r => r.ok).length;
                 const total = results.length;
 

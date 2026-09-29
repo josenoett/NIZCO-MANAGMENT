@@ -169,6 +169,7 @@
                     if (configMap.saldo_inicial_caja) State.saldoInicialCaja = configMap.saldo_inicial_caja;
                     if (configMap.nomina_control_inicio) State.nominaControlInicio = configMap.nomina_control_inicio;
                     if (Array.isArray(configMap.nomina_plantilla)) State.nominaPlantilla = configMap.nomina_plantilla;
+                    if (Array.isArray(configMap.nomina_desfase)) State.nominaDesfase = configMap.nomina_desfase;
 
                     UI_Controller.loadFixedCosts();
                     UI_Controller.loadSociosReparto();
@@ -202,6 +203,9 @@
             },
 
             async refreshAll() {
+                // La asistencia se carga primero: el control de nómina del Corte la necesita para saber
+                // a qué semana de pago corresponde cada descuento (colaboradores con semana desfasada).
+                if (typeof Attendance_Engine !== 'undefined') await Attendance_Engine.fetchAll(true, true);
                 await Promise.all([this.fetchOrders(true), this.fetchPersonal(true), this.fetchExpenses(true), this.fetchIngresosExtra(true), this.fetchConfigERP()]);
             },
 

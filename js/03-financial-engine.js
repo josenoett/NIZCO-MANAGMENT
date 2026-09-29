@@ -306,11 +306,26 @@
                         aplicaControlNomina = true;
                         const devengadoCtrl = this.computeNominaDevengada(ctrlStart, end).total;
                         let deduccionesCtrl = 0;
+                        // Colaboradores con semana desfasada: el descuento por una incidencia se aplica en
+                        // el pago de la semana SIGUIENTE, así que para comparar contra lo pagado se mueve
+                        // 7 días. (La Utilidad no cambia: ahí el descuento cuenta en la semana en que ocurrió.)
+                        const desfaseSet = new Set((State.nominaDesfase || []).map(String));
+                        const incPorGasto = {};
+                        ((typeof Attendance_Engine !== 'undefined' && Attendance_Engine.incidencias) || []).forEach(i => {
+                            if (i.gasto_id) incPorGasto[String(i.gasto_id)] = i;
+                        });
                         State.expenses.forEach(e => {
                             if (e.categoria !== 'Nómina') return;
-                            const eDate = Utils.parseFechaLocal(e.fecha);
-                            if (eDate < ctrlStart || eDate > end) return;
+                            let eDate = Utils.parseFechaLocal(e.fecha);
                             const m = Math.round(parseFloat(e.monto || 0) * 100) / 100;
+                            if (m < 0) {
+                                const inc = incPorGasto[String(e.id)];
+                                if (inc && desfaseSet.has(String(inc.personal_id))) {
+                                    eDate = new Date(eDate.getTime());
+                                    eDate.setDate(eDate.getDate() + 7);
+                                }
+                            }
+                            if (eDate < ctrlStart || eDate > end) return;
                             if (m < 0) deduccionesCtrl += Math.abs(m);
                             else nominaPagadaControl += m;
                         });
@@ -464,7 +479,8 @@
                 const backupState = {
                     orders: State.orders, pagos: State.pagos, expenses: State.expenses,
                     personal: State.personal, ingresosExtra: State.ingresosExtra, fixedCosts: State.fixedCosts,
-                    nominaControlInicio: State.nominaControlInicio
+                    nominaControlInicio: State.nominaControlInicio, nominaDesfase: State.nominaDesfase,
+                    incidencias: (typeof Attendance_Engine !== 'undefined') ? Attendance_Engine.incidencias : null
                 };
                 const backupSupabase = supabaseClient;
 
@@ -572,6 +588,27 @@
                     State.nominaControlInicio = '2026-02-01';
                     const R4 = await this.computeCoreFinancials(start2, end2);
                     assertClose('Nómina: periodo anterior al arranque no aplica control', R4.aplicaControlNomina ? 1 : 0, 0);
+
+                    // ---------- Escenario 5: semana desfasada ----------
+                    // Falta el sábado 3-ene con descuento de $100 a un colaborador con semana desfasada:
+                    // la Utilidad la resta en esa semana, pero el control la espera en el pago de la siguiente.
+                    State.nominaControlInicio = '2025-12-01';
+                    State.nominaDesfase = ['55'];
+                    State.personal = [{ id: 55, nombre: 'Mecánico Desfasado', rol: 'Mecánico', sueldo: 700, fecha_ingreso: '2025-01-01', fecha_egreso: null }];
+                    State.expenses = [
+                        { id: 'g-falta', fecha: '2026-01-03', monto: -100, categoria: 'Nómina', metodo_pago: 'Efectivo', concepto: 'Descuento falta' },
+                        { id: 'g-pago1', fecha: '2026-01-03', monto: 700, categoria: 'Nómina', metodo_pago: 'Efectivo', concepto: 'Pago semana anterior' },
+                        { id: 'g-pago2', fecha: '2026-01-10', monto: 600, categoria: 'Nómina', metodo_pago: 'Efectivo', concepto: 'Pago con descuento' }
+                    ];
+                    State.pagos = []; State.orders = []; State.ingresosExtra = [];
+                    State.fixedCosts = { renta: 0, servicios: 0, impuestos: 0 };
+                    if (typeof Attendance_Engine !== 'undefined') Attendance_Engine.incidencias = [{ personal_id: 55, fecha: '2026-01-03', gasto_id: 'g-falta', descuento: 100 }];
+                    supabaseClient = mockSupabase([]);
+                    const S1 = await this.computeCoreFinancials(new Date(2025, 11, 29, 0, 0, 0, 0), new Date(2026, 0, 4, 23, 59, 59, 999));
+                    const S2 = await this.computeCoreFinancials(new Date(2026, 0, 5, 0, 0, 0, 0), new Date(2026, 0, 11, 23, 59, 59, 999));
+                    assertClose('Desfase: semana de la falta — Utilidad descuenta la falta (nómina neta $600)', S1.nominaFinalConDescuentos, 600);
+                    assertClose('Desfase: semana de la falta — control cuadra (pagado completo)', S1.nominaPendientePago, 0);
+                    assertClose('Desfase: semana siguiente — control cuadra con el pago descontado', S2.nominaPendientePago, 0);
                     assertClose('Caso completo: Saldo Neto de Banco = -$540', R2.balBanco, -540);
 
                 } catch (err) {
@@ -585,6 +622,8 @@
                     State.ingresosExtra = backupState.ingresosExtra;
                     State.fixedCosts = backupState.fixedCosts;
                     State.nominaControlInicio = backupState.nominaControlInicio;
+                    State.nominaDesfase = backupState.nominaDesfase;
+                    if (typeof Attendance_Engine !== 'undefined' && backupState.incidencias) Attendance_Engine.incidencias = backupState.incidencias;
                     supabaseClient = backupSupabase;
                 }
 
