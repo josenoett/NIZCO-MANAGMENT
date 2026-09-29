@@ -167,10 +167,14 @@
                         State.sociosReparto = configMap.socios_reparto;
                     }
                     if (configMap.saldo_inicial_caja) State.saldoInicialCaja = configMap.saldo_inicial_caja;
+                    if (configMap.nomina_control_inicio) State.nominaControlInicio = configMap.nomina_control_inicio;
+                    if (Array.isArray(configMap.nomina_plantilla)) State.nominaPlantilla = configMap.nomina_plantilla;
 
                     UI_Controller.loadFixedCosts();
                     UI_Controller.loadSociosReparto();
+                    UI_Controller.loadNominaConfig();
                     Cashflow_Engine.recalculate();
+                    Financial_Engine.recalculate();
                 } catch (error) {
                     console.error('Error al cargar configuración del ERP:', error);
                     showToast('No se pudo cargar la configuración guardada en el servidor (renta, reparto, saldo inicial). Se usan valores por defecto.', true);

@@ -211,6 +211,8 @@
                 let deduccionesNomina = 0;
                 let salidasNoOperativas = 0;
                 let entradasNoOperativas = 0;
+                let nominaPagadaPeriodo = 0;
+                const desgloseNominaPagada = [];
                 let montosPorCategoria = {};
                 State.categories.forEach(cat => montosPorCategoria[cat] = 0);
                 const gastosPorCategoriaPDF = {};
@@ -233,6 +235,14 @@
 
                     if (e.categoria === "Nómina" && mAmt < 0) {
                         deduccionesNomina += Math.abs(mAmt);
+                    } else if (e.categoria === "Nómina") {
+                        // PAGO de nómina (depósito o efectivo entregado). Es dinero que sale de caja/banco,
+                        // pero NO se resta otra vez de la Utilidad: el costo de nómina ya entra por lo
+                        // devengado según el sueldo de cada colaborador (Nómina y Personal).
+                        nominaPagadaPeriodo += mAmt;
+                        desgloseNominaPagada.push({ fecha: e.fecha, concepto: e.concepto, metodo: e.metodo_pago, monto: mAmt });
+                        if (metodo === 'efectivo') salidasEfectivo += mAmt;
+                        else if (metodo === 'transferencia' || metodo === 'tarjeta') salidasBanco += mAmt;
                     } else if (CATEGORIAS_NO_OPERATIVAS.includes(e.categoria)) {
                         // Devolución de préstamos/aportaciones de socios, o traspasos internos entre caja y
                         // banco: salen de caja pero NO son gasto operativo — no tocan la Utilidad Neta.
@@ -279,39 +289,35 @@
                 const saldoPrestamosPendiente = totalPrestadoHistorico - totalDevueltoHistorico;
 
                 // ---------- Nómina devengada (con descuentos aplicados) ----------
-                let costoNominaPeriodo = 0;
-                let desglosePersonal = [];
-
-                State.personal.forEach(p => {
-                    if (p.fecha_egreso && Utils.parseFechaLocal(p.fecha_egreso) < start) return;
-                    if (p.fecha_ingreso && Utils.parseFechaLocal(p.fecha_ingreso) > end) return;
-
-                    const sueldoSemanal = parseFloat(p.sueldo) || 0;
-                    const sueldoDiario = sueldoSemanal / 7;
-
-                    const empInicio = p.fecha_ingreso ? Utils.parseFechaLocal(p.fecha_ingreso) : start;
-                    const empFin = p.fecha_egreso ? Utils.parseFechaLocal(p.fecha_egreso) : end;
-
-                    const inicioInterseccion = new Date(Math.max(start, empInicio));
-                    const finInterseccion = new Date(Math.min(end, empFin));
-
-                    if (inicioInterseccion <= finInterseccion) {
-                        const diasTrabajados = Utils.getDaysInRange(inicioInterseccion, finInterseccion);
-                        const montoCorrespondiente = diasTrabajados * sueldoDiario;
-                        costoNominaPeriodo += montoCorrespondiente;
-                        desglosePersonal.push({
-                            nombre: p.nombre,
-                            puesto: p.rol,
-                            sueldoSemanal: sueldoSemanal,
-                            dias: diasTrabajados,
-                            monto: montoCorrespondiente
-                        });
-                    }
-                });
+                const { total: costoNominaPeriodo, desglose: desglosePersonal } = this.computeNominaDevengada(start, end);
 
                 // Costo real de nómina que se resta de la Utilidad: devengado MENOS descuentos ya aplicados.
                 // (Antes el PDF usaba el devengado sin descontar — quedaba distinto al Dashboard.)
                 const nominaFinalConDescuentos = costoNominaPeriodo - deduccionesNomina;
+
+                // ---------- Control de pagos de nómina (correspondiente vs. pagada) ----------
+                // Solo desde la fecha de arranque configurada: antes de esa fecha los pagos no se
+                // capturaban en Tesorería, así que compararlos marcaría nómina "sin pagar" que sí se pagó.
+                let aplicaControlNomina = false, nominaCorrespondienteControl = 0, nominaPagadaControl = 0, nominaPendientePago = 0;
+                const inicioControlNomina = State.nominaControlInicio ? Utils.parseFechaLocal(State.nominaControlInicio) : null;
+                if (inicioControlNomina && !isNaN(inicioControlNomina)) {
+                    const ctrlStart = new Date(Math.max(start, new Date(inicioControlNomina.getFullYear(), inicioControlNomina.getMonth(), inicioControlNomina.getDate(), 0, 0, 0, 0)));
+                    if (ctrlStart <= end) {
+                        aplicaControlNomina = true;
+                        const devengadoCtrl = this.computeNominaDevengada(ctrlStart, end).total;
+                        let deduccionesCtrl = 0;
+                        State.expenses.forEach(e => {
+                            if (e.categoria !== 'Nómina') return;
+                            const eDate = Utils.parseFechaLocal(e.fecha);
+                            if (eDate < ctrlStart || eDate > end) return;
+                            const m = Math.round(parseFloat(e.monto || 0) * 100) / 100;
+                            if (m < 0) deduccionesCtrl += Math.abs(m);
+                            else nominaPagadaControl += m;
+                        });
+                        nominaCorrespondienteControl = devengadoCtrl - deduccionesCtrl;
+                        nominaPendientePago = nominaCorrespondienteControl - nominaPagadaControl;
+                    }
+                }
                 montosPorCategoria["Nómina"] = nominaFinalConDescuentos;
                 montosPorCategoria["Refacciones"] = refaccionesCostNeto;
 
@@ -406,8 +412,44 @@
                     cuentasPorCobrar, totalPendienteCobro,
                     listaProductividad,
                     conteoServicios, acumuladoManoObraOrdenes, acumuladoRefaccionesOrdenes,
-                    totalPrestadoHistorico, totalDevueltoHistorico, saldoPrestamosPendiente
+                    totalPrestadoHistorico, totalDevueltoHistorico, saldoPrestamosPendiente,
+                    nominaPagadaPeriodo, desgloseNominaPagada,
+                    aplicaControlNomina, inicioControlNomina, nominaCorrespondienteControl, nominaPagadaControl, nominaPendientePago
                 };
+            },
+
+            // Nómina devengada (lo que corresponde pagar) entre dos fechas, prorrateando el sueldo
+            // semanal de cada colaborador por los días que estuvo activo dentro del rango.
+            computeNominaDevengada(start, end) {
+                let total = 0;
+                const desglose = [];
+                State.personal.forEach(p => {
+                    if (p.fecha_egreso && Utils.parseFechaLocal(p.fecha_egreso) < start) return;
+                    if (p.fecha_ingreso && Utils.parseFechaLocal(p.fecha_ingreso) > end) return;
+
+                    const sueldoSemanal = parseFloat(p.sueldo) || 0;
+                    const sueldoDiario = sueldoSemanal / 7;
+
+                    const empInicio = p.fecha_ingreso ? Utils.parseFechaLocal(p.fecha_ingreso) : start;
+                    const empFin = p.fecha_egreso ? Utils.parseFechaLocal(p.fecha_egreso) : end;
+
+                    const inicioInterseccion = new Date(Math.max(start, empInicio));
+                    const finInterseccion = new Date(Math.min(end, empFin));
+
+                    if (inicioInterseccion <= finInterseccion) {
+                        const diasTrabajados = Utils.getDaysInRange(inicioInterseccion, finInterseccion);
+                        const montoCorrespondiente = diasTrabajados * sueldoDiario;
+                        total += montoCorrespondiente;
+                        desglose.push({
+                            nombre: p.nombre,
+                            puesto: p.rol,
+                            sueldoSemanal: sueldoSemanal,
+                            dias: diasTrabajados,
+                            monto: montoCorrespondiente
+                        });
+                    }
+                });
+                return { total, desglose };
             },
 
             // ================================================================================
@@ -421,7 +463,8 @@
                 // pase lo que pase (incluso si una prueba truena a medias).
                 const backupState = {
                     orders: State.orders, pagos: State.pagos, expenses: State.expenses,
-                    personal: State.personal, ingresosExtra: State.ingresosExtra, fixedCosts: State.fixedCosts
+                    personal: State.personal, ingresosExtra: State.ingresosExtra, fixedCosts: State.fixedCosts,
+                    nominaControlInicio: State.nominaControlInicio
                 };
                 const backupSupabase = supabaseClient;
 
@@ -446,6 +489,7 @@
                     State.orders = []; State.pagos = []; State.expenses = [];
                     State.personal = []; State.ingresosExtra = [];
                     State.fixedCosts = { renta: 0, servicios: 0, impuestos: 0 };
+                    State.nominaControlInicio = null;
                     supabaseClient = mockSupabase([]);
 
                     const start1 = new Date(2026, 0, 1, 0, 0, 0, 0);
@@ -478,8 +522,12 @@
                         { fecha: '2026-01-04', monto: 100, categoria: 'Gasolina', metodo_pago: 'Efectivo', tiene_cfdi: false, concepto: 'Gasolina prueba' },
                         { fecha: '2026-01-04', monto: -50, categoria: 'Nómina', metodo_pago: 'Efectivo', tiene_cfdi: false, concepto: 'Descuento prueba' },
                         { fecha: '2026-01-05', monto: 200, categoria: 'Pago de Préstamos / Socios', metodo_pago: 'Efectivo', tiene_cfdi: false, concepto: 'Devolución préstamo prueba' },
-                        { fecha: '2026-01-05', monto: 108, categoria: 'Herramientas', metodo_pago: 'Transferencia', tiene_cfdi: true, concepto: 'Herramienta prueba' }
+                        { fecha: '2026-01-05', monto: 108, categoria: 'Herramientas', metodo_pago: 'Transferencia', tiene_cfdi: true, concepto: 'Herramienta prueba' },
+                        // Pago real de nómina capturado en Tesorería: sale de caja, pero NO debe restarse
+                        // otra vez de la Utilidad (ya entra por lo devengado)
+                        { fecha: '2026-01-06', monto: 700, categoria: 'Nómina', metodo_pago: 'Efectivo', tiene_cfdi: false, concepto: 'Pago nómina prueba' }
                     ];
+                    State.nominaControlInicio = '2026-01-01';
                     State.ingresosExtra = [
                         { fecha: '2026-01-02', monto: 500, categoria: 'Crédito o Préstamo', metodo_pago: 'Efectivo', concepto: 'Préstamo prueba' }
                     ];
@@ -508,7 +556,22 @@
                     assertClose('Caso completo: Saldo de Préstamos Pendiente = $300', R2.saldoPrestamosPendiente, 300);
                     assertClose('Caso completo: Movimiento No Operativo Neto = $300', R2.netoNoOperativo, 300);
                     assertClose('Caso completo: Cuentas por Cobrar = $300', R2.totalPendienteCobro, 300);
-                    assertClose('Caso completo: Saldo Neto de Efectivo = $2,520', R2.balEfectivo, 2520);
+                    assertClose('Caso completo: Saldo Neto de Efectivo (incluye pago de nómina) = $1,820', R2.balEfectivo, 1820);
+                    assertClose('Nómina: pago capturado en Tesorería = $700', R2.nominaPagadaPeriodo, 700);
+                    assertClose('Nómina: el pago NO se duplica en Gastos Operativos (sigue $208)', R2.egresosManuales, 208);
+                    assertClose('Nómina: correspondiente neta en control = $650', R2.nominaCorrespondienteControl, 650);
+                    assertClose('Nómina: diferencia (pagado de más) = -$50', R2.nominaPendientePago, -50);
+
+                    // ---------- Escenario 3: control de nómina con fecha de arranque a media semana ----------
+                    // Antes del arranque no se cuentan ni lo devengado ni los pagos (no se capturaban).
+                    State.nominaControlInicio = '2026-01-05';
+                    const R3 = await this.computeCoreFinancials(start2, end2);
+                    assertClose('Nómina con arranque 5-ene: correspondiente (3 días) = $300', R3.nominaCorrespondienteControl, 300);
+                    assertClose('Nómina con arranque 5-ene: pendiente de pago = -$400', R3.nominaPendientePago, -400);
+                    assertClose('Nómina con arranque 5-ene: Utilidad Neta no cambia = $672', R3.utilidadNeta, 672);
+                    State.nominaControlInicio = '2026-02-01';
+                    const R4 = await this.computeCoreFinancials(start2, end2);
+                    assertClose('Nómina: periodo anterior al arranque no aplica control', R4.aplicaControlNomina ? 1 : 0, 0);
                     assertClose('Caso completo: Saldo Neto de Banco = -$540', R2.balBanco, -540);
 
                 } catch (err) {
@@ -521,6 +584,7 @@
                     State.personal = backupState.personal;
                     State.ingresosExtra = backupState.ingresosExtra;
                     State.fixedCosts = backupState.fixedCosts;
+                    State.nominaControlInicio = backupState.nominaControlInicio;
                     supabaseClient = backupSupabase;
                 }
 

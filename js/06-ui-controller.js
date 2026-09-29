@@ -1,4 +1,4 @@
-const UI_Controller = {
+        const UI_Controller = {
             ordenActivaId: null,
 
             switchTab(tabId) {
@@ -28,10 +28,19 @@ const UI_Controller = {
                         Cashflow_Engine.recalculate();
                     }, 50);
                 }
+
+                if (tabId === 'mantenimiento') {
+                    API_Service.fetchOrders(); // para autocompletar datos del vehículo desde órdenes previas
+                    Maintenance_Engine.load();
+                }
+
+                if (tabId === 'config') {
+                    Maintenance_Engine.loadCatalogoConfig();
+                }
             },
 
             applyRolePermissions() {
-                const elms = ['btn-dashboard', 'btn-personal', 'btn-config', 'btn-cotizaciones', 'btn-tesoreria', 'btn-flujo-caja', 'btn-rendimiento-mecanicos'];
+                const elms = ['btn-dashboard', 'btn-personal', 'btn-config', 'btn-cotizaciones', 'btn-tesoreria', 'btn-flujo-caja', 'btn-rendimiento-mecanicos', 'btn-mantenimiento'];
                 
                 if (State.currentRole === 'Mecánico' || State.currentRole === 'Mecánico Specialist') {
                     elms.forEach(id => {
@@ -46,7 +55,7 @@ const UI_Controller = {
                         if (el) el.classList.add('hidden');
                     });
                     
-                    ['btn-personal', 'btn-cotizaciones', 'btn-tesoreria', 'btn-flujo-caja'].forEach(id => {
+                    ['btn-personal', 'btn-cotizaciones', 'btn-tesoreria', 'btn-flujo-caja', 'btn-mantenimiento'].forEach(id => {
                         const el = document.getElementById(id);
                         if (el) el.classList.remove('hidden');
                     });
@@ -59,7 +68,7 @@ const UI_Controller = {
                         if (el) el.classList.add('hidden');
                     });
             
-                    ['btn-dashboard', 'btn-personal', 'btn-cotizaciones', 'btn-tesoreria', 'btn-flujo-caja'].forEach(id => {
+                    ['btn-dashboard', 'btn-personal', 'btn-cotizaciones', 'btn-tesoreria', 'btn-flujo-caja', 'btn-mantenimiento'].forEach(id => {
                         const el = document.getElementById(id);
                         if (el) el.classList.remove('hidden');
                     });
@@ -95,6 +104,7 @@ const UI_Controller = {
                     egresosManuales, listaGastosPorCategoriaPDF, desgloseMovimientosNoOperativos, netoNoOperativo,
                     entradasNoOperativas, salidasNoOperativas,
                     totalPrestadoHistorico, totalDevueltoHistorico, saldoPrestamosPendiente,
+                    nominaPagadaPeriodo, aplicaControlNomina, inicioControlNomina, nominaCorrespondienteControl, nominaPagadaControl, nominaPendientePago,
                     costoNominaPeriodo, nominaFinalConDescuentos, desglosePersonal, rentaMensual, serviciosMensuales, impuestosMensuales,
                     rentaProrrateada, serviciosProrrateados, impuestosProrrateados, totalGastosFijosProrrateados,
                     cuentasPorCobrar, totalPendienteCobro, listaProductividad,
@@ -257,7 +267,7 @@ const UI_Controller = {
             
                         <div class="mb-4 bg-slate-50 p-3.5 rounded-2xl border border-slate-200">
                             <h3 class="font-bold border-b pb-1.5 mb-2 uppercase text-[10px] text-purple-800 flex justify-between items-center">
-                                <span>📋 RESUMEN INFORMATIVO DE NÓMINA DEL PERIODO (NO RESTADO DE CAJA/BANCO)</span>
+                                <span>📋 NÓMINA DEVENGADA DEL PERIODO (LO QUE CORRESPONDE PAGAR)</span>
                                 <span class="text-xs font-black text-purple-900">${Utils.formatter.format(costoNominaPeriodo)}</span>
                             </h3>
                             <table class="w-full text-left border-collapse text-[10px]">
@@ -283,6 +293,21 @@ const UI_Controller = {
                                     `).join('')}
                                 </tbody>
                             </table>
+                            ${aplicaControlNomina ? (() => {
+                                const pend = Math.round(nominaPendientePago * 100) / 100;
+                                const estado = Math.abs(pend) < 1
+                                    ? { txt: '✓ Nómina pagada completa', cls: 'text-emerald-700' }
+                                    : (pend > 0 ? { txt: '⏳ Pendiente por pagar', cls: 'text-amber-700' } : { txt: '↩ Pagado de más / adelantado', cls: 'text-blue-700' });
+                                const desdeStr = inicioControlNomina > start ? ` (desde ${inicioControlNomina.toLocaleDateString('es-MX', { day: '2-digit', month: 'short' })})` : '';
+                                return `
+                                <div class="mt-2 pt-2 border-t border-slate-200 flex flex-col gap-1 text-[10px]">
+                                    <span class="font-bold uppercase text-purple-800">💵 Control de pagos de nómina${desdeStr}</span>
+                                    <div class="flex justify-between"><span>Nómina correspondiente (neta de descuentos):</span><span class="font-bold">${Utils.formatter.format(nominaCorrespondienteControl)}</span></div>
+                                    <div class="flex justify-between"><span>Pagada según Tesorería (ya restada de Caja/Banco):</span><span class="font-bold">${Utils.formatter.format(nominaPagadaControl)}</span></div>
+                                    <div class="flex justify-between font-black ${estado.cls}"><span>${estado.txt}:</span><span>${Utils.formatter.format(Math.abs(pend))}</span></div>
+                                    <span class="text-[9px] text-slate-400">Los pagos de nómina salen de Caja/Banco pero no se restan otra vez de la Utilidad: ahí ya entra la nómina devengada.</span>
+                                </div>`;
+                            })() : `<p class="mt-2 text-[9px] text-slate-400">Pagos de nómina en Tesorería durante el periodo: ${Utils.formatter.format(nominaPagadaPeriodo)} (restados de Caja/Banco, no de la Utilidad).</p>`}
                         </div>
                     </div>
             
@@ -1532,6 +1557,7 @@ const UI_Controller = {
                 const mecObj = State.personal.find(p => (p.user_id && p.user_id === targetUserVal) || p.id == targetUserVal);
 
                 const ordenActual = (State.orders || []).find(o => Number(o.id) === Number(State.currentEditingOrderId));
+                const estadoPrevio = ordenActual ? ordenActual.estado : null;
 
                 let fields = {
                     estado: document.getElementById('modal-estado-trabajo').value,
@@ -1602,9 +1628,23 @@ const UI_Controller = {
                 }
                 this.closeModal(); 
 
+                // Bitácora de mantenimiento: si la orden se acaba de cerrar y el vehículo está en un
+                // plan de mantenimiento, pregunta qué servicios del plan se hicieron.
+                const ESTADOS_CERRADOS = ['Terminado', 'Entregado'];
+                const ordenCerradaAhora = ESTADOS_CERRADOS.includes(fields.estado) && !ESTADOS_CERRADOS.includes(estadoPrevio);
+                const ordenParaBitacora = ordenCerradaAhora && ordenActual ? {
+                    ...ordenActual,
+                    id: State.currentEditingOrderId,
+                    kilometraje: fields.kilometraje,
+                    fecha_egreso: fields.fecha_egreso,
+                    conceptos: (State.currentRole === 'Administrador') ? State.modalEditingConcepts : ordenActual.conceptos
+                } : null;
+
                 await API_Service.fetchOrders(true);
                 await API_Service.fetchPagos(true);
                 await Financial_Engine.recalculate();
+
+                if (ordenParaBitacora) Maintenance_Engine.onOrderClosed(ordenParaBitacora);
             },
 
             async handleDeleteOrder() {
@@ -1839,6 +1879,175 @@ const UI_Controller = {
                 this.renderSociosReparto();
             },
 
+            // ================================================================================
+            // NÓMINA SEMANAL: registra en Tesorería los pagos reales de nómina (depósito del
+            // viernes, efectivo del sábado, etc.). Estos pagos solo afectan Caja/Banco; la
+            // Utilidad sigue usando la nómina devengada según el sueldo de cada colaborador.
+            // ================================================================================
+            NOMINA_DIAS: [
+                { offset: -1, label: 'Jueves' },
+                { offset: 0, label: 'Viernes' },
+                { offset: 1, label: 'Sábado' }
+            ],
+            _nominaRows: [],
+
+            loadNominaConfig() {
+                const input = document.getElementById('nomina-control-inicio');
+                if (input) input.value = State.nominaControlInicio || '';
+            },
+
+            saveNominaControlInicio() {
+                const val = document.getElementById('nomina-control-inicio')?.value || null;
+                State.nominaControlInicio = val;
+                API_Service.saveConfigValue('nomina_control_inicio', val);
+                showToast(val ? 'Fecha de arranque de control de nómina guardada.' : 'Control de pagos de nómina desactivado.');
+                Financial_Engine.recalculate();
+            },
+
+            _isoLocal(d) {
+                const pad = n => String(n).padStart(2, '0');
+                return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+            },
+
+            _sumarDias(fechaStr, dias) {
+                const d = Utils.parseFechaLocal(fechaStr);
+                d.setDate(d.getDate() + dias);
+                return this._isoLocal(d);
+            },
+
+            _viernesReciente() {
+                const d = new Date();
+                const diff = (d.getDay() - 5 + 7) % 7; // días desde el último viernes (0 si hoy es viernes)
+                d.setDate(d.getDate() - diff);
+                return this._isoLocal(d);
+            },
+
+            openNominaSemanal() {
+                const plantilla = (State.nominaPlantilla && State.nominaPlantilla.length > 0)
+                    ? State.nominaPlantilla
+                    : [{ concepto: 'Nómina', monto: 0, metodo: 'Efectivo', dia: 0 }];
+                this._nominaRows = plantilla.map(r => ({ concepto: r.concepto || '', monto: parseFloat(r.monto) || 0, metodo: r.metodo || 'Efectivo', dia: Number(r.dia) || 0 }));
+                document.getElementById('nomina-viernes').value = this._viernesReciente();
+                document.getElementById('nomina-guardar-plantilla').checked = false;
+
+                // Referencia: lo que corresponde pagar por semana según Nómina y Personal
+                const activos = (State.personal || []).filter(p => !p.fecha_egreso || Utils.parseFechaLocal(p.fecha_egreso) >= new Date());
+                const semanalPersonal = activos.reduce((a, p) => a + (parseFloat(p.sueldo) || 0), 0);
+                const ref = document.getElementById('nomina-ref-personal');
+                if (ref) ref.textContent = Utils.formatter.format(semanalPersonal);
+                this._nominaSemanalPersonal = semanalPersonal;
+
+                this.renderNominaRows();
+                document.getElementById('modal-nomina').classList.remove('hidden');
+            },
+
+            closeNominaSemanal() {
+                document.getElementById('modal-nomina').classList.add('hidden');
+            },
+
+            renderNominaRows() {
+                const cont = document.getElementById('nomina-rows');
+                if (!cont) return;
+                const viernes = document.getElementById('nomina-viernes').value;
+                cont.innerHTML = this._nominaRows.map((r, idx) => {
+                    const fecha = viernes ? this._sumarDias(viernes, r.dia) : '';
+                    const fStr = fecha ? Utils.parseFechaLocal(fecha).toLocaleDateString('es-MX', { weekday: 'short', day: '2-digit', month: 'short' }) : '';
+                    return `
+                        <div class="grid grid-cols-12 gap-2 items-center text-xs">
+                            <input value="${Utils.escapeHtml(r.concepto)}" oninput="UI_Controller.updateNominaRow(${idx}, 'concepto', this.value)" placeholder="Concepto (ej. Nómina Mecánico 1)" class="col-span-12 sm:col-span-4 border rounded-lg px-2 py-1.5 bg-slate-50">
+                            <input type="number" step="0.01" min="0" value="${r.monto}" oninput="UI_Controller.updateNominaRow(${idx}, 'monto', this.value)" class="col-span-4 sm:col-span-2 border rounded-lg px-2 py-1.5 bg-slate-50 text-right">
+                            <select onchange="UI_Controller.updateNominaRow(${idx}, 'metodo', this.value)" class="col-span-4 sm:col-span-2 border rounded-lg px-2 py-1.5 bg-slate-50">
+                                ${['Efectivo', 'Transferencia', 'Tarjeta'].map(m => `<option ${m === r.metodo ? 'selected' : ''}>${m}</option>`).join('')}
+                            </select>
+                            <select onchange="UI_Controller.updateNominaRow(${idx}, 'dia', this.value)" class="col-span-3 sm:col-span-2 border rounded-lg px-2 py-1.5 bg-slate-50">
+                                ${this.NOMINA_DIAS.map(d => `<option value="${d.offset}" ${d.offset === r.dia ? 'selected' : ''}>${d.label}</option>`).join('')}
+                            </select>
+                            <span class="col-span-11 sm:col-span-1 text-[10px] text-slate-400 capitalize">${fStr}</span>
+                            <button type="button" onclick="UI_Controller.removeNominaRow(${idx})" class="col-span-1 text-rose-400 hover:text-rose-600"><span class="material-icons text-base">delete</span></button>
+                        </div>`;
+                }).join('') || `<p class="text-xs text-slate-400">Agrega al menos un pago.</p>`;
+                this.updateNominaTotal();
+            },
+
+            updateNominaRow(idx, field, value) {
+                const r = this._nominaRows[idx];
+                if (!r) return;
+                if (field === 'monto') r.monto = parseFloat(value) || 0;
+                else if (field === 'dia') { r.dia = Number(value) || 0; this.renderNominaRows(); return; }
+                else r[field] = value;
+                this.updateNominaTotal();
+            },
+
+            addNominaRow() {
+                this._nominaRows.push({ concepto: '', monto: 0, metodo: 'Efectivo', dia: 1 });
+                this.renderNominaRows();
+            },
+
+            removeNominaRow(idx) {
+                this._nominaRows.splice(idx, 1);
+                this.renderNominaRows();
+            },
+
+            updateNominaTotal() {
+                const total = this._nominaRows.reduce((a, r) => a + (parseFloat(r.monto) || 0), 0);
+                const el = document.getElementById('nomina-total');
+                if (el) el.textContent = Utils.formatter.format(total);
+                const aviso = document.getElementById('nomina-aviso-diferencia');
+                if (aviso) {
+                    const dif = Math.round((total - (this._nominaSemanalPersonal || 0)) * 100) / 100;
+                    if (Math.abs(dif) >= 1 && this._nominaSemanalPersonal > 0) {
+                        aviso.classList.remove('hidden');
+                        aviso.textContent = `⚠️ El total a pagar difiere ${Utils.formatter.format(Math.abs(dif))} de los sueldos en Nómina y Personal (${dif > 0 ? 'pagas más' : 'pagas menos'}). Si es permanente, corrige el sueldo allá para que la Utilidad cuadre.`;
+                    } else {
+                        aviso.classList.add('hidden');
+                    }
+                }
+            },
+
+            async saveNominaSemanal() {
+                const viernes = document.getElementById('nomina-viernes').value;
+                if (!viernes) { showToast('Indica el viernes de la semana.', true); return; }
+                const filas = this._nominaRows.filter(r => (parseFloat(r.monto) || 0) > 0);
+                if (filas.length === 0) { showToast('No hay pagos con monto mayor a cero.', true); return; }
+                if (filas.some(r => !String(r.concepto || '').trim())) { showToast('Todos los pagos necesitan un concepto.', true); return; }
+
+                const registrar = async () => {
+                    const usuario = document.getElementById('user-display-name')?.innerText || 'Administrador';
+                    const rows = filas.map(r => ({
+                        fecha: this._sumarDias(viernes, r.dia),
+                        monto: Math.round(parseFloat(r.monto) * 100) / 100,
+                        categoria: 'Nómina',
+                        metodo_pago: r.metodo,
+                        concepto: r.concepto.trim(),
+                        description: `Nómina semana del viernes ${viernes}`,
+                        observaciones: 'Registrado con el botón de Nómina Semanal',
+                        tiene_cfdi: false,
+                        iva: 0,
+                        registrado_por: usuario
+                    }));
+                    const { error } = await supabaseClient.from('gastos').insert(rows);
+                    if (error) { showToast('No se pudo registrar la nómina: ' + error.message, true); return; }
+
+                    if (document.getElementById('nomina-guardar-plantilla').checked) {
+                        State.nominaPlantilla = this._nominaRows.map(r => ({ concepto: r.concepto, monto: r.monto, metodo: r.metodo, dia: r.dia }));
+                        await API_Service.saveConfigValue('nomina_plantilla', State.nominaPlantilla);
+                    }
+                    showToast(`Nómina registrada: ${rows.length} pago(s) por ${Utils.formatter.format(rows.reduce((a, r) => a + r.monto, 0))}.`);
+                    UI_Controller.closeNominaSemanal();
+                    await API_Service.fetchExpenses(true);
+                };
+
+                // Aviso si esa semana ya tiene pagos de nómina (domingo a sábado alrededor del viernes)
+                const desde = this._sumarDias(viernes, -5), hasta = this._sumarDias(viernes, 1);
+                const existentes = (State.expenses || []).filter(e => e.categoria === 'Nómina' && parseFloat(e.monto) > 0 && e.fecha >= desde && String(e.fecha).split('T')[0] <= hasta);
+                if (existentes.length > 0) {
+                    const tot = existentes.reduce((a, e) => a + (parseFloat(e.monto) || 0), 0);
+                    customConfirm('Esa semana ya tiene nómina', `Ya hay ${existentes.length} pago(s) de nómina registrados entre ${desde} y ${hasta} por ${Utils.formatter.format(tot)}. ¿Registrar estos pagos de todos modos?`, registrar);
+                    return;
+                }
+                await registrar();
+            },
+
             async runSelfTest() {
                 const cont = document.getElementById('selftest-results');
                 if (cont) {
@@ -1846,7 +2055,7 @@ const UI_Controller = {
                     cont.innerHTML = `<p class="text-xs text-slate-400 flex items-center gap-2"><span class="material-icons text-sm animate-spin">progress_activity</span> Ejecutando pruebas...</p>`;
                 }
 
-                const results = await Financial_Engine.runSelfTest();
+                const results = [...(await Financial_Engine.runSelfTest()), ...Maintenance_Engine.runSelfTest()];
                 const okCount = results.filter(r => r.ok).length;
                 const total = results.length;
 
@@ -1857,7 +2066,7 @@ const UI_Controller = {
                                 <span class="material-icons text-sm">${r.ok ? 'check_circle' : 'cancel'}</span>
                                 ${Utils.escapeHtml(r.label)}
                             </span>
-                            ${(!r.ok && r.expected !== null) ? `<span class="font-mono font-bold text-right">esperado: ${Utils.formatter.format(r.expected)} — obtuvo: ${Utils.formatter.format(r.actual || 0)}</span>` : ''}
+                            ${(!r.ok && r.expected !== null) ? `<span class="font-mono font-bold text-right">esperado: ${r.raw ? Utils.escapeHtml(String(r.expected)) : Utils.formatter.format(r.expected)} — obtuvo: ${r.raw ? Utils.escapeHtml(String(r.actual)) : Utils.formatter.format(r.actual || 0)}</span>` : ''}
                         </div>
                     `).join('');
 
@@ -1910,3 +2119,4 @@ const UI_Controller = {
                 State.confirmCallback = null;
             }
         };
+
