@@ -60,6 +60,14 @@
                 };
             },
 
+            // Fecha de HOY en hora local (YYYY-MM-DD). No usar toISOString(): esa usa UTC y
+            // después de las 6 pm en Ciudad Juárez (UTC-6) ya devuelve la fecha de mañana.
+            hoyLocal() {
+                const now = new Date();
+                const pad = (n) => String(n).padStart(2, '0');
+                return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+            },
+
             setDefaultFechaPago(inputId) {
                 const el = document.getElementById(inputId);
                 if (!el) return;

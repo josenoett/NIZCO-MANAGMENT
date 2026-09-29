@@ -834,7 +834,7 @@
                 if (!p) return;
             
                 customConfirm(`¿Dar de baja a ${p.nombre}?`, "Se asentará la fecha de hoy como fecha de egreso.", async () => {
-                    const hoy = new Date().toISOString().split('T')[0];
+                    const hoy = Utils.hoyLocal();
                     const { error } = await supabaseClient
                         .from('personal')
                         .update({ fecha_egreso: hoy })
@@ -998,7 +998,7 @@
 
                 showToast("Gasto asentado en tesorería.");
                 document.getElementById('expense-form').reset();
-                document.getElementById('expense-date').value = new Date().toISOString().split('T')[0];
+                document.getElementById('expense-date').value = Utils.hoyLocal();
                 API_Service.fetchExpenses(true);
             },
 
@@ -1019,7 +1019,7 @@
 
                 showToast("Ingreso adicional asentado en tesorería.");
                 document.getElementById('extra-income-form').reset();
-                document.getElementById('extra-income-date').value = new Date().toISOString().split('T')[0];
+                document.getElementById('extra-income-date').value = Utils.hoyLocal();
                 API_Service.fetchIngresosExtra(true);
             },
 
@@ -1069,7 +1069,7 @@
 
                 showToast("Traspaso registrado en ambas cuentas.");
                 document.getElementById('transfer-form').reset();
-                document.getElementById('transfer-date').value = new Date().toISOString().split('T')[0];
+                document.getElementById('transfer-date').value = Utils.hoyLocal();
                 API_Service.fetchExpenses(true);
                 API_Service.fetchIngresosExtra(true);
             },
@@ -1191,7 +1191,7 @@
                 document.getElementById('form-metodo-pago-container').style.display = 'none';
                 document.getElementById('form-fecha-pago-container').style.display = 'none';
                 document.getElementById('form-fecha-pago').value = '';
-                document.getElementById('form-fecha-ingreso').value = new Date().toISOString().split('T')[0];
+                document.getElementById('form-fecha-ingreso').value = Utils.hoyLocal();
                 API_Service.fetchOrders(true); this.switchTab('ordenes');
             },
 
@@ -1204,7 +1204,7 @@
                 const telefono = document.getElementById('personal-telefono').value;
                 const email = document.getElementById('personal-email').value;
                 const password = document.getElementById('personal-password').value;
-                const fecha_ingreso = document.getElementById('personal-fecha-ingreso').value || new Date().toISOString().split('T')[0];
+                const fecha_ingreso = document.getElementById('personal-fecha-ingreso').value || Utils.hoyLocal();
                 const fecha_egreso = document.getElementById('personal-fecha-egreso').value || null;
             
                 showToast("Registrando accesos en la nube...");
@@ -1228,7 +1228,7 @@
                 }
             
                 document.getElementById('new-personal-form').reset(); 
-                document.getElementById('personal-fecha-ingreso').value = new Date().toISOString().split('T')[0];
+                document.getElementById('personal-fecha-ingreso').value = Utils.hoyLocal();
                 showToast("Empleado y accesos creados con éxito."); 
                 
                 if (typeof API_Service !== 'undefined' && API_Service.fetchPersonal) {
@@ -1677,6 +1677,12 @@
                 document.getElementById('pdf-doc-id').innerText = docType === 'NOTA DE VENTA' ? `FOLIO: #NOTA-${o.id}` : `FOLIO: #COT-${o.id}`;
                 
                 document.getElementById('pdf-km-view').innerText = `| KM: ${o.kilometraje || 0}`;
+
+                // Nota de venta: fecha de entrega de la orden (si ya tiene); cotización: hoy
+                const fechaEl = document.getElementById('quote-fecha');
+                if (fechaEl) {
+                    fechaEl.value = (docType === 'NOTA DE VENTA' && o.fecha_egreso) ? String(o.fecha_egreso).split('T')[0] : Utils.hoyLocal();
+                }
                 
                 State.quoteItems = o.conceptos ? structuredClone(o.conceptos) : [];
                 document.getElementById('quote-discount').value = 0;
@@ -1747,6 +1753,12 @@
                 document.getElementById('pdf-vehicle').innerText = document.getElementById('quote-auto').value || 'Vehículo';
                 document.getElementById('pdf-plates').innerText = document.getElementById('quote-placas').value.toUpperCase() || 'S/P';
 
+                // Fecha del documento (antes estaba fija en el HTML y todos los PDF salían con la misma fecha)
+                const fechaInput = document.getElementById('quote-fecha');
+                if (fechaInput && !fechaInput.value) fechaInput.value = Utils.hoyLocal();
+                const fechaDoc = fechaInput ? fechaInput.value : Utils.hoyLocal();
+                document.getElementById('pdf-doc-date').innerText = 'Fecha: ' + Utils.parseFechaLocal(fechaDoc).toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' });
+
                 const tbody = document.getElementById('pdf-concepts-body'); if(!tbody) return;
                 let subtotal = 0;
                 
@@ -1788,6 +1800,7 @@
                 document.getElementById('quote-auto').value = '';
                 document.getElementById('quote-placas').value = '';
                 document.getElementById('quote-order-loader').value = '';
+                if (document.getElementById('quote-fecha')) document.getElementById('quote-fecha').value = Utils.hoyLocal();
                 State.quoteItems = [];
                 this.renderQuoteBuilderItems();
             },
@@ -1801,8 +1814,8 @@
                 if (orderLoader) {
                     filename = `${tipoArchivo}_Orden_${orderLoader}_BEFIX_GARAGE.pdf`;
                 } else {
-                    const hoy = new Date().toISOString().split('T')[0];
-                    filename = `${tipoArchivo}_BEFIX_GARAGE_${hoy}.pdf`;
+                    const fechaDoc = document.getElementById('quote-fecha')?.value || Utils.hoyLocal();
+                    filename = `${tipoArchivo}_BEFIX_GARAGE_${fechaDoc}.pdf`;
                 }
 
                 showToast("Generando archivo PDF...");

@@ -5,12 +5,13 @@
             UI_Controller.loadSociosReparto();
             UI_Controller.populateCategoriesDropdown();
             
-            const todayStr = new Date().toISOString().split('T')[0];
+            const todayStr = Utils.hoyLocal();
             if(document.getElementById('expense-date')) { document.getElementById('expense-date').value = todayStr; }
             if(document.getElementById('extra-income-date')) { document.getElementById('extra-income-date').value = todayStr; }
             if(document.getElementById('transfer-date')) { document.getElementById('transfer-date').value = todayStr; }
             if(document.getElementById('form-fecha-ingreso')) { document.getElementById('form-fecha-ingreso').value = todayStr; }
             if(document.getElementById('personal-fecha-ingreso')) { document.getElementById('personal-fecha-ingreso').value = todayStr; }
+            if(document.getElementById('quote-fecha')) { document.getElementById('quote-fecha').value = todayStr; }
             
             const url = "https://krhauwvbbjlihkeasrju.supabase.co"; 
             const key = "sb_publishable_FaCORWb3dFbMfSNST-VQwQ_lihLEkdx";
