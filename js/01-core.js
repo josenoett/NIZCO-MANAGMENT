@@ -13,6 +13,8 @@
             fixedCosts: { renta: 0, servicios: 0, impuestos: 0 },
             sociosReparto: [],
             saldoInicialCaja: { efectivo: 0, banco: 0 },
+            nominaControlInicio: null,   // fecha (YYYY-MM-DD) desde la que los pagos de nómina se capturan en Tesorería
+            nominaPlantilla: [],         // pagos típicos de la semana para el botón "Registrar Nómina de la Semana"
             categories: ["Gasolina", "Diesel", "Consumibles", "Refacciones", "Nómina", "Renta", "Agua", "Luz", "Internet", "Herramientas", "Publicidad", "Papelería", "Transporte", "Comisiones bancarias", "Impuestos", "Pago de Préstamos / Socios", "Traspaso entre Cuentas (Caja/Banco)", "Otros"],
             extraIncomeCategories: ["Capital de Trabajo", "Crédito o Préstamo", "Aportación de Socios", "Traspaso entre Cuentas (Caja/Banco)", "Otro Ingreso"]
         };
