@@ -1,4 +1,32 @@
         const Financial_Engine = {
+            CATEGORIAS_NO_OPERATIVAS: ["Pago de Préstamos / Socios", "Traspaso entre Cuentas (Caja/Banco)"],
+            CATEGORIA_REPARTO: "Reparto de Utilidades (Retiro de Socios)",
+            // Gastos fijos que ya entran a la Utilidad por PRORRATEO (Ajustes → Gastos Estructurales).
+            // Su pago real en Tesorería solo saca dinero de caja/banco; si se restara también de la
+            // Utilidad, contaría dos veces. Si el prorrateo de ese rubro está en $0, el pago se trata
+            // como gasto operativo normal (como antes) para no dejar de contarlo.
+            CATEGORIAS_FIJAS: { "Renta": "renta", "Agua": "servicios", "Luz": "servicios", "Internet": "servicios", "Impuestos": "impuestos" },
+
+            // Clasificación única de un gasto de Tesorería (la usan Utilidad, Corte y saldos)
+            clasificarGasto(e) {
+                const m = parseFloat(e.monto || 0);
+                if (e.categoria === 'Nómina') return m < 0 ? 'deduccion_nomina' : 'nomina';
+                if (e.categoria === this.CATEGORIA_REPARTO) return 'reparto';
+                if (this.CATEGORIAS_NO_OPERATIVAS.includes(e.categoria)) return 'no_operativo';
+                const rubro = this.CATEGORIAS_FIJAS[e.categoria];
+                if (rubro && (parseFloat((State.fixedCosts || {})[rubro]) || 0) > 0) return 'fijo';
+                return 'operativo';
+            },
+
+            // Cuenta afectada por un método de pago: 'efectivo' | 'banco' | null (p.ej. crédito de proveedor)
+            cuentaDe(metodo, entrada = false) {
+                const m = (metodo || '').trim().toLowerCase();
+                if (m === 'efectivo') return 'efectivo';
+                if (entrada) return 'banco'; // cobros/ingresos: todo lo que no es efectivo cae al banco (igual que antes)
+                if (m === 'transferencia' || m === 'tarjeta') return 'banco';
+                return null;
+            },
+
             getDateRange(preset, customStartId = 'erp-start-date', customEndId = 'erp-end-date') {
                 const now = new Date();
                 let start, end;
@@ -29,7 +57,8 @@
                     case 'custom':
                         const sInput = document.getElementById(customStartId) ? document.getElementById(customStartId).value : '';
                         const eInput = document.getElementById(customEndId) ? document.getElementById(customEndId).value : '';
-                        start = sInput ? Utils.parseFechaLocal(sInput) : new Date(0);
+                        // Desde las 00:00 del primer día (antes era mediodía y se perdían los cobros de la mañana)
+                        start = sInput ? new Date(sInput + 'T00:00:00') : new Date(0);
                         end = eInput ? new Date(eInput + 'T23:59:59.999') : new Date();
                         break;
                     default:
@@ -60,7 +89,7 @@
             // ================================================================================
             async computeCoreFinancials(start, end) {
                 const totalDays = Utils.getDaysInRange(start, end);
-                const CATEGORIAS_NO_OPERATIVAS = ["Pago de Préstamos / Socios", "Traspaso entre Cuentas (Caja/Banco)"];
+                const CATEGORIAS_NO_OPERATIVAS = this.CATEGORIAS_NO_OPERATIVAS;
 
                 // ---------- Órdenes / vehículos atendidos + acumuladores para gráficas ----------
                 let vehiculosAtendidos = 0;
@@ -213,6 +242,10 @@
                 let entradasNoOperativas = 0;
                 let nominaPagadaPeriodo = 0;
                 const desgloseNominaPagada = [];
+                let repartoPeriodo = 0;
+                const desgloseReparto = [];
+                let gastosFijosPagados = 0;
+                const fijosPagadosPorCategoria = {};
                 let montosPorCategoria = {};
                 State.categories.forEach(cat => montosPorCategoria[cat] = 0);
                 const gastosPorCategoriaPDF = {};
@@ -241,6 +274,19 @@
                         // devengado según el sueldo de cada colaborador (Nómina y Personal).
                         nominaPagadaPeriodo += mAmt;
                         desgloseNominaPagada.push({ fecha: e.fecha, concepto: e.concepto, metodo: e.metodo_pago, monto: mAmt });
+                        if (metodo === 'efectivo') salidasEfectivo += mAmt;
+                        else if (metodo === 'transferencia' || metodo === 'tarjeta') salidasBanco += mAmt;
+                    } else if (this.clasificarGasto(e) === 'reparto') {
+                        // Reparto de utilidades a socios: sale dinero, pero es la utilidad yéndose a los
+                        // dueños, no un gasto del taller — no se resta de la Utilidad Neta.
+                        repartoPeriodo += mAmt;
+                        desgloseReparto.push({ fecha: e.fecha, concepto: e.concepto, metodo: e.metodo_pago, monto: mAmt });
+                        if (metodo === 'efectivo') salidasEfectivo += mAmt;
+                        else if (metodo === 'transferencia' || metodo === 'tarjeta') salidasBanco += mAmt;
+                    } else if (this.clasificarGasto(e) === 'fijo') {
+                        // Pago real de renta/servicios/impuestos: la Utilidad ya los incluye por prorrateo.
+                        gastosFijosPagados += mAmt;
+                        fijosPagadosPorCategoria[e.categoria] = (fijosPagadosPorCategoria[e.categoria] || 0) + mAmt;
                         if (metodo === 'efectivo') salidasEfectivo += mAmt;
                         else if (metodo === 'transferencia' || metodo === 'tarjeta') salidasBanco += mAmt;
                     } else if (CATEGORIAS_NO_OPERATIVAS.includes(e.categoria)) {
@@ -429,8 +475,107 @@
                     conteoServicios, acumuladoManoObraOrdenes, acumuladoRefaccionesOrdenes,
                     totalPrestadoHistorico, totalDevueltoHistorico, saldoPrestamosPendiente,
                     nominaPagadaPeriodo, desgloseNominaPagada,
+                    repartoPeriodo, desgloseReparto, gastosFijosPagados, fijosPagadosPorCategoria,
                     aplicaControlNomina, inicioControlNomina, nominaCorrespondienteControl, nominaPagadaControl, nominaPendientePago
                 };
+            },
+
+            // ================================================================================
+            // MOVIMIENTOS DE DINERO POR CUENTA (Efectivo / Banco) entre dos fechas.
+            // Base del Corte de Caja por cuenta y del saldo calculado desde el arranque.
+            // Usa exactamente las mismas reglas de clasificación y método de pago que la Utilidad.
+            // ================================================================================
+            async computeCashMovements(desde, hasta) {
+                const LINEAS = ['cobros', 'ingresosNoOperativos', 'refacciones', 'gastosOperativos', 'nomina', 'gastosFijos', 'salidasNoOperativas', 'reparto'];
+                const mk = () => { const o = {}; LINEAS.forEach(l => o[l] = 0); o.fijosPorCategoria = {}; return o; };
+                const R = { efectivo: mk(), banco: mk() };
+                const r2 = n => Math.round(n * 100) / 100;
+                const dentro = (f) => { const d = Utils.parseFechaLocal(f); return d >= desde && d <= hasta; };
+                const sumar = (cuenta, linea, monto) => { if (cuenta) R[cuenta][linea] = r2(R[cuenta][linea] + monto); };
+
+                const vistos = new Set();
+                State.pagos.forEach(p => {
+                    if (p.id && vistos.has(p.id)) return;
+                    if (p.id) vistos.add(p.id);
+                    if (!dentro(p.fecha)) return;
+                    sumar(this.cuentaDe(p.metodo_pago, true), 'cobros', r2(parseFloat(p.monto || 0)));
+                });
+                State.ingresosExtra.forEach(i => {
+                    if (!dentro(i.fecha)) return;
+                    sumar(this.cuentaDe(i.metodo_pago, true), 'ingresosNoOperativos', r2(parseFloat(i.monto || 0)));
+                });
+                State.expenses.forEach(e => {
+                    if (!dentro(e.fecha)) return;
+                    const m = r2(parseFloat(e.monto || 0));
+                    const tipo = this.clasificarGasto(e);
+                    if (tipo === 'deduccion_nomina') return; // ajuste interno, no sale dinero
+                    const cuenta = this.cuentaDe(e.metodo_pago);
+                    const linea = { nomina: 'nomina', reparto: 'reparto', no_operativo: 'salidasNoOperativas', fijo: 'gastosFijos', operativo: 'gastosOperativos' }[tipo];
+                    sumar(cuenta, linea, m);
+                    if (tipo === 'fijo' && cuenta) R[cuenta].fijosPorCategoria[e.categoria] = r2((R[cuenta].fijosPorCategoria[e.categoria] || 0) + m);
+                });
+                if (supabaseClient) {
+                    try {
+                        const { data } = await supabaseClient
+                            .from('compras_refacciones')
+                            .select('costo_neto, total_pagado, metodo_pago, fecha_compra')
+                            .gte('fecha_compra', desde.toISOString())
+                            .lte('fecha_compra', hasta.toISOString())
+                            .order('fecha_compra', { ascending: true });
+                        (data || []).forEach(c => sumar(this.cuentaDe(c.metodo_pago), 'refacciones', r2(parseFloat(c.costo_neto || c.total_pagado || 0))));
+                    } catch (err) {
+                        console.error('Error al obtener compras para movimientos de caja:', err);
+                    }
+                }
+                ['efectivo', 'banco'].forEach(k => {
+                    const x = R[k];
+                    x.entradas = r2(x.cobros + x.ingresosNoOperativos);
+                    x.salidas = r2(x.refacciones + x.gastosOperativos + x.nomina + x.gastosFijos + x.salidasNoOperativas + x.reparto);
+                    x.neto = r2(x.entradas - x.salidas);
+                });
+                return R;
+            },
+
+            // Saldos reales por cuenta a partir del ARRANQUE (conteo de caja + saldo de banco en una fecha,
+            // capturado en Ajustes). Saldo inicial del periodo = arranque + movimientos desde el arranque
+            // hasta antes del periodo. Saldo final = saldo inicial + movimientos del periodo.
+            async computeSaldosCaja(start, end) {
+                const arr = State.arranqueCaja;
+                if (!arr || !arr.fecha) return { disponible: false, motivo: 'sin_arranque' };
+                const fA = Utils.parseFechaLocal(arr.fecha);
+                const fechaArranque = new Date(fA.getFullYear(), fA.getMonth(), fA.getDate(), 0, 0, 0, 0);
+                if (end < fechaArranque) return { disponible: false, motivo: 'antes_del_arranque', fechaArranque };
+
+                let iniEf = parseFloat(arr.efectivo) || 0, iniBc = parseFloat(arr.banco) || 0;
+                let desdeMov = start;
+                let inicioEnArranque = false;
+                if (start <= fechaArranque) {
+                    desdeMov = fechaArranque;
+                    inicioEnArranque = true;
+                } else {
+                    const previo = await this.computeCashMovements(fechaArranque, new Date(start.getTime() - 1));
+                    iniEf += previo.efectivo.neto;
+                    iniBc += previo.banco.neto;
+                }
+                const mov = await this.computeCashMovements(desdeMov, end);
+                const r2 = n => Math.round(n * 100) / 100;
+                return {
+                    disponible: true, fechaArranque, inicioEnArranque, mov,
+                    inicial: { efectivo: r2(iniEf), banco: r2(iniBc) },
+                    final: { efectivo: r2(iniEf + mov.efectivo.neto), banco: r2(iniBc + mov.banco.neto) }
+                };
+            },
+
+            // Saldo al inicio de un día (para el Flujo de Caja). null si no hay arranque configurado.
+            async saldoAlInicioDe(fecha) {
+                const arr = State.arranqueCaja;
+                if (!arr || !arr.fecha) return null;
+                const fA = Utils.parseFechaLocal(arr.fecha);
+                const fechaArranque = new Date(fA.getFullYear(), fA.getMonth(), fA.getDate(), 0, 0, 0, 0);
+                const ef = parseFloat(arr.efectivo) || 0, bc = parseFloat(arr.banco) || 0;
+                if (fecha <= fechaArranque) return { efectivo: ef, banco: bc, fechaArranque };
+                const previo = await this.computeCashMovements(fechaArranque, new Date(fecha.getTime() - 1));
+                return { efectivo: Math.round((ef + previo.efectivo.neto) * 100) / 100, banco: Math.round((bc + previo.banco.neto) * 100) / 100, fechaArranque };
             },
 
             // Nómina devengada (lo que corresponde pagar) entre dos fechas, prorrateando el sueldo
@@ -479,7 +624,7 @@
                 const backupState = {
                     orders: State.orders, pagos: State.pagos, expenses: State.expenses,
                     personal: State.personal, ingresosExtra: State.ingresosExtra, fixedCosts: State.fixedCosts,
-                    nominaControlInicio: State.nominaControlInicio, nominaDesfase: State.nominaDesfase,
+                    nominaControlInicio: State.nominaControlInicio, nominaDesfase: State.nominaDesfase, arranqueCaja: State.arranqueCaja,
                     incidencias: (typeof Attendance_Engine !== 'undefined') ? Attendance_Engine.incidencias : null
                 };
                 const backupSupabase = supabaseClient;
@@ -609,6 +754,36 @@
                     assertClose('Desfase: semana de la falta — Utilidad descuenta la falta (nómina neta $600)', S1.nominaFinalConDescuentos, 600);
                     assertClose('Desfase: semana de la falta — control cuadra (pagado completo)', S1.nominaPendientePago, 0);
                     assertClose('Desfase: semana siguiente — control cuadra con el pago descontado', S2.nominaPendientePago, 0);
+
+                    // ---------- Escenario 6: renta pagada, reparto a socios y saldos desde el arranque ----------
+                    State.nominaDesfase = [];
+                    State.personal = [];
+                    State.orders = [];
+                    State.pagos = [
+                        { id: 'p1', fecha: '2026-03-02', monto: 1000, metodo_pago: 'Efectivo', tipo: 'pago' },
+                        { id: 'p2', fecha: '2026-03-09', monto: 2000, metodo_pago: 'Efectivo', tipo: 'pago' },
+                        { id: 'p3', fecha: '2026-03-10', monto: 500, metodo_pago: 'Transferencia', tipo: 'pago' }
+                    ];
+                    State.ingresosExtra = [];
+                    State.fixedCosts = { renta: 3040, servicios: 0, impuestos: 0 }; // $100/día de renta prorrateada
+                    State.expenses = [
+                        { id: 'r1', fecha: '2026-03-10', monto: 3040, categoria: 'Renta', metodo_pago: 'Transferencia', concepto: 'Renta marzo' },
+                        { id: 'l1', fecha: '2026-03-10', monto: 300, categoria: 'Luz', metodo_pago: 'Efectivo', concepto: 'Luz (sin prorrateo de servicios)' },
+                        { id: 'u1', fecha: '2026-03-14', monto: 800, categoria: 'Reparto de Utilidades (Retiro de Socios)', metodo_pago: 'Efectivo', concepto: 'Reparto socio' }
+                    ];
+                    State.arranqueCaja = { fecha: '2026-03-01', efectivo: 5000, banco: 10000 };
+                    supabaseClient = mockSupabase([]);
+                    const A = await this.computeCoreFinancials(new Date(2026, 2, 9, 0, 0, 0, 0), new Date(2026, 2, 15, 23, 59, 59, 999));
+                    assertClose('Renta pagada en Tesorería NO se duplica en gastos (solo prorrateo $700)', A.totalGastosFijosProrrateados, 700);
+                    assertClose('Renta pagada: fuera de gastos operativos; Luz sin prorrateo sí cuenta ($300)', A.egresosManuales, 300);
+                    assertClose('Reparto a socios no reduce la Utilidad (2,500 − 700 − 300 = $1,500)', A.utilidadNeta, 1500);
+                    assertClose('Reparto registrado en el periodo = $800', A.repartoPeriodo, 800);
+                    const SC = await this.computeSaldosCaja(new Date(2026, 2, 9, 0, 0, 0, 0), new Date(2026, 2, 15, 23, 59, 59, 999));
+                    assertClose('Saldo inicial efectivo al 9-mar = arranque 5,000 + cobro 1,000 = $6,000', SC.inicial.efectivo, 6000);
+                    assertClose('Saldo final efectivo = 6,000 + 2,000 − 300 − 800 = $6,900', SC.final.efectivo, 6900);
+                    assertClose('Saldo final banco = 10,000 + 500 − 3,040 = $7,460', SC.final.banco, 7460);
+                    assertClose('Movimientos por cuenta cuadran con el flujo neto de la Utilidad (efectivo)', SC.mov.efectivo.neto, A.balEfectivo);
+                    assertClose('Movimientos por cuenta cuadran con el flujo neto de la Utilidad (banco)', SC.mov.banco.neto, A.balBanco);
                     assertClose('Caso completo: Saldo Neto de Banco = -$540', R2.balBanco, -540);
 
                 } catch (err) {
@@ -623,6 +798,7 @@
                     State.fixedCosts = backupState.fixedCosts;
                     State.nominaControlInicio = backupState.nominaControlInicio;
                     State.nominaDesfase = backupState.nominaDesfase;
+                    State.arranqueCaja = backupState.arranqueCaja;
                     if (typeof Attendance_Engine !== 'undefined' && backupState.incidencias) Attendance_Engine.incidencias = backupState.incidencias;
                     supabaseClient = backupSupabase;
                 }

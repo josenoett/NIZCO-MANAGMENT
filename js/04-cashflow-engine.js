@@ -21,6 +21,7 @@
             },
 
             updateSaldoInicial() {
+                if (State.arranqueCaja && State.arranqueCaja.fecha) return; // calculado desde el arranque
                 const inputEf = document.getElementById('caja-saldo-inicial-efectivo-input');
                 const inputBc = document.getElementById('caja-saldo-inicial-banco-input');
                 State.saldoInicialCaja = {
@@ -84,13 +85,36 @@
 
                 const inputEf = document.getElementById('caja-saldo-inicial-efectivo-input');
                 const inputBc = document.getElementById('caja-saldo-inicial-banco-input');
-                const saldoInicialEfectivo = this.getSaldoInicial('efectivo');
-                const saldoInicialBanco = this.getSaldoInicial('banco');
-                if (inputEf && inputEf.value === '') inputEf.value = saldoInicialEfectivo;
-                if (inputBc && inputBc.value === '') inputBc.value = saldoInicialBanco;
+                const nota = document.getElementById('caja-saldo-inicial-nota');
 
                 const preset = document.getElementById('caja-date-preset').value;
                 const { start, end } = Financial_Engine.getDateRange(preset, 'caja-start-date', 'caja-end-date');
+
+                // Con ARRANQUE configurado (Ajustes), el saldo inicial se calcula: conteo del arranque +
+                // todos los movimientos hasta el día anterior al rango. Sin arranque, se usa el valor manual.
+                let saldoInicialEfectivo, saldoInicialBanco;
+                const calc = await Financial_Engine.saldoAlInicioDe(new Date(start.getFullYear(), start.getMonth(), start.getDate(), 0, 0, 0, 0));
+                if (calc) {
+                    saldoInicialEfectivo = calc.efectivo;
+                    saldoInicialBanco = calc.banco;
+                    [inputEf, inputBc].forEach(el => { if (el) { el.readOnly = true; el.title = 'Calculado desde el arranque de caja (Ajustes)'; } });
+                    if (inputEf) inputEf.value = saldoInicialEfectivo;
+                    if (inputBc) inputBc.value = saldoInicialBanco;
+                    if (nota) {
+                        const fA = calc.fechaArranque.toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' });
+                        nota.textContent = start < calc.fechaArranque
+                            ? `⚠️ El rango empieza antes del arranque (${fA}): los saldos solo son exactos desde esa fecha.`
+                            : `Saldo inicial calculado desde el arranque del ${fA}.`;
+                        nota.classList.remove('hidden');
+                    }
+                } else {
+                    saldoInicialEfectivo = this.getSaldoInicial('efectivo');
+                    saldoInicialBanco = this.getSaldoInicial('banco');
+                    [inputEf, inputBc].forEach(el => { if (el) { el.readOnly = false; el.title = ''; } });
+                    if (inputEf && inputEf.value === '') inputEf.value = saldoInicialEfectivo;
+                    if (inputBc && inputBc.value === '') inputBc.value = saldoInicialBanco;
+                    if (nota) { nota.textContent = 'Tip: configura el Arranque de Caja en Ajustes para que el saldo inicial se calcule solo.'; nota.classList.remove('hidden'); }
+                }
 
                 const totalDias = Utils.getDaysInRange(start, end);
                 if (totalDias > 92) {
@@ -142,8 +166,10 @@
                         const monto = Math.round(parseFloat(e.monto || 0) * 100) / 100;
                         // Los ajustes internos de nómina (monto negativo) no son una salida real de caja
                         if (e.categoria === 'Nómina' && monto < 0) return;
-                        if (this.esEfectivo(e.metodo_pago)) buckets[key].egresoEfectivo += monto;
-                        else buckets[key].egresoBanco += monto;
+                        // Misma regla que el Corte de Caja: solo efectivo, transferencia y tarjeta mueven dinero
+                        const cuenta = Financial_Engine.cuentaDe(e.metodo_pago);
+                        if (cuenta === 'efectivo') buckets[key].egresoEfectivo += monto;
+                        else if (cuenta === 'banco') buckets[key].egresoBanco += monto;
                     }
                 });
 
@@ -160,8 +186,9 @@
                             const key = this.dayKey(cDate);
                             if (!buckets[key]) return;
                             const monto = Math.round(parseFloat(c.costo_neto || c.total_pagado || 0) * 100) / 100;
-                            if (this.esEfectivo(c.metodo_pago)) buckets[key].egresoEfectivo += monto;
-                            else buckets[key].egresoBanco += monto;
+                            const cuenta = Financial_Engine.cuentaDe(c.metodo_pago);
+                            if (cuenta === 'efectivo') buckets[key].egresoEfectivo += monto;
+                            else if (cuenta === 'banco') buckets[key].egresoBanco += monto;
                         });
                     } catch (e) {
                         console.error('Error al obtener compras de refacciones para flujo de caja:', e);

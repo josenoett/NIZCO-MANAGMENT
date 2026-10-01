@@ -37,6 +37,7 @@
                 if (tabId === 'config') {
                     Maintenance_Engine.loadCatalogoConfig();
                     Promise.resolve(API_Service.fetchPersonal()).then(() => UI_Controller.loadNominaConfig());
+                    UI_Controller.loadArranqueConfig();
                 }
 
                 if (tabId === 'personal') {
@@ -94,7 +95,7 @@
                 this.renderOrdersList();
             },
 
-            async downloadCorteCajaPDF() {
+            async downloadCorteCajaPDF(arqueo = null) {
                 showToast("Generando Reporte Ejecutivo de Entrega de Cuentas...");
             
                 const preset = document.getElementById('erp-date-preset').value;
@@ -115,8 +116,15 @@
                     rentaProrrateada, serviciosProrrateados, impuestosProrrateados, totalGastosFijosProrrateados,
                     cuentasPorCobrar, totalPendienteCobro, listaProductividad,
                     comprasPorProveedor, refaccionesPeriodo, totalIngresosCobrados, ventasNetasSinIva16,
-                    utilidadNetaPL, balanceIvaNeto, esIvaPorPagar, utilidadDisponibleTrasIva, balEfectivo, balBanco
+                    utilidadNetaPL, balanceIvaNeto, esIvaPorPagar, utilidadDisponibleTrasIva, balEfectivo, balBanco,
+                    repartoPeriodo, desgloseReparto, gastosFijosPagados, fijosPagadosPorCategoria
                 } = F;
+
+                // Saldos reales por cuenta (desde el arranque) o, si no hay arranque, solo el flujo del periodo
+                const SAL = await Financial_Engine.computeSaldosCaja(start, end);
+                const MOV = SAL.disponible ? SAL.mov : await Financial_Engine.computeCashMovements(start, end);
+                const cajaHTML = this.corteCajaTablaHTML(SAL, MOV, arqueo);
+                const fijosHTML = this.corteGastosFijosHTML(F);
 
 
                 const sociosReparto = (State.sociosReparto && State.sociosReparto.length > 0) ? State.sociosReparto : [];
@@ -146,43 +154,7 @@
                             </div>
                         </div>
             
-                        <div class="grid grid-cols-2 gap-4 mb-4">
-                            <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200">
-                                <h3 class="font-extrabold text-slate-900 text-xs border-b pb-1 mb-2 uppercase flex justify-between">
-                                    <span>💵 CAJA FÍSICA (EFECTIVO)</span>
-                                </h3>
-                                <div class="flex justify-between text-slate-600 mb-1">
-                                    <span>(+) Entradas Efectivo:</span>
-                                    <span class="font-bold text-emerald-600">${Utils.formatter.format(entradasEfectivo)}</span>
-                                </div>
-                                <div class="flex justify-between text-slate-600 mb-1">
-                                    <span>(-) Salidas Efectivo:</span>
-                                    <span class="font-bold text-rose-600">${Utils.formatter.format(salidasEfectivo)}</span>
-                                </div>
-                                <div class="flex justify-between text-slate-900 font-black text-xs pt-2 border-t mt-1">
-                                    <span>FLUJO NETO DE EFECTIVO:</span>
-                                    <span class="text-blue-600">${Utils.formatter.format(balEfectivo)}</span>
-                                </div>
-                            </div>
-            
-                            <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200">
-                                <h3 class="font-extrabold text-slate-900 text-xs border-b pb-1 mb-2 uppercase flex justify-between">
-                                    <span>🏦 CUENTA DE BANCO (SPEI / TARJETA)</span>
-                                </h3>
-                                <div class="flex justify-between text-slate-600 mb-1">
-                                    <span>(+) Entradas Banco:</span>
-                                    <span class="font-bold text-emerald-600">${Utils.formatter.format(entradasBanco)}</span>
-                                </div>
-                                <div class="flex justify-between text-slate-600 mb-1">
-                                    <span>(-) Salidas Banco:</span>
-                                    <span class="font-bold text-rose-600">${Utils.formatter.format(salidasBanco)}</span>
-                                </div>
-                                <div class="flex justify-between text-slate-900 font-black text-xs pt-2 border-t mt-1">
-                                    <span>FLUJO NETO BANCARIO:</span>
-                                    <span class="text-blue-600">${Utils.formatter.format(balBanco)}</span>
-                                </div>
-                            </div>
-                        </div>
+                        ${cajaHTML}
 
                         ${(entradasNoOperativas > 0 || salidasNoOperativas > 0) ? `
                         <div class="mb-4 bg-amber-50 p-3.5 rounded-2xl border border-amber-200">
@@ -241,35 +213,7 @@
                         </div>
                         ` : ''}
             
-                        <div class="mb-4 bg-slate-50 p-3.5 rounded-2xl border border-slate-200">
-                            <h3 class="font-bold border-b pb-1 mb-2 uppercase text-[10px] text-blue-900 flex justify-between items-center">
-                                <span>🏢 RESUMEN INFORMATIVO DE RENTA Y GASTOS FIJOS (${totalDays} DÍAS - NO RESTADO DE CAJA/BANCO)</span>
-                                <span class="text-xs font-black text-blue-900">${Utils.formatter.format(totalGastosFijosProrrateados)}</span>
-                            </h3>
-                            <div class="grid grid-cols-3 gap-3 text-[10px]">
-                                <div class="bg-white p-2 rounded-xl border border-slate-200 flex justify-between items-center">
-                                    <div>
-                                        <span class="text-slate-500 font-medium block">Renta Taller:</span>
-                                        <span class="text-[8px] text-slate-400">($${rentaMensual.toLocaleString()}/mes)</span>
-                                    </div>
-                                    <span class="font-bold text-slate-800">${Utils.formatter.format(rentaProrrateada)}</span>
-                                </div>
-                                <div class="bg-white p-2 rounded-xl border border-slate-200 flex justify-between items-center">
-                                    <div>
-                                        <span class="text-slate-500 font-medium block">Servicios (Agua/Luz/Net):</span>
-                                        <span class="text-[8px] text-slate-400">($${serviciosMensuales.toLocaleString()}/mes)</span>
-                                    </div>
-                                    <span class="font-bold text-slate-800">${Utils.formatter.format(serviciosProrrateados)}</span>
-                                </div>
-                                <div class="bg-white p-2 rounded-xl border border-slate-200 flex justify-between items-center">
-                                    <div>
-                                        <span class="text-slate-500 font-medium block">Impuestos Est.:</span>
-                                        <span class="text-[8px] text-slate-400">($${impuestosMensuales.toLocaleString()}/mes)</span>
-                                    </div>
-                                    <span class="font-bold text-slate-800">${Utils.formatter.format(impuestosProrrateados)}</span>
-                                </div>
-                            </div>
-                        </div>
+                        ${fijosHTML}
             
                         <div class="mb-4 bg-slate-50 p-3.5 rounded-2xl border border-slate-200">
                             <h3 class="font-bold border-b pb-1.5 mb-2 uppercase text-[10px] text-purple-800 flex justify-between items-center">
@@ -404,6 +348,8 @@
                         </div>
                         ` : ''}
 
+                        ${this.corteRepartoYConciliacionHTML(F, SAL)}
+
                         ${listaGastosPorCategoriaPDF.length > 0 ? `
                         <div class="mb-5 bg-slate-50 p-4 rounded-2xl border border-slate-200">
                             <h3 class="font-bold border-b pb-1 mb-2 uppercase text-[10px] text-rose-800 flex justify-between items-center">
@@ -519,6 +465,193 @@
                 };
             
                 html2pdf().set(opt).from(printArea).save();
+            },
+
+            // ================================================================================
+            // CORTE DE CAJA — piezas del reporte
+            // ================================================================================
+            corteCajaTablaHTML(SAL, MOV, arqueo) {
+                const f = n => Utils.formatter.format(n || 0);
+                const ef = MOV.efectivo, bc = MOV.banco;
+                // En renglones de movimiento, un cero se muestra como "—" para que el reporte se lea limpio
+                const celda = (v, signo, total) => (v === null || (!total && Math.abs(v || 0) < 0.005)) ? '<span class="text-slate-300">—</span>' : signo + f(v);
+                const fila = (label, a, b, cls = '', signo = '', total = false) => `
+                    <tr class="${cls}">
+                        <td class="py-1 px-2">${label}</td>
+                        <td class="py-1 px-2 text-right">${celda(a, signo, total)}</td>
+                        <td class="py-1 px-2 text-right">${celda(b, signo, total)}</td>
+                    </tr>`;
+                const catsFijas = Array.from(new Set([...Object.keys(ef.fijosPorCategoria || {}), ...Object.keys(bc.fijosPorCategoria || {})]));
+                const filasFijas = catsFijas.length === 0
+                    ? `<tr><td colspan="3" class="py-1 px-4 text-slate-400 text-[9px]">Sin pagos de renta, servicios o impuestos en el periodo.</td></tr>`
+                    : catsFijas.map(c => fila(`<span class="pl-3">${Utils.escapeHtml(c)}</span>`, (ef.fijosPorCategoria || {})[c] || 0, (bc.fijosPorCategoria || {})[c] || 0, 'text-slate-600', '−')).join('');
+
+                let cabecera = '', pie = '';
+                if (SAL.disponible) {
+                    const fA = SAL.fechaArranque.toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' });
+                    cabecera = fila(`<strong>Saldo inicial</strong> <span class="text-[8px] text-slate-400">${SAL.inicioEnArranque ? `(conteo de arranque del ${fA})` : `(arranque ${fA} + movimientos previos)`}</span>`, SAL.inicial.efectivo, SAL.inicial.banco, 'bg-slate-100 font-bold', '', true);
+                    pie = fila('<strong>= SALDO FINAL SEGÚN SISTEMA</strong>', SAL.final.efectivo, SAL.final.banco, 'bg-blue-50 font-black text-blue-900 text-[11px] border-t-2 border-blue-300', '', true);
+                    const cEf = arqueo && arqueo.efectivo !== null && arqueo.efectivo !== undefined && arqueo.efectivo !== '' ? parseFloat(arqueo.efectivo) : null;
+                    const cBc = arqueo && arqueo.banco !== null && arqueo.banco !== undefined && arqueo.banco !== '' ? parseFloat(arqueo.banco) : null;
+                    if (cEf !== null || cBc !== null) {
+                        const dif = (real, sis) => {
+                            if (real === null) return '<td class="py-1 px-2 text-right text-slate-400">—</td>';
+                            const d = Math.round((real - sis) * 100) / 100;
+                            const txt = Math.abs(d) < 0.5 ? '✓ Cuadra' : (d > 0 ? `Sobrante ${f(d)}` : `Faltante ${f(Math.abs(d))}`);
+                            const cls = Math.abs(d) < 0.5 ? 'text-emerald-700' : (d > 0 ? 'text-blue-700' : 'text-rose-700');
+                            return `<td class="py-1 px-2 text-right font-black ${cls}">${txt}</td>`;
+                        };
+                        pie += fila('Conteo real (arqueo)', cEf, cBc, 'font-bold', '', true);
+                        pie += `<tr class="border-t"><td class="py-1 px-2 font-bold">Diferencia</td>${dif(cEf, SAL.final.efectivo)}${dif(cBc, SAL.final.banco)}</tr>`;
+                    }
+                } else {
+                    pie = fila('<strong>= FLUJO NETO DEL PERIODO</strong>', ef.neto, bc.neto, 'bg-blue-50 font-black text-blue-900 text-[11px] border-t-2 border-blue-300', '', true);
+                }
+
+                const aviso = SAL.disponible ? '' : `<p class="text-[9px] text-amber-700 mt-1.5">⚠️ ${SAL.motivo === 'antes_del_arranque' ? 'Este periodo es anterior a la fecha de arranque de caja' : 'Aún no hay Arranque de Caja configurado (Ajustes)'}: se muestra solo el flujo del periodo, no el saldo real en caja y banco.</p>`;
+
+                return `
+                    <div class="mb-4 bg-white rounded-2xl border border-slate-300 overflow-hidden">
+                        <h3 class="font-extrabold text-slate-900 text-xs uppercase px-3 py-2 bg-slate-50 border-b">💵 FLUJO DE DINERO POR CUENTA</h3>
+                        <table class="w-full text-[10px] border-collapse">
+                            <thead><tr class="text-slate-500 uppercase text-[9px] border-b"><th class="py-1 px-2 text-left">Concepto</th><th class="py-1 px-2 text-right w-32">💵 Efectivo</th><th class="py-1 px-2 text-right w-32">🏦 Banco</th></tr></thead>
+                            <tbody>
+                                ${cabecera}
+                                ${fila('(+) Cobros a clientes', ef.cobros, bc.cobros, 'text-emerald-700')}
+                                ${fila('(+) Préstamos, aportaciones y traspasos recibidos', ef.ingresosNoOperativos, bc.ingresosNoOperativos, 'text-emerald-700')}
+                                ${fila('(−) Compras de refacciones', ef.refacciones, bc.refacciones, 'text-rose-700', '−')}
+                                ${fila('(−) Gastos operativos', ef.gastosOperativos, bc.gastosOperativos, 'text-rose-700', '−')}
+                                ${fila('(−) Nómina pagada', ef.nomina, bc.nomina, 'text-rose-700', '−')}
+                                <tr class="bg-slate-50"><td colspan="3" class="py-1 px-2 font-bold text-slate-700 text-[9px] uppercase">(−) Gastos fijos pagados (renta, servicios, impuestos)</td></tr>
+                                ${filasFijas}
+                                ${fila('(−) Devolución de préstamos y traspasos enviados', ef.salidasNoOperativas, bc.salidasNoOperativas, 'text-rose-700', '−')}
+                                ${fila('(−) Reparto de utilidades a socios', ef.reparto, bc.reparto, 'text-rose-700', '−')}
+                                ${pie}
+                            </tbody>
+                        </table>
+                        <div class="px-3 pb-2">${aviso}</div>
+                    </div>`;
+            },
+
+            corteGastosFijosHTML(F) {
+                const f = n => Utils.formatter.format(n || 0);
+                const pag = F.fijosPagadosPorCategoria || {};
+                const rubros = [
+                    { label: 'Renta', mensual: F.rentaMensual, corresp: F.rentaProrrateada, pagado: pag['Renta'] || 0 },
+                    { label: 'Servicios (Agua/Luz/Internet)', mensual: F.serviciosMensuales, corresp: F.serviciosProrrateados, pagado: (pag['Agua'] || 0) + (pag['Luz'] || 0) + (pag['Internet'] || 0) },
+                    { label: 'Impuestos', mensual: F.impuestosMensuales, corresp: F.impuestosProrrateados, pagado: pag['Impuestos'] || 0 }
+                ];
+                return `
+                    <div class="mb-4 bg-slate-50 p-3.5 rounded-2xl border border-slate-200">
+                        <h3 class="font-bold border-b pb-1 mb-2 uppercase text-[10px] text-blue-900">🏢 GASTOS FIJOS DEL PERIODO (${F.totalDays} DÍAS): LO QUE CORRESPONDE VS. LO PAGADO</h3>
+                        <div class="grid grid-cols-3 gap-3 text-[10px]">
+                            ${rubros.map(r => `
+                                <div class="bg-white p-2 rounded-xl border border-slate-200">
+                                    <span class="font-bold text-slate-700 block">${r.label}</span>
+                                    <span class="text-[8px] text-slate-400 block mb-1">${r.mensual > 0 ? `(${f(r.mensual)}/mes)` : 'Sin prorrateo: sus pagos cuentan como gasto operativo'}</span>
+                                    <div class="flex justify-between"><span class="text-slate-500">Corresponde:</span><span class="font-bold">${f(r.corresp)}</span></div>
+                                    <div class="flex justify-between"><span class="text-slate-500">Pagado:</span><span class="font-bold">${r.mensual > 0 ? f(r.pagado) : '—'}</span></div>
+                                </div>`).join('')}
+                        </div>
+                        <p class="text-[9px] text-slate-500 mt-2">La Utilidad usa lo que <strong>corresponde</strong> (prorrateo diario), así una semana en que se paga la renta completa no sale con pérdida. Lo <strong>pagado</strong> sí sale de Caja/Banco (tabla de arriba).</p>
+                    </div>`;
+            },
+
+            corteRepartoYConciliacionHTML(F, SAL) {
+                const f = n => Utils.formatter.format(n || 0);
+                const repartoHTML = (F.desgloseReparto || []).length === 0 ? '' : `
+                    <div class="mb-5 bg-white border border-emerald-200 p-4 rounded-2xl">
+                        <h3 class="font-extrabold text-emerald-900 text-xs border-b border-emerald-200 pb-1 mb-2 uppercase flex justify-between">
+                            <span>💸 UTILIDADES REPARTIDAS EN EL PERIODO (RETIROS REGISTRADOS)</span>
+                            <span>${f(F.repartoPeriodo)}</span>
+                        </h3>
+                        <table class="w-full text-[10px]">
+                            ${F.desgloseReparto.map(r => `
+                                <tr class="border-b border-dashed border-emerald-100">
+                                    <td class="py-1 text-slate-500">${Utils.parseFechaLocal(r.fecha).toLocaleDateString('es-MX', { day: '2-digit', month: 'short' })}</td>
+                                    <td class="py-1 font-semibold text-slate-700">${Utils.escapeHtml(r.concepto || '')}</td>
+                                    <td class="py-1 text-center text-slate-500">${Utils.escapeHtml(r.metodo || '')}</td>
+                                    <td class="py-1 text-right font-bold">${f(r.monto)}</td>
+                                </tr>`).join('')}
+                        </table>
+                        <p class="text-[9px] text-slate-500 mt-1.5">Los retiros salen de Caja/Banco pero no reducen la Utilidad (es la utilidad entregada a los socios). Pueden corresponder a la utilidad de un corte anterior.</p>
+                    </div>`;
+
+                const lineas = [];
+                if (F.esIvaPorPagar && F.balanceIvaNeto > 0.5) lineas.push(['IVA que se debe apartar para el SAT', F.balanceIvaNeto]);
+                if (F.totalPendienteCobro > 0.5) lineas.push(['Clientes que aún deben (cuentas por cobrar del periodo)', F.totalPendienteCobro]);
+                if (F.aplicaControlNomina && F.nominaPendientePago > 0.5) lineas.push(['Nómina que corresponde pero aún no se paga', F.nominaPendientePago]);
+                const fijosNoPagados = (F.totalGastosFijosProrrateados || 0) - (F.gastosFijosPagados || 0);
+                if (fijosNoPagados > 0.5) lineas.push(['Gastos fijos que corresponden al periodo pero no se han pagado (ej. renta del mes)', fijosNoPagados]);
+                if (F.saldoPrestamosPendiente > 0.5) lineas.push(['Préstamo de socio que el taller aún debe (acumulado)', F.saldoPrestamosPendiente]);
+                const conciliacion = `
+                    <div class="mb-5 bg-amber-50/60 border border-amber-200 p-4 rounded-2xl">
+                        <h3 class="font-extrabold text-amber-900 text-xs border-b border-amber-200 pb-1 mb-2 uppercase">🧮 ¿POR QUÉ EL DINERO EN CAJA NO ES IGUAL A LA UTILIDAD?</h3>
+                        <div class="grid grid-cols-2 gap-3 text-[10px] mb-2">
+                            <div class="bg-white p-2 rounded-xl border"><span class="text-slate-500 block">Utilidad disponible del periodo:</span><span class="font-black ${F.utilidadDisponibleTrasIva >= 0 ? 'text-emerald-700' : 'text-rose-700'}">${f(F.utilidadDisponibleTrasIva)}</span></div>
+                            <div class="bg-white p-2 rounded-xl border"><span class="text-slate-500 block">Dinero total al cierre (efectivo + banco):</span><span class="font-black text-blue-700">${SAL.disponible ? f(SAL.final.efectivo + SAL.final.banco) : 'Configura el arranque'}</span></div>
+                        </div>
+                        <p class="text-[9px] text-slate-600 mb-1">El dinero disponible incluye cosas que <strong>no son del todo de los socios</strong>, y la utilidad incluye dinero que <strong>aún no entra</strong>:</p>
+                        ${lineas.length === 0 ? '<p class="text-[9px] text-slate-400">Sin compromisos pendientes relevantes en este periodo.</p>' : `
+                        <table class="w-full text-[10px]">${lineas.map(l => `<tr class="border-b border-dashed border-amber-200"><td class="py-1 text-slate-700">${l[0]}</td><td class="py-1 text-right font-bold">${f(l[1])}</td></tr>`).join('')}</table>`}
+                        <p class="text-[9px] text-slate-500 mt-1.5">Antes de repartir efectivo, verifica que después del reparto quede lo suficiente para cubrir estos compromisos.</p>
+                    </div>`;
+                return repartoHTML + conciliacion;
+            },
+
+            // Modal previo al Corte: muestra el saldo esperado y permite capturar el conteo real
+            async openCorteModal() {
+                const preset = document.getElementById('erp-date-preset').value;
+                const { start, end } = Financial_Engine.getDateRange(preset);
+                const SAL = await Financial_Engine.computeSaldosCaja(start, end);
+                const f = n => Utils.formatter.format(n || 0);
+                const cont = document.getElementById('modal-corte-content');
+                const rango = `${start.toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' })} – ${end.toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' })}`;
+                cont.innerHTML = SAL.disponible ? `
+                    <p class="text-sm text-slate-600">Periodo: <strong>${rango}</strong></p>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div class="bg-slate-50 border rounded-2xl p-3"><span class="text-[10px] font-bold text-slate-500 uppercase block">💵 Efectivo según sistema</span><span class="text-lg font-black text-slate-900">${f(SAL.final.efectivo)}</span></div>
+                        <div class="bg-slate-50 border rounded-2xl p-3"><span class="text-[10px] font-bold text-slate-500 uppercase block">🏦 Banco según sistema</span><span class="text-lg font-black text-slate-900">${f(SAL.final.banco)}</span></div>
+                    </div>
+                    <p class="text-xs text-slate-500">Opcional: captura lo que contaste físicamente y lo que dice el banco. El reporte marcará si cuadra, sobra o falta.</p>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div class="flex flex-col gap-1"><label class="text-[10px] font-bold text-slate-500 uppercase">Efectivo contado</label><input type="number" step="0.01" id="corte-conteo-efectivo" placeholder="${SAL.final.efectivo}" class="border rounded-xl px-3 py-2 text-sm bg-slate-50"></div>
+                        <div class="flex flex-col gap-1"><label class="text-[10px] font-bold text-slate-500 uppercase">Saldo en banco</label><input type="number" step="0.01" id="corte-conteo-banco" placeholder="${SAL.final.banco}" class="border rounded-xl px-3 py-2 text-sm bg-slate-50"></div>
+                    </div>` : `
+                    <p class="text-sm text-slate-600">Periodo: <strong>${rango}</strong></p>
+                    <p class="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">${SAL.motivo === 'antes_del_arranque' ? 'Este periodo es anterior a la fecha de arranque de caja.' : 'Aún no hay <strong>Arranque de Caja</strong> configurado (Configuración).'} El reporte mostrará el flujo del periodo, pero no el saldo real en caja y banco.</p>`;
+                document.getElementById('modal-corte').classList.remove('hidden');
+            },
+
+            closeCorteModal() {
+                document.getElementById('modal-corte').classList.add('hidden');
+            },
+
+            generarCorteDesdeModal() {
+                const v = id => { const el = document.getElementById(id); return el && el.value !== '' ? parseFloat(el.value) : null; };
+                const arqueo = { efectivo: v('corte-conteo-efectivo'), banco: v('corte-conteo-banco') };
+                this.closeCorteModal();
+                this.downloadCorteCajaPDF(arqueo);
+            },
+
+            // Arranque de caja (Ajustes)
+            loadArranqueConfig() {
+                const a = State.arranqueCaja || {};
+                const set = (id, val) => { const el = document.getElementById(id); if (el) el.value = val ?? ''; };
+                set('arranque-fecha', a.fecha || '');
+                set('arranque-efectivo', a.fecha ? a.efectivo : '');
+                set('arranque-banco', a.fecha ? a.banco : '');
+            },
+
+            async saveArranqueCaja() {
+                const fecha = document.getElementById('arranque-fecha').value;
+                const efectivo = parseFloat(document.getElementById('arranque-efectivo').value);
+                const banco = parseFloat(document.getElementById('arranque-banco').value);
+                if (!fecha || isNaN(efectivo) || isNaN(banco)) { showToast('Captura la fecha, el efectivo contado y el saldo del banco.', true); return; }
+                State.arranqueCaja = { fecha, efectivo: Math.round(efectivo * 100) / 100, banco: Math.round(banco * 100) / 100 };
+                await API_Service.saveConfigValue('arranque_caja', State.arranqueCaja);
+                showToast('Arranque de caja guardado. Los saldos se calculan desde esa fecha.');
+                Cashflow_Engine.recalculate();
             },
 
             renderOrdersList() {

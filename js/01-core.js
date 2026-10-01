@@ -15,8 +15,9 @@
             saldoInicialCaja: { efectivo: 0, banco: 0 },
             nominaControlInicio: null,   // fecha (YYYY-MM-DD) desde la que los pagos de nómina se capturan en Tesorería
             nominaPlantilla: [],
-            nominaDesfase: [],           // ids de colaboradores que cobran con semana desfasada (se les paga la semana anterior)         // pagos típicos de la semana para el botón "Registrar Nómina de la Semana"
-            categories: ["Gasolina", "Diesel", "Consumibles", "Refacciones", "Nómina", "Renta", "Agua", "Luz", "Internet", "Herramientas", "Publicidad", "Papelería", "Transporte", "Comisiones bancarias", "Impuestos", "Pago de Préstamos / Socios", "Traspaso entre Cuentas (Caja/Banco)", "Otros"],
+            nominaDesfase: [],
+            arranqueCaja: null,          // { fecha, efectivo, banco }: conteo real de caja y saldo de banco en una fecha (punto de partida de los saldos)           // ids de colaboradores que cobran con semana desfasada (se les paga la semana anterior)         // pagos típicos de la semana para el botón "Registrar Nómina de la Semana"
+            categories: ["Gasolina", "Diesel", "Consumibles", "Refacciones", "Nómina", "Renta", "Agua", "Luz", "Internet", "Herramientas", "Publicidad", "Papelería", "Transporte", "Comisiones bancarias", "Impuestos", "Pago de Préstamos / Socios", "Traspaso entre Cuentas (Caja/Banco)", "Reparto de Utilidades (Retiro de Socios)", "Otros"],
             extraIncomeCategories: ["Capital de Trabajo", "Crédito o Préstamo", "Aportación de Socios", "Traspaso entre Cuentas (Caja/Banco)", "Otro Ingreso"]
         };
 
