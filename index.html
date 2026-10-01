@@ -223,6 +223,7 @@
                         </div>
                         <div class="text-[10px] text-slate-400 mt-3 pt-2 border-t border-slate-100">
                             Costo Refacciones (Neto): <span id="costo-ref-total" class="font-semibold text-slate-700">$0.00</span>
+                            <span class="block">Margen refacciones: <span id="margen-ref-total" class="font-semibold text-emerald-700">—</span></span>
                         </div>
                     </div>
                     
@@ -1431,6 +1432,27 @@
                     </div>
                 </div>
 
+                <div class="bg-white border border-slate-200 rounded-3xl p-6 md:p-8 shadow-sm flex flex-col gap-4">
+                    <div class="flex items-center gap-3">
+                        <div class="bg-amber-50 border text-amber-600 p-2 rounded-xl">
+                            <span class="material-icons">sell</span>
+                        </div>
+                        <div>
+                            <h2 class="text-xl font-bold text-slate-900">Margen en Refacciones</h2>
+                            <p class="text-sm text-slate-500">Porcentaje sobre tu COSTO para el precio al cliente. Al registrar una compra en la orden, el concepto se agrega con este precio (editable en cada compra). Las reglas por descripción tienen prioridad sobre las de proveedor.</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2 text-sm">
+                        <label class="text-xs font-semibold text-slate-500 uppercase">Margen general</label>
+                        <input type="number" id="margen-general" min="0" step="1" oninput="UI_Controller.updateMargenGeneral(this.value)" class="w-24 border rounded-xl px-3 py-2 text-sm text-right">
+                        <span class="text-slate-400 font-bold">%</span>
+                        <span class="text-[11px] text-slate-400">(para proveedores sin regla)</span>
+                    </div>
+                    <div id="margen-reglas" class="flex flex-col gap-2"></div>
+                    <button type="button" onclick="UI_Controller.addMargenRegla()" class="self-start text-xs font-semibold text-blue-600 hover:bg-blue-50 px-2 py-1 rounded-lg">+ Agregar regla</button>
+                    <p class="text-[11px] text-slate-400">Ej.: AutoZone te descuenta 20% del precio público → 25% sobre tu costo = precio público.</p>
+                </div>
+
                 <div class="bg-white border border-slate-200 rounded-3xl p-6 md:p-8 shadow-sm flex flex-col gap-6">
                     <div class="flex items-center gap-3">
                         <div class="bg-emerald-50 border text-emerald-600 p-2 rounded-xl">
@@ -1649,9 +1671,15 @@
                           <!-- Formulario para agregar compras con selector de CFDI -->
                           <form id="form-agregar-refaccion" onsubmit="UI_Controller.guardarRefaccionModal(event)" class="flex flex-col gap-2">
                             <div class="grid grid-cols-1 sm:grid-cols-12 gap-2">
-                              <input type="text" id="ref-descripcion" placeholder="Descripción (Ej. Kit distribución)" required class="sm:col-span-5 px-3 py-1.5 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
-                              <input type="text" id="ref-proveedor" placeholder="Proveedor (Ej. AutoZone)" class="sm:col-span-4 px-3 py-1.5 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
-                              <input type="number" step="0.01" id="ref-costo" placeholder="Costo $" required class="sm:col-span-3 px-3 py-1.5 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+                              <input type="text" id="ref-descripcion" oninput="UI_Controller.actualizarPrecioRefaccion()" placeholder="Descripción (Ej. Kit distribución)" required class="sm:col-span-5 px-3 py-1.5 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+                              <input type="text" id="ref-proveedor" oninput="UI_Controller.actualizarPrecioRefaccion()" placeholder="Proveedor (Ej. AutoZone)" class="sm:col-span-4 px-3 py-1.5 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+                              <input type="number" step="0.01" id="ref-costo" oninput="UI_Controller.actualizarPrecioRefaccion()" placeholder="Costo $" required class="sm:col-span-3 px-3 py-1.5 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+                            </div>
+
+                            <div class="flex flex-wrap items-center gap-2 bg-emerald-50/60 border border-emerald-100 rounded-lg px-2 py-1.5">
+                              <label for="ref-precio" class="shrink-0 text-[10px] font-bold text-emerald-800 uppercase">Precio al cliente $</label>
+                              <input type="number" step="0.01" id="ref-precio" oninput="UI_Controller.precioRefaccionEditado()" placeholder="Se calcula solo" class="w-32 px-3 py-1.5 text-xs border border-emerald-200 rounded-lg focus:outline-none bg-white text-right font-bold text-emerald-800">
+                              <span id="ref-margen-info" class="flex-1 min-w-[180px] text-[10px] text-slate-400">Captura el costo para calcular el precio al cliente.</span>
                             </div>
 
                             <div class="grid grid-cols-1 sm:grid-cols-12 gap-2 items-center">
@@ -1685,6 +1713,7 @@
                                   <th class="p-2">Proveedor</th>
                                   <th class="p-2">Método</th>
                                   <th class="p-2 text-right">Costo</th>
+                                  <th class="p-2 text-right">Precio cliente</th>
                                   <th class="p-2 text-center"></th>
                                 </tr>
                               </thead>
