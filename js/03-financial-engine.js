@@ -7,6 +7,19 @@
             // como gasto operativo normal (como antes) para no dejar de contarlo.
             CATEGORIAS_FIJAS: { "Renta": "renta", "Agua": "servicios", "Luz": "servicios", "Internet": "servicios", "Impuestos": "impuestos" },
 
+            // Cuántos "meses" abarca un rango: cada día vale 1 / (días de su mes).
+            // Ej.: 1–31 ago = 1.0; 28 sep–4 oct = 3/30 + 4/31.
+            fraccionDeMeses(start, end) {
+                const d = new Date(start.getFullYear(), start.getMonth(), start.getDate(), 12, 0, 0, 0);
+                const fin = new Date(end.getFullYear(), end.getMonth(), end.getDate(), 12, 0, 0, 0);
+                let f = 0;
+                while (d <= fin) {
+                    f += 1 / new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+                    d.setDate(d.getDate() + 1);
+                }
+                return f;
+            },
+
             // Clasificación única de un gasto de Tesorería (la usan Utilidad, Corte y saldos)
             clasificarGasto(e) {
                 const m = parseFloat(e.monto || 0);
@@ -418,9 +431,12 @@
                 const rentaMensual = parseFloat(State.fixedCosts.renta) || 0;
                 const serviciosMensuales = parseFloat(State.fixedCosts.servicios) || 0;
                 const impuestosMensuales = parseFloat(State.fixedCosts.impuestos) || 0;
-                const rentaProrrateada = (rentaMensual / 30.4) * totalDays;
-                const serviciosProrrateados = (serviciosMensuales / 30.4) * totalDays;
-                const impuestosProrrateados = (impuestosMensuales / 30.4) * totalDays;
+                // Prorrateo por los días REALES de cada mes (antes ÷ 30.4): un mes completo da exactamente el
+                // monto mensual (agosto = $6,250, no $6,373) y cada semana carga su parte proporcional.
+                const fraccionMes = this.fraccionDeMeses(start, end);
+                const rentaProrrateada = rentaMensual * fraccionMes;
+                const serviciosProrrateados = serviciosMensuales * fraccionMes;
+                const impuestosProrrateados = impuestosMensuales * fraccionMes;
                 const costoFijosPeriodo = rentaProrrateada + serviciosProrrateados + impuestosProrrateados;
                 const totalGastosFijosProrrateados = costoFijosPeriodo;
                 montosPorCategoria["Renta"] = rentaProrrateada;
@@ -762,7 +778,7 @@
                     State.personal = [
                         { nombre: 'Mecánico Prueba', rol: 'Mecánico', sueldo: 700, fecha_ingreso: '2025-01-01', fecha_egreso: null, user_id: 'test-mec-1' }
                     ];
-                    State.fixedCosts = { renta: 304, servicios: 0, impuestos: 0 };
+                    State.fixedCosts = { renta: 310, servicios: 0, impuestos: 0 }; // enero (31 días) → $10/día
 
                     supabaseClient = mockSupabase([{
                         id: 7001, descripcion: 'Refacción prueba', proveedor: 'Proveedor Prueba',
@@ -776,6 +792,9 @@
                     assertClose('Caso completo: IVA Acreditable Total (refacciones + gastos) = $40', R2.totalIvaAcreditablePagado, 40);
                     assertClose('Caso completo: Nómina Neta de Descuentos = $650', R2.nominaFinalConDescuentos, 650);
                     assertClose('Caso completo: Gastos Fijos Prorrateados (7 días) = $70', R2.totalGastosFijosProrrateados, 70);
+                    assertClose('Prorrateo: agosto completo = exactamente 1 mes', this.fraccionDeMeses(new Date(2026, 7, 1), new Date(2026, 7, 31, 23, 59, 59)), 1, 0.000001);
+                    assertClose('Prorrateo: febrero completo = exactamente 1 mes', this.fraccionDeMeses(new Date(2026, 1, 1), new Date(2026, 1, 28, 23, 59, 59)), 1, 0.000001);
+                    assertClose('Prorrateo: semana 28-sep a 4-oct = 3/30 + 4/31', this.fraccionDeMeses(new Date(2026, 8, 28), new Date(2026, 9, 4, 23, 59, 59)), 3 / 30 + 4 / 31, 0.000001);
                     assertClose('Caso completo: Gastos Operativos (Herramienta con factura sin su IVA 8%) = $200', R2.egresosManuales, 200);
                     assertClose('Caso completo: Ventas Netas sin IVA = $2,000', R2.ventasNetasSinIva16, 2000);
                     assertClose('Caso completo: Utilidad Neta = $680', R2.utilidadNeta, 680);
@@ -836,7 +855,7 @@
                         { id: 'p3', fecha: '2026-03-10', monto: 500, metodo_pago: 'Transferencia', tipo: 'pago' }
                     ];
                     State.ingresosExtra = [];
-                    State.fixedCosts = { renta: 3040, servicios: 0, impuestos: 0 }; // $100/día de renta prorrateada
+                    State.fixedCosts = { renta: 3100, servicios: 0, impuestos: 0 }; // marzo (31 días) → $100/día
                     State.expenses = [
                         { id: 'r1', fecha: '2026-03-10', monto: 3040, categoria: 'Renta', metodo_pago: 'Transferencia', concepto: 'Renta marzo' },
                         { id: 'l1', fecha: '2026-03-10', monto: 300, categoria: 'Luz', metodo_pago: 'Efectivo', concepto: 'Luz (sin prorrateo de servicios)' },
