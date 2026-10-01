@@ -161,6 +161,8 @@
 
                 // ---------- Compras de refacciones (UNA sola consulta a Supabase para todo) ----------
                 let refaccionesCostBruto = 0, refaccionesCostNeto = 0, totalIvaAcreditablePagado = 0;
+                // Para el puente Utilidad → Flujo de Caja
+                let ivaRefaccionesCfdi = 0, comprasSinSalidaDinero = 0, refaccionesOrdenesSinCompra = 0;
                 let listaComprasRefacciones = [];
                 let refaccionesPeriodo = [];
                 let comprasPorProveedor = {};
@@ -194,7 +196,8 @@
 
                             refaccionesCostBruto += montoTotalConIva;
                             refaccionesCostNeto += subtotalSinIva;
-                            if (tieneCfdi) totalIvaAcreditablePagado += ivaMonto;
+                            if (tieneCfdi) { totalIvaAcreditablePagado += ivaMonto; ivaRefaccionesCfdi += ivaMonto; }
+                            if (this.cuentaDe(c.metodo_pago) === null) comprasSinSalidaDinero += montoTotalConIva;
 
                             const metodo = (c.metodo_pago || '').trim().toLowerCase();
                             if (metodo === 'efectivo') salidasEfectivo += montoTotalConIva;
@@ -230,6 +233,7 @@
                             if (costoRefOrden > 0) {
                                 refaccionesCostBruto += costoRefOrden;
                                 refaccionesCostNeto += costoRefOrden;
+                                refaccionesOrdenesSinCompra += costoRefOrden;
                             }
                         }
                     }
@@ -476,6 +480,7 @@
                     totalPrestadoHistorico, totalDevueltoHistorico, saldoPrestamosPendiente,
                     nominaPagadaPeriodo, desgloseNominaPagada,
                     repartoPeriodo, desgloseReparto, gastosFijosPagados, fijosPagadosPorCategoria,
+                    ivaRefaccionesCfdi, comprasSinSalidaDinero, refaccionesOrdenesSinCompra,
                     aplicaControlNomina, inicioControlNomina, nominaCorrespondienteControl, nominaPagadaControl, nominaPendientePago
                 };
             },
@@ -534,6 +539,34 @@
                     x.neto = r2(x.entradas - x.salidas);
                 });
                 return R;
+            },
+
+            // ================================================================================
+            // PUENTE UTILIDAD NETA → FLUJO DE CAJA
+            // Explica renglón por renglón por qué la Utilidad y el flujo de dinero (efectivo + banco)
+            // del mismo periodo son distintos. Como ambos salen de los mismos registros, la
+            // "diferencia sin explicar" debe ser $0.00; si no lo es, hay un error de cálculo.
+            // (Lo que NO se registró falta en ambos lados: eso lo detecta el arqueo, no el puente.)
+            // ================================================================================
+            computePuente(F, MOV) {
+                const r2 = n => Math.round((n || 0) * 100) / 100;
+                const suma = k => r2((MOV.efectivo[k] || 0) + (MOV.banco[k] || 0));
+                const lineas = [
+                    { id: 'iva', label: 'IVA 16% cobrado a clientes (está en caja, pero es del SAT)', monto: r2(F.totalIva16Cobrado) },
+                    { id: 'noop_in', label: 'Préstamos, aportaciones y traspasos recibidos (no son venta)', monto: suma('ingresosNoOperativos') },
+                    { id: 'ref_ordenes', label: 'Refacciones capturadas solo en la orden (costo sin pago registrado)', monto: r2(F.refaccionesOrdenesSinCompra) },
+                    { id: 'ref_credito', label: 'Compras de refacciones a crédito (costo, aún no sale dinero)', monto: r2(F.comprasSinSalidaDinero) },
+                    { id: 'iva_ref', label: 'IVA 8% pagado en refacciones con factura (sale dinero, no es costo)', monto: -r2(F.ivaRefaccionesCfdi) },
+                    { id: 'nomina', label: 'Nómina que corresponde menos la pagada (+ pendiente / − pagada de más)', monto: r2(F.nominaFinalConDescuentos - suma('nomina')) },
+                    { id: 'fijos', label: 'Gastos fijos que corresponden menos los pagados (renta, servicios, impuestos)', monto: r2(F.totalGastosFijosProrrateados - suma('gastosFijos')) },
+                    { id: 'gastos_sin_salida', label: 'Gastos operativos registrados sin salida de efectivo/banco', monto: r2(F.egresosManuales - suma('gastosOperativos')) },
+                    { id: 'noop_out', label: 'Devoluciones de préstamo y traspasos enviados', monto: -suma('salidasNoOperativas') },
+                    { id: 'reparto', label: 'Reparto de utilidades a socios', monto: -suma('reparto') }
+                ];
+                const utilidad = r2(F.utilidadNeta);
+                const flujoCalculado = r2(utilidad + lineas.reduce((a, l) => a + l.monto, 0));
+                const flujoReal = r2(MOV.efectivo.neto + MOV.banco.neto);
+                return { utilidad, lineas, flujoCalculado, flujoReal, diferencia: r2(flujoReal - flujoCalculado) };
             },
 
             // Saldos reales por cuenta a partir del ARRANQUE (conteo de caja + saldo de banco en una fecha,
@@ -722,6 +755,9 @@
                     assertClose('Nómina: el pago NO se duplica en Gastos Operativos (sigue $208)', R2.egresosManuales, 208);
                     assertClose('Nómina: correspondiente neta en control = $650', R2.nominaCorrespondienteControl, 650);
                     assertClose('Nómina: diferencia (pagado de más) = -$50', R2.nominaPendientePago, -50);
+                    assertClose('Caso completo: Saldo Neto de Banco = -$540', R2.balBanco, -540);
+                    const P2 = this.computePuente(R2, await this.computeCashMovements(start2, end2));
+                    assertClose('Puente Utilidad → Flujo (caso completo): diferencia sin explicar = $0', P2.diferencia, 0, 0.01);
 
                     // ---------- Escenario 3: control de nómina con fecha de arranque a media semana ----------
                     // Antes del arranque no se cuentan ni lo devengado ni los pagos (no se capturaban).
@@ -784,7 +820,9 @@
                     assertClose('Saldo final banco = 10,000 + 500 − 3,040 = $7,460', SC.final.banco, 7460);
                     assertClose('Movimientos por cuenta cuadran con el flujo neto de la Utilidad (efectivo)', SC.mov.efectivo.neto, A.balEfectivo);
                     assertClose('Movimientos por cuenta cuadran con el flujo neto de la Utilidad (banco)', SC.mov.banco.neto, A.balBanco);
-                    assertClose('Caso completo: Saldo Neto de Banco = -$540', R2.balBanco, -540);
+                    const P6 = this.computePuente(A, SC.mov);
+                    assertClose('Puente Utilidad → Flujo (renta, reparto, luz): diferencia sin explicar = $0', P6.diferencia, 0, 0.01);
+
 
                 } catch (err) {
                     results.push({ label: `❌ Error inesperado durante las pruebas: ${err.message}`, actual: null, expected: null, ok: false });
@@ -949,6 +987,17 @@
                     }
                 }
     
+                // Puente Utilidad → Flujo de Caja del mismo periodo
+                const puenteCont = document.getElementById('dash-puente');
+                if (puenteCont) {
+                    try {
+                        const MOV = await this.computeCashMovements(start, end);
+                        puenteCont.innerHTML = UI_Controller.puenteHTML(this.computePuente(F, MOV), false);
+                    } catch (err) {
+                        console.error('Error al calcular el puente Utilidad → Flujo:', err);
+                    }
+                }
+
                 // Llamar al renderizador enviando los datos acumulados
                 this.renderCharts(montosPorCategoria, conteoServicios, acumuladoManoObraOrdenes, acumuladoRefaccionesOrdenes);
             },

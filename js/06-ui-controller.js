@@ -348,7 +348,7 @@
                         </div>
                         ` : ''}
 
-                        ${this.corteRepartoYConciliacionHTML(F, SAL)}
+                        ${this.corteRepartoYConciliacionHTML(F, SAL, Financial_Engine.computePuente(F, MOV))}
 
                         ${listaGastosPorCategoriaPDF.length > 0 ? `
                         <div class="mb-5 bg-slate-50 p-4 rounded-2xl border border-slate-200">
@@ -557,7 +557,30 @@
                     </div>`;
             },
 
-            corteRepartoYConciliacionHTML(F, SAL) {
+            // Tabla del puente Utilidad Neta → Flujo de Caja (Panel y Corte)
+            puenteHTML(P, paraPDF) {
+                const f = n => Utils.formatter.format(n || 0);
+                const sz = paraPDF ? 'text-[10px]' : 'text-xs';
+                const filas = P.lineas.map(l => {
+                    const cero = Math.abs(l.monto) < 0.005;
+                    return `<tr class="border-b border-dashed border-slate-200 ${cero ? 'text-slate-300' : 'text-slate-700'}">
+                        <td class="py-1 pr-2">${l.monto >= 0 ? '(+)' : '(−)'} ${l.label}</td>
+                        <td class="py-1 text-right font-semibold whitespace-nowrap ${cero ? '' : (l.monto >= 0 ? 'text-emerald-700' : 'text-rose-700')}">${cero ? '—' : (l.monto >= 0 ? '+' : '−') + f(Math.abs(l.monto))}</td>
+                    </tr>`;
+                }).join('');
+                const ok = Math.abs(P.diferencia) < 0.5;
+                return `
+                    <table class="w-full ${sz}">
+                        <tr class="font-bold text-slate-900 border-b"><td class="py-1.5">Utilidad Neta del periodo</td><td class="py-1.5 text-right ${P.utilidad >= 0 ? 'text-emerald-700' : 'text-rose-700'}">${f(P.utilidad)}</td></tr>
+                        ${filas}
+                        <tr class="font-bold text-slate-900 border-t-2 border-slate-300"><td class="py-1.5">= Flujo de dinero calculado (efectivo + banco)</td><td class="py-1.5 text-right">${f(P.flujoCalculado)}</td></tr>
+                        <tr class="text-slate-600"><td class="py-1">Flujo de dinero real (Flujo de Caja combinado)</td><td class="py-1 text-right">${f(P.flujoReal)}</td></tr>
+                        <tr class="font-black ${ok ? 'text-emerald-700 bg-emerald-50' : 'text-rose-700 bg-rose-50'}"><td class="py-1.5 px-1">${ok ? '✓ Diferencia sin explicar' : '⚠️ Diferencia sin explicar (revisar)'}</td><td class="py-1.5 px-1 text-right">${f(P.diferencia)}</td></tr>
+                    </table>
+                    <p class="${paraPDF ? 'text-[9px]' : 'text-[11px]'} text-slate-500 mt-2">La diferencia sin explicar debe ser $0.00. Lo que no se registró falta en ambos lados y no aparece aquí: eso lo detecta el arqueo (conteo real vs. sistema en el Corte de Caja).</p>`;
+            },
+
+            corteRepartoYConciliacionHTML(F, SAL, P) {
                 const f = n => Utils.formatter.format(n || 0);
                 const repartoHTML = (F.desgloseReparto || []).length === 0 ? '' : `
                     <div class="mb-5 bg-white border border-emerald-200 p-4 rounded-2xl">
@@ -577,24 +600,19 @@
                         <p class="text-[9px] text-slate-500 mt-1.5">Los retiros salen de Caja/Banco pero no reducen la Utilidad (es la utilidad entregada a los socios). Pueden corresponder a la utilidad de un corte anterior.</p>
                     </div>`;
 
-                const lineas = [];
-                if (F.esIvaPorPagar && F.balanceIvaNeto > 0.5) lineas.push(['IVA que se debe apartar para el SAT', F.balanceIvaNeto]);
-                if (F.totalPendienteCobro > 0.5) lineas.push(['Clientes que aún deben (cuentas por cobrar del periodo)', F.totalPendienteCobro]);
-                if (F.aplicaControlNomina && F.nominaPendientePago > 0.5) lineas.push(['Nómina que corresponde pero aún no se paga', F.nominaPendientePago]);
-                const fijosNoPagados = (F.totalGastosFijosProrrateados || 0) - (F.gastosFijosPagados || 0);
-                if (fijosNoPagados > 0.5) lineas.push(['Gastos fijos que corresponden al periodo pero no se han pagado (ej. renta del mes)', fijosNoPagados]);
-                if (F.saldoPrestamosPendiente > 0.5) lineas.push(['Préstamo de socio que el taller aún debe (acumulado)', F.saldoPrestamosPendiente]);
+                const compromisos = [];
+                if (F.esIvaPorPagar && F.balanceIvaNeto > 0.5) compromisos.push(['IVA estimado por pagar al SAT', F.balanceIvaNeto]);
+                if (F.totalPendienteCobro > 0.5) compromisos.push(['Clientes que aún deben (cuentas por cobrar del periodo)', F.totalPendienteCobro]);
+                if (F.saldoPrestamosPendiente > 0.5) compromisos.push(['Préstamo de socio que el taller aún debe (acumulado)', F.saldoPrestamosPendiente]);
                 const conciliacion = `
-                    <div class="mb-5 bg-amber-50/60 border border-amber-200 p-4 rounded-2xl">
-                        <h3 class="font-extrabold text-amber-900 text-xs border-b border-amber-200 pb-1 mb-2 uppercase">🧮 ¿POR QUÉ EL DINERO EN CAJA NO ES IGUAL A LA UTILIDAD?</h3>
-                        <div class="grid grid-cols-2 gap-3 text-[10px] mb-2">
-                            <div class="bg-white p-2 rounded-xl border"><span class="text-slate-500 block">Utilidad disponible del periodo:</span><span class="font-black ${F.utilidadDisponibleTrasIva >= 0 ? 'text-emerald-700' : 'text-rose-700'}">${f(F.utilidadDisponibleTrasIva)}</span></div>
-                            <div class="bg-white p-2 rounded-xl border"><span class="text-slate-500 block">Dinero total al cierre (efectivo + banco):</span><span class="font-black text-blue-700">${SAL.disponible ? f(SAL.final.efectivo + SAL.final.banco) : 'Configura el arranque'}</span></div>
-                        </div>
-                        <p class="text-[9px] text-slate-600 mb-1">El dinero disponible incluye cosas que <strong>no son del todo de los socios</strong>, y la utilidad incluye dinero que <strong>aún no entra</strong>:</p>
-                        ${lineas.length === 0 ? '<p class="text-[9px] text-slate-400">Sin compromisos pendientes relevantes en este periodo.</p>' : `
-                        <table class="w-full text-[10px]">${lineas.map(l => `<tr class="border-b border-dashed border-amber-200"><td class="py-1 text-slate-700">${l[0]}</td><td class="py-1 text-right font-bold">${f(l[1])}</td></tr>`).join('')}</table>`}
-                        <p class="text-[9px] text-slate-500 mt-1.5">Antes de repartir efectivo, verifica que después del reparto quede lo suficiente para cubrir estos compromisos.</p>
+                    <div class="mb-5 bg-white border border-slate-300 p-4 rounded-2xl">
+                        <h3 class="font-extrabold text-slate-900 text-xs border-b pb-1 mb-2 uppercase">🧮 PUENTE: UTILIDAD NETA → FLUJO DE DINERO DEL PERIODO</h3>
+                        ${this.puenteHTML(P, true)}
+                        ${compromisos.length ? `
+                        <div class="mt-3 pt-2 border-t border-dashed">
+                            <span class="text-[9px] font-bold text-amber-800 uppercase">Compromisos a considerar antes de repartir efectivo</span>
+                            <table class="w-full text-[10px] mt-1">${compromisos.map(l => `<tr class="border-b border-dashed border-amber-200"><td class="py-1 text-slate-700">${l[0]}</td><td class="py-1 text-right font-bold">${f(l[1])}</td></tr>`).join('')}</table>
+                        </div>` : ''}
                     </div>`;
                 return repartoHTML + conciliacion;
             },
