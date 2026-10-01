@@ -38,6 +38,7 @@
                     Maintenance_Engine.loadCatalogoConfig();
                     Promise.resolve(API_Service.fetchPersonal()).then(() => UI_Controller.loadNominaConfig());
                     UI_Controller.loadArranqueConfig();
+                    UI_Controller.renderMargenConfig();
                 }
 
                 if (tabId === 'personal') {
@@ -287,6 +288,7 @@
                                     <span>(-) Costo Neto de Refacciones (Sin IVA 8%):</span>
                                     <span class="text-rose-600">${Utils.formatter.format(refaccionesCostNeto)}</span>
                                 </div>
+                                ${F.costoRefaccionesConPrecio > 0 ? `<div class="flex justify-between text-[9px] text-emerald-700 pl-6"><span>Margen cobrado en refacciones (compras con precio al cliente, ya incluido en ventas):</span><span>${Utils.formatter.format(F.margenRefaccionesPeriodo)} (${Math.round(F.margenRefaccionesPeriodo / F.costoRefaccionesConPrecio * 100)}% s/costo)</span></div>` : ''}
                                 <div class="flex justify-between text-slate-600 pl-3">
                                     <span>(-) Gastos de Tesorería (sin IVA acreditable):</span>
                                     <span class="text-rose-600">${Utils.formatter.format(egresosManuales)}</span>
@@ -1537,7 +1539,7 @@
                     let totalAcumulado = 0;
 
                     if (!compras || compras.length === 0) {
-                        tbody.innerHTML = `<tr><td colspan="6" class="p-3 text-center text-slate-400">No hay compras registradas para esta orden.</td></tr>`;
+                        tbody.innerHTML = `<tr><td colspan="7" class="p-3 text-center text-slate-400">No hay compras registradas para esta orden.</td></tr>`;
                     } else {
                         compras.forEach(item => {
                             totalAcumulado += parseFloat(item.costo_neto || 0);
@@ -1553,6 +1555,7 @@
                                     <td class="p-2 text-slate-600">${Utils.escapeHtml(item.proveedor || '-')}</td>
                                     <td class="p-2"><span class="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-600 border border-slate-200">${Utils.escapeHtml(item.metodo_pago)}</span></td>
                                     <td class="p-2 text-right font-bold text-slate-800">${Utils.formatter.format(item.costo_neto)}</td>
+                                    <td class="p-2 text-right ${item.precio_cliente ? 'text-emerald-700 font-semibold' : 'text-slate-300'}">${item.precio_cliente ? Utils.formatter.format(item.precio_cliente) + `<span class="block text-[9px] text-slate-400">+${Utils.formatter.format(item.precio_cliente - item.costo_neto)}</span>` : '—'}</td>
                                     <td class="p-2 text-center">
                                         <button type="button" onclick="UI_Controller.borrarRefaccionModal(${item.id})" class="text-rose-500 hover:text-rose-700 transition" title="Eliminar">
                                             <span class="material-icons text-sm">delete</span>
@@ -1577,6 +1580,12 @@
 
                 const desc = document.getElementById('ref-descripcion').value.trim();
                 const costoTotal = parseFloat(document.getElementById('ref-costo').value) || 0;
+                // Precio al cliente: el capturado/sugerido; si viene vacío se calcula con la regla de margen
+                let precioCliente = parseFloat(document.getElementById('ref-precio')?.value);
+                if (isNaN(precioCliente) || precioCliente <= 0) {
+                    precioCliente = this.precioSugerido(costoTotal, document.getElementById('ref-proveedor').value, desc).precio;
+                }
+                precioCliente = Math.round(precioCliente * 100) / 100;
                 const tieneCfdi = document.getElementById('ref-tiene-cfdi').checked;
 
                 const ivaCalculado = tieneCfdi ? Math.round((costoTotal - (costoTotal / 1.08)) * 100) / 100 : 0;
@@ -1597,23 +1606,28 @@
                     metodo_pago: document.getElementById('ref-metodo').value,
                     folio_ticket_factura: document.getElementById('ref-folio').value.trim() || null,
                     fecha_compra: fechaISO,
-                    fecha_pago: fechaISO
+                    fecha_pago: fechaISO,
+                    precio_cliente: precioCliente
                 };
 
                 try {
                     await API_Service.registrarCompraRefaccion(datosCompra);
                     showToast("Refacción registrada correctamente");
 
+                    // El concepto que se cobra al cliente va con el PRECIO AL CLIENTE (costo + margen).
+                    // La compra guarda el costo real: de ahí salen Utilidad, IVA y caja.
                     State.modalEditingConcepts.push({
                         descripcion: desc,
                         cantidad: 1,
-                        precio: costoTotal,
+                        precio: precioCliente,
                         categoria: 'refacciones'
                     });
 
                     this.renderModalConcepts();
 
                     document.getElementById('form-agregar-refaccion').reset();
+                    const pEl = document.getElementById('ref-precio'); if (pEl) pEl.dataset.manual = '';
+                    this.actualizarPrecioRefaccion();
                     await this.cargarRefaccionesModal(this.ordenActivaId);
                     
                     API_Service.fetchOrders(true);
@@ -1623,8 +1637,93 @@
                 }
             },
 
+            // ================================================================================
+            // MARGEN DE REFACCIONES: precio sugerido al cliente = costo × (1 + margen%)
+            // ================================================================================
+            precioSugerido(costo, proveedor, descripcion) {
+                const cfg = State.margenRefacciones || { general: 25, reglas: [] };
+                const prov = String(proveedor || '').toLowerCase();
+                const desc = String(descripcion || '').toLowerCase();
+                const reglas = cfg.reglas || [];
+                const porDesc = reglas.find(r => r.campo === 'descripcion' && r.texto && desc.includes(String(r.texto).toLowerCase()));
+                const porProv = reglas.find(r => r.campo === 'proveedor' && r.texto && prov.includes(String(r.texto).toLowerCase()));
+                const regla = porDesc || porProv || null;
+                const margen = parseFloat(regla ? regla.margen : cfg.general) || 0;
+                const etiqueta = regla ? `${regla.campo === 'descripcion' ? 'descripción' : 'proveedor'} "${regla.texto}"` : 'margen general';
+                return { margen, etiqueta, precio: Math.round((parseFloat(costo) || 0) * (1 + margen / 100) * 100) / 100 };
+            },
+
+            // Recalcula el precio sugerido al escribir costo/proveedor/descripción (si no se editó a mano)
+            actualizarPrecioRefaccion() {
+                const costo = parseFloat(document.getElementById('ref-costo')?.value) || 0;
+                const precioEl = document.getElementById('ref-precio');
+                const info = document.getElementById('ref-margen-info');
+                if (!precioEl) return;
+                const s = this.precioSugerido(costo, document.getElementById('ref-proveedor')?.value, document.getElementById('ref-descripcion')?.value);
+                if (precioEl.dataset.manual !== '1') precioEl.value = costo > 0 ? s.precio : '';
+                const precio = parseFloat(precioEl.value) || 0;
+                if (info) {
+                    if (costo > 0 && precio > 0) {
+                        const gan = precio - costo;
+                        info.textContent = `Ganancia ${Utils.formatter.format(gan)} (${Math.round(gan / costo * 100)}% sobre costo)` + (precioEl.dataset.manual === '1' ? ' · precio editado a mano' : ` · regla: ${s.etiqueta} ${s.margen}%`);
+                        info.className = 'text-[10px] font-semibold ' + (gan < 0 ? 'text-rose-600' : 'text-emerald-700');
+                    } else {
+                        info.textContent = 'Captura el costo para calcular el precio al cliente.';
+                        info.className = 'text-[10px] text-slate-400';
+                    }
+                }
+            },
+
+            precioRefaccionEditado() {
+                const el = document.getElementById('ref-precio');
+                if (el) el.dataset.manual = el.value === '' ? '' : '1';
+                this.actualizarPrecioRefaccion();
+            },
+
+            // Configuración de márgenes (Ajustes)
+            renderMargenConfig() {
+                const cfg = State.margenRefacciones || { general: 25, reglas: [] };
+                const g = document.getElementById('margen-general');
+                if (g) g.value = cfg.general;
+                const cont = document.getElementById('margen-reglas');
+                if (!cont) return;
+                cont.innerHTML = (cfg.reglas || []).map((r, i) => `
+                    <div class="flex flex-wrap items-center gap-2 text-xs">
+                        <select onchange="UI_Controller.updateMargenRegla(${i}, 'campo', this.value)" class="border rounded-lg px-2 py-1.5 bg-white">
+                            <option value="proveedor" ${r.campo === 'proveedor' ? 'selected' : ''}>Proveedor contiene</option>
+                            <option value="descripcion" ${r.campo === 'descripcion' ? 'selected' : ''}>Descripción contiene</option>
+                        </select>
+                        <input value="${Utils.escapeHtml(r.texto)}" oninput="UI_Controller.updateMargenRegla(${i}, 'texto', this.value)" class="flex-1 min-w-[120px] border rounded-lg px-2 py-1.5" placeholder="ej. autozone">
+                        <div class="flex items-center gap-1"><input type="number" min="0" step="1" value="${r.margen}" oninput="UI_Controller.updateMargenRegla(${i}, 'margen', this.value)" class="w-20 border rounded-lg px-2 py-1.5 text-right"><span class="text-slate-400 font-bold">%</span></div>
+                        <button type="button" onclick="UI_Controller.removeMargenRegla(${i})" class="text-rose-400 hover:text-rose-600"><span class="material-icons text-base">delete</span></button>
+                    </div>`).join('') || '<p class="text-xs text-slate-400">Sin reglas: se usa el margen general.</p>';
+            },
+
+            _saveMargenDebounced: null,
+            guardarMargenConfig() {
+                if (!this._saveMargenDebounced) this._saveMargenDebounced = Utils.debounce(() => API_Service.saveConfigValue('margen_refacciones', State.margenRefacciones), 600);
+                this._saveMargenDebounced();
+            },
+            updateMargenGeneral(v) {
+                State.margenRefacciones.general = parseFloat(v) || 0;
+                this.guardarMargenConfig();
+            },
+            updateMargenRegla(i, campo, v) {
+                const r = State.margenRefacciones.reglas[i]; if (!r) return;
+                r[campo] = campo === 'margen' ? (parseFloat(v) || 0) : v;
+                this.guardarMargenConfig();
+            },
+            addMargenRegla() {
+                State.margenRefacciones.reglas.push({ campo: 'proveedor', texto: '', margen: State.margenRefacciones.general || 25 });
+                this.renderMargenConfig(); this.guardarMargenConfig();
+            },
+            removeMargenRegla(i) {
+                State.margenRefacciones.reglas.splice(i, 1);
+                this.renderMargenConfig(); this.guardarMargenConfig();
+            },
+
             async borrarRefaccionModal(compraId) {
-                customConfirm("¿Eliminar refacción?", "El costo total de la compra se actualizará automáticamente.", async () => {
+                customConfirm("¿Eliminar refacción?", "Se borra la compra. Si su concepto ya está en la orden, quítalo también de los conceptos para no cobrarlo.", async () => {
                     try {
                         await API_Service.eliminarCompraRefaccion(compraId);
                         showToast("Compra eliminada");

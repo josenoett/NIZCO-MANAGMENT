@@ -176,6 +176,8 @@
                 let refaccionesCostBruto = 0, refaccionesCostNeto = 0, totalIvaAcreditablePagado = 0;
                 // Para el puente Utilidad → Flujo de Caja
                 let ivaRefaccionesCfdi = 0, comprasSinSalidaDinero = 0, refaccionesOrdenesSinCompra = 0;
+                // Margen de refacciones (informativo: precio al cliente − costo, solo compras con precio registrado)
+                let margenRefaccionesPeriodo = 0, ventaRefaccionesConPrecio = 0, costoRefaccionesConPrecio = 0;
                 let listaComprasRefacciones = [];
                 let refaccionesPeriodo = [];
                 let comprasPorProveedor = {};
@@ -186,7 +188,7 @@
                     try {
                         const { data: comprasRango } = await supabaseClient
                             .from('compras_refacciones')
-                            .select('id, descripcion, proveedor, costo_neto, total_pagado, iva, tiene_cfdi, metodo_pago, fecha_compra, orden_id')
+                            .select('id, descripcion, proveedor, costo_neto, total_pagado, iva, tiene_cfdi, metodo_pago, fecha_compra, orden_id, precio_cliente')
                             .gte('fecha_compra', start.toISOString())
                             .lte('fecha_compra', end.toISOString())
                             .order('fecha_compra', { ascending: false });
@@ -211,6 +213,12 @@
                             refaccionesCostNeto += subtotalSinIva;
                             if (tieneCfdi) { totalIvaAcreditablePagado += ivaMonto; ivaRefaccionesCfdi += ivaMonto; }
                             if (this.cuentaDe(c.metodo_pago) === null) comprasSinSalidaDinero += montoTotalConIva;
+                            const precioCli = parseFloat(c.precio_cliente);
+                            if (!isNaN(precioCli) && precioCli > 0) {
+                                ventaRefaccionesConPrecio += precioCli;
+                                costoRefaccionesConPrecio += montoTotalConIva;
+                                margenRefaccionesPeriodo += precioCli - montoTotalConIva;
+                            }
 
                             const metodo = (c.metodo_pago || '').trim().toLowerCase();
                             if (metodo === 'efectivo') salidasEfectivo += montoTotalConIva;
@@ -530,6 +538,7 @@
                     nominaPagadaPeriodo, desgloseNominaPagada,
                     repartoPeriodo, desgloseReparto, gastosFijosPagados, fijosPagadosPorCategoria,
                     ivaRefaccionesCfdi, comprasSinSalidaDinero, refaccionesOrdenesSinCompra,
+                    margenRefaccionesPeriodo, ventaRefaccionesConPrecio, costoRefaccionesConPrecio,
                     aplicaControlNomina, inicioControlNomina, nominaCorrespondienteControl, nominaPagadaControl, nominaPendientePago
                 };
             },
@@ -922,7 +931,8 @@
                     refaccionesCostNeto, egresosManuales, nominaFinalConDescuentos, costoFijosPeriodo,
                     totalGastos, ventasNetasSinIva16, utilidadBruta, utilidadNeta, margenUtilidad, ticketPromedio,
                     montosPorCategoria, listaOrdenesIngreso, listaComprasRefacciones,
-                    totalIvaAcreditablePagado, conteoServicios, acumuladoManoObraOrdenes, acumuladoRefaccionesOrdenes
+                    totalIvaAcreditablePagado, conteoServicios, acumuladoManoObraOrdenes, acumuladoRefaccionesOrdenes,
+                    margenRefaccionesPeriodo, costoRefaccionesConPrecio
                 } = F;
 
                 if (document.getElementById('dash-ingresos')) {
@@ -937,6 +947,10 @@
                     if (document.getElementById('caja-pagado')) document.getElementById('caja-pagado').innerText = Utils.formatter.format(pagado);
                     if (document.getElementById('caja-anticipo')) document.getElementById('caja-anticipo').innerText = Utils.formatter.format(anticipo);
                     if (document.getElementById('costo-ref-total')) document.getElementById('costo-ref-total').innerText = Utils.formatter.format(refaccionesCostNeto);
+                    const mEl = document.getElementById('margen-ref-total');
+                    if (mEl) mEl.innerText = costoRefaccionesConPrecio > 0
+                        ? `${Utils.formatter.format(margenRefaccionesPeriodo)} (${Math.round(margenRefaccionesPeriodo / costoRefaccionesConPrecio * 100)}% s/costo)`
+                        : 'sin datos aún';
                     if (document.getElementById('costo-fijos-total')) document.getElementById('costo-fijos-total').innerText = Utils.formatter.format(costoFijosPeriodo);
                     if (document.getElementById('costo-nomina-total')) document.getElementById('costo-nomina-total').innerText = Utils.formatter.format(nominaFinalConDescuentos);
             

@@ -171,11 +171,13 @@
                     if (Array.isArray(configMap.nomina_plantilla)) State.nominaPlantilla = configMap.nomina_plantilla;
                     if (Array.isArray(configMap.nomina_desfase)) State.nominaDesfase = configMap.nomina_desfase;
                     if (configMap.arranque_caja && configMap.arranque_caja.fecha) State.arranqueCaja = configMap.arranque_caja;
+                    if (configMap.margen_refacciones && Array.isArray(configMap.margen_refacciones.reglas)) State.margenRefacciones = configMap.margen_refacciones;
 
                     UI_Controller.loadFixedCosts();
                     UI_Controller.loadSociosReparto();
                     UI_Controller.loadNominaConfig();
                     UI_Controller.loadArranqueConfig();
+                    UI_Controller.renderMargenConfig();
                     Cashflow_Engine.recalculate();
                     Financial_Engine.recalculate();
                 } catch (error) {
