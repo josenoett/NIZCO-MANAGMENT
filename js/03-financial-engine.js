@@ -223,7 +223,27 @@
                     }
                 }
 
-                // Órdenes con refacciones capturadas directo en la orden (sin registro en compras_refacciones)
+                // Órdenes con refacciones capturadas directo en la orden (sin registro en compras_refacciones).
+                // CORRECCIÓN (auditoría oct-2026): antes solo se revisaban las compras DEL PERIODO; si la
+                // orden era de agosto y sus compras se registraron en septiembre, el costo se contaba en
+                // los dos meses. Ahora se excluye cualquier orden que tenga compras en CUALQUIER fecha.
+                const candidatasSinCompra = State.orders.filter(o => {
+                    if (o.estado === 'Cancelada' || ordenesConComprasSet.has(Number(o.id))) return false;
+                    const oDate = Utils.parseFechaLocal(o.fecha_ingreso || o.fecha_registro);
+                    return oDate >= start && oDate <= end && parseFloat(o.costo_refacciones || 0) > 0;
+                });
+                if (candidatasSinCompra.length > 0 && supabaseClient) {
+                    try {
+                        const { data: otrasCompras } = await supabaseClient
+                            .from('compras_refacciones')
+                            .select('orden_id')
+                            .in('orden_id', candidatasSinCompra.map(o => o.id))
+                            .order('orden_id', { ascending: true });
+                        (otrasCompras || []).forEach(c => { if (c.orden_id) ordenesConComprasSet.add(Number(c.orden_id)); });
+                    } catch (e) {
+                        console.error('Error al verificar compras de otras fechas:', e);
+                    }
+                }
                 State.orders.forEach(o => {
                     if (o.estado === 'Cancelada') return;
                     const oDate = Utils.parseFechaLocal(o.fecha_ingreso || o.fecha_registro);
@@ -240,7 +260,9 @@
                 });
 
                 // ---------- Gastos de Tesorería (operativos + no operativos) ----------
-                let egresosManuales = 0;
+                let egresosManuales = 0;        // gastos operativos SIN el IVA acreditable (lo que cuesta de verdad)
+                let egresosManualesBruto = 0;   // lo que salió de dinero (con IVA)
+                let ivaGastosCfdi = 0;
                 let deduccionesNomina = 0;
                 let salidasNoOperativas = 0;
                 let entradasNoOperativas = 0;
@@ -302,11 +324,17 @@
                         else if (metodo === 'transferencia' || metodo === 'tarjeta') salidasBanco += mAmt;
                         montosPorCategoria[e.categoria] = (montosPorCategoria[e.categoria] || 0) + mAmt;
                     } else {
-                        egresosManuales += mAmt;
+                        // CORRECCIÓN (auditoría oct-2026): el IVA de un gasto con factura es acreditable (se
+                        // recupera contra el IVA cobrado), así que el costo real es sin IVA.
+                        const ivaG = (e.tiene_cfdi && mAmt > 0) ? Math.round((mAmt - mAmt / 1.08) * 100) / 100 : 0;
+                        const neto = mAmt - ivaG;
+                        egresosManuales += neto;
+                        egresosManualesBruto += mAmt;
+                        ivaGastosCfdi += ivaG;
                         if (metodo === 'efectivo') salidasEfectivo += mAmt;
                         else if (metodo === 'transferencia' || metodo === 'tarjeta') salidasBanco += mAmt;
-                        montosPorCategoria[e.categoria] = (montosPorCategoria[e.categoria] || 0) + mAmt;
-                        gastosPorCategoriaPDF[e.categoria] = (gastosPorCategoriaPDF[e.categoria] || 0) + mAmt;
+                        montosPorCategoria[e.categoria] = (montosPorCategoria[e.categoria] || 0) + neto;
+                        gastosPorCategoriaPDF[e.categoria] = (gastosPorCategoriaPDF[e.categoria] || 0) + neto;
                     }
                 });
 
@@ -402,15 +430,20 @@
                 const ventasNetasSinIva16 = ingresos - totalIva16Cobrado;
                 const totalIngresosCobrados = ingresos;
 
-                const utilidadBruta = ingresos - refaccionesCostNeto;
+                // CORRECCIÓN (auditoría oct-2026): la utilidad bruta usaba ingresos CON IVA.
+                const utilidadBruta = ventasNetasSinIva16 - refaccionesCostNeto;
                 const utilidadNeta = ventasNetasSinIva16 - totalGastos;
                 const utilidadNetaPL = utilidadNeta; // mismo número, alias para el PDF por compatibilidad de nombres
-                const margenUtilidad = ingresos > 0 ? (utilidadNeta / ingresos) * 100 : 0;
+                const margenUtilidad = ventasNetasSinIva16 > 0 ? (utilidadNeta / ventasNetasSinIva16) * 100 : 0;
                 const ticketPromedio = vehiculosAtendidos > 0 ? ingresos / vehiculosAtendidos : 0;
 
                 const balanceIvaNeto = totalIva16Cobrado - totalIvaAcreditablePagado;
                 const esIvaPorPagar = balanceIvaNeto >= 0;
-                const utilidadDisponibleTrasIva = esIvaPorPagar ? (utilidadNeta - balanceIvaNeto) : utilidadNeta;
+                // CORRECCIÓN (auditoría oct-2026): la Utilidad Neta ya se calcula SIN IVA (ventas sin el 16%,
+                // costos sin el 8% acreditable). Restarle además el IVA por pagar lo descontaba DOS veces
+                // y el reparto entre socios salía más bajo de lo real. El IVA por pagar es dinero que hay
+                // que APARTAR de la caja para el SAT, pero no reduce la utilidad.
+                const utilidadDisponibleTrasIva = utilidadNeta;
 
                 const balEfectivo = entradasEfectivo - salidasEfectivo;
                 const balBanco = entradasBanco - salidasBanco;
@@ -466,7 +499,7 @@
                     listaOrdenesIngreso, ingresosPeriodo,
                     refaccionesCostBruto, refaccionesCostNeto, totalIvaAcreditablePagado,
                     listaComprasRefacciones, refaccionesPeriodo, comprasPorProveedor, gastosPeriodo,
-                    egresosManuales, deduccionesNomina, montosPorCategoria, listaGastosPorCategoriaPDF,
+                    egresosManuales, egresosManualesBruto, ivaGastosCfdi, deduccionesNomina, montosPorCategoria, listaGastosPorCategoriaPDF,
                     costoNominaPeriodo, nominaFinalConDescuentos, desglosePersonal,
                     rentaMensual, serviciosMensuales, impuestosMensuales,
                     rentaProrrateada, serviciosProrrateados, impuestosProrrateados, costoFijosPeriodo, totalGastosFijosProrrateados,
@@ -559,7 +592,8 @@
                     { id: 'iva_ref', label: 'IVA 8% pagado en refacciones con factura (sale dinero, no es costo)', monto: -r2(F.ivaRefaccionesCfdi) },
                     { id: 'nomina', label: 'Nómina que corresponde menos la pagada (+ pendiente / − pagada de más)', monto: r2(F.nominaFinalConDescuentos - suma('nomina')) },
                     { id: 'fijos', label: 'Gastos fijos que corresponden menos los pagados (renta, servicios, impuestos)', monto: r2(F.totalGastosFijosProrrateados - suma('gastosFijos')) },
-                    { id: 'gastos_sin_salida', label: 'Gastos operativos registrados sin salida de efectivo/banco', monto: r2(F.egresosManuales - suma('gastosOperativos')) },
+                    { id: 'iva_gastos', label: 'IVA 8% pagado en gastos con factura (sale dinero, no es costo)', monto: -r2(F.ivaGastosCfdi) },
+                    { id: 'gastos_sin_salida', label: 'Gastos operativos registrados sin salida de efectivo/banco', monto: r2(F.egresosManualesBruto - suma('gastosOperativos')) },
                     { id: 'noop_out', label: 'Devoluciones de préstamo y traspasos enviados', monto: -suma('salidasNoOperativas') },
                     { id: 'reparto', label: 'Reparto de utilidades a socios', monto: -suma('reparto') }
                 ];
@@ -670,7 +704,7 @@
                 const mockSupabase = (comprasFixture) => ({
                     from: (table) => {
                         const chain = {
-                            select: () => chain, gte: () => chain, lte: () => chain,
+                            select: () => chain, gte: () => chain, lte: () => chain, in: () => chain,
                             order: () => Promise.resolve({ data: table === 'compras_refacciones' ? comprasFixture : [], error: null })
                         };
                         return chain;
@@ -742,17 +776,18 @@
                     assertClose('Caso completo: IVA Acreditable Total (refacciones + gastos) = $40', R2.totalIvaAcreditablePagado, 40);
                     assertClose('Caso completo: Nómina Neta de Descuentos = $650', R2.nominaFinalConDescuentos, 650);
                     assertClose('Caso completo: Gastos Fijos Prorrateados (7 días) = $70', R2.totalGastosFijosProrrateados, 70);
-                    assertClose('Caso completo: Gastos Operativos Manuales = $208', R2.egresosManuales, 208);
+                    assertClose('Caso completo: Gastos Operativos (Herramienta con factura sin su IVA 8%) = $200', R2.egresosManuales, 200);
                     assertClose('Caso completo: Ventas Netas sin IVA = $2,000', R2.ventasNetasSinIva16, 2000);
-                    assertClose('Caso completo: Utilidad Neta = $672', R2.utilidadNeta, 672);
+                    assertClose('Caso completo: Utilidad Neta = $680', R2.utilidadNeta, 680);
                     assertClose('Caso completo: Balance de IVA a Pagar = $280', R2.balanceIvaNeto, 280);
-                    assertClose('Caso completo: Utilidad Disponible tras IVA = $392', R2.utilidadDisponibleTrasIva, 392);
+                    assertClose('Caso completo: Utilidad disponible = Utilidad Neta (el IVA no se descuenta dos veces) = $680', R2.utilidadDisponibleTrasIva, 680);
+                    assertClose('Caso completo: Utilidad Bruta sin IVA (2,000 − 400) = $1,600', R2.utilidadBruta, 1600);
                     assertClose('Caso completo: Saldo de Préstamos Pendiente = $300', R2.saldoPrestamosPendiente, 300);
                     assertClose('Caso completo: Movimiento No Operativo Neto = $300', R2.netoNoOperativo, 300);
                     assertClose('Caso completo: Cuentas por Cobrar = $300', R2.totalPendienteCobro, 300);
                     assertClose('Caso completo: Saldo Neto de Efectivo (incluye pago de nómina) = $1,820', R2.balEfectivo, 1820);
                     assertClose('Nómina: pago capturado en Tesorería = $700', R2.nominaPagadaPeriodo, 700);
-                    assertClose('Nómina: el pago NO se duplica en Gastos Operativos (sigue $208)', R2.egresosManuales, 208);
+                    assertClose('Nómina: el pago NO se duplica en Gastos Operativos (sigue $200)', R2.egresosManuales, 200);
                     assertClose('Nómina: correspondiente neta en control = $650', R2.nominaCorrespondienteControl, 650);
                     assertClose('Nómina: diferencia (pagado de más) = -$50', R2.nominaPendientePago, -50);
                     assertClose('Caso completo: Saldo Neto de Banco = -$540', R2.balBanco, -540);
@@ -765,7 +800,7 @@
                     const R3 = await this.computeCoreFinancials(start2, end2);
                     assertClose('Nómina con arranque 5-ene: correspondiente (3 días) = $300', R3.nominaCorrespondienteControl, 300);
                     assertClose('Nómina con arranque 5-ene: pendiente de pago = -$400', R3.nominaPendientePago, -400);
-                    assertClose('Nómina con arranque 5-ene: Utilidad Neta no cambia = $672', R3.utilidadNeta, 672);
+                    assertClose('Nómina con arranque 5-ene: Utilidad Neta no cambia = $680', R3.utilidadNeta, 680);
                     State.nominaControlInicio = '2026-02-01';
                     const R4 = await this.computeCoreFinancials(start2, end2);
                     assertClose('Nómina: periodo anterior al arranque no aplica control', R4.aplicaControlNomina ? 1 : 0, 0);
@@ -821,6 +856,20 @@
                     assertClose('Movimientos por cuenta cuadran con el flujo neto de la Utilidad (efectivo)', SC.mov.efectivo.neto, A.balEfectivo);
                     assertClose('Movimientos por cuenta cuadran con el flujo neto de la Utilidad (banco)', SC.mov.banco.neto, A.balBanco);
                     const P6 = this.computePuente(A, SC.mov);
+
+                    // ---------- Escenario 7: orden de un mes con su compra registrada al mes siguiente ----------
+                    State.orders = [{ id: 7001, estado: 'Entregado', fecha_ingreso: '2026-03-27', costo_mano_obra: 1000, costo_refacciones: 3510.4, total_cobrado: 4510.4, requiere_factura: false, conceptos: [] }];
+                    State.pagos = []; State.expenses = []; State.ingresosExtra = [];
+                    supabaseClient = {
+                        from: () => {
+                            const q = { _in: false,
+                                select() { return q; }, gte() { return q; }, lte() { return q; }, in() { q._in = true; return q; },
+                                order() { return Promise.resolve({ data: q._in ? [{ orden_id: 7001 }] : [], error: null }); } };
+                            return q;
+                        }
+                    };
+                    const M7 = await this.computeCoreFinancials(new Date(2026, 2, 23, 0, 0, 0, 0), new Date(2026, 2, 29, 23, 59, 59, 999));
+                    assertClose('Orden con compras registradas en otro mes: su costo NO se cuenta dos veces', M7.refaccionesOrdenesSinCompra, 0);
                     assertClose('Puente Utilidad → Flujo (renta, reparto, luz): diferencia sin explicar = $0', P6.diferencia, 0, 0.01);
 
 

@@ -288,7 +288,7 @@
                                     <span class="text-rose-600">${Utils.formatter.format(refaccionesCostNeto)}</span>
                                 </div>
                                 <div class="flex justify-between text-slate-600 pl-3">
-                                    <span>(-) Gastos Directos de Tesorería:</span>
+                                    <span>(-) Gastos de Tesorería (sin IVA acreditable):</span>
                                     <span class="text-rose-600">${Utils.formatter.format(egresosManuales)}</span>
                                 </div>
                                 <div class="flex justify-between text-slate-600 pl-3">
@@ -306,12 +306,12 @@
                                 </div>
             
                                 <div class="flex justify-between text-[10px] pt-1.5 border-t border-dashed border-blue-300 ${esIvaPorPagar ? 'text-amber-800' : 'text-emerald-800'} font-semibold">
-                                    <span>🏛️ ${esIvaPorPagar ? 'IVA Estimado a Pagar (Cobrado 16% - Pagado 8%):' : 'IVA Estimado a Favor / Acreditable:'}</span>
+                                    <span>🏛️ ${esIvaPorPagar ? 'IVA estimado por pagar al SAT — apartarlo de la caja (no reduce la utilidad: ya está excluido arriba):' : 'IVA estimado a favor / acreditable:'}</span>
                                     <span class="font-bold">${Utils.formatter.format(Math.abs(balanceIvaNeto))}</span>
                                 </div>
 
                                 <div class="flex justify-between text-[11px] pt-1.5 border-t border-blue-300 font-black text-slate-900">
-                                    <span>✅ UTILIDAD DISPONIBLE PARA REPARTIR (DESPUÉS DE APARTAR IVA):</span>
+                                    <span>✅ UTILIDAD DISPONIBLE PARA REPARTIR:</span>
                                     <span class="${utilidadDisponibleTrasIva >= 0 ? 'text-emerald-700' : 'text-rose-700'}">${Utils.formatter.format(utilidadDisponibleTrasIva)}</span>
                                 </div>
                             </div>
