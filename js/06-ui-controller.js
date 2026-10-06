@@ -1848,7 +1848,8 @@
                     fields.requiere_factura = requiereFactura;
                     fields.total_iva = ivaCalculado;
                     
-                    if (State.currentRole === 'Administrador') { 
+                    // Administrador y Contabilidad/Finanzas pueden guardar conceptos, costos y total
+                    if (State.currentRole === 'Administrador' || State.currentRole === 'Contabilidad/Finanzas') { 
                         fields.costo_mano_obra = m; 
                         fields.costo_refacciones = r; 
                         fields.total_cobrado = granTotal; 
@@ -1893,7 +1894,7 @@
                     id: State.currentEditingOrderId,
                     kilometraje: fields.kilometraje,
                     fecha_egreso: fields.fecha_egreso,
-                    conceptos: (State.currentRole === 'Administrador') ? State.modalEditingConcepts : ordenActual.conceptos
+                    conceptos: (State.currentRole === 'Administrador' || State.currentRole === 'Contabilidad/Finanzas') ? State.modalEditingConcepts : ordenActual.conceptos
                 } : null;
 
                 await API_Service.fetchOrders(true);
