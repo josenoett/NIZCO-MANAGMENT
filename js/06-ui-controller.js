@@ -1938,6 +1938,12 @@
                 State.quoteItems = o.conceptos ? structuredClone(o.conceptos) : [];
                 document.getElementById('quote-discount').value = 0;
                 document.getElementById('quote-tax').value = o.requiere_factura ? 16 : 0; 
+
+                // Anticipos/abonos ya registrados para esta orden (tabla pagos)
+                const pagosOrden = (State.pagos || []).filter(p => Number(p.orden_id) === Number(o.id));
+                const totalAbonado = pagosOrden.reduce((acc, p) => acc + (parseFloat(p.monto) || 0), 0);
+                const antEl = document.getElementById('quote-anticipo');
+                if (antEl) antEl.value = Math.round(totalAbonado * 100) / 100;
                 this.renderQuoteBuilderItems();
             },
 
@@ -2038,6 +2044,38 @@
                 document.getElementById('pdf-discount').innerText = Utils.formatter.format(descuentoMonto);
                 document.getElementById('pdf-tax').innerText = Utils.formatter.format(ivaMonto);
                 document.getElementById('pdf-total').innerText = Utils.formatter.format(finalTotal);
+
+                // Anticipos: se restan del total para mostrar el saldo pendiente
+                const anticipo = Math.max(0, parseFloat(document.getElementById('quote-anticipo')?.value) || 0);
+                const antRow = document.getElementById('pdf-anticipo-row');
+                const saldoRow = document.getElementById('pdf-saldo-row');
+                if (antRow && saldoRow) {
+                    if (anticipo > 0) {
+                        const saldo = Math.round((finalTotal - anticipo) * 100) / 100;
+                        antRow.style.display = 'flex';
+                        saldoRow.style.display = 'flex';
+                        document.getElementById('pdf-anticipo').innerText = '-' + Utils.formatter.format(anticipo);
+                        const saldoEl = document.getElementById('pdf-saldo');
+                        const saldoLbl = document.getElementById('pdf-saldo-label');
+                        if (saldo > 0) {
+                            saldoLbl.innerText = 'SALDO PENDIENTE:';
+                            saldoEl.innerText = Utils.formatter.format(saldo);
+                            saldoEl.className = 'text-rose-600';
+                        } else if (saldo === 0) {
+                            saldoLbl.innerText = 'SALDO:';
+                            saldoEl.innerText = 'PAGADO';
+                            saldoEl.className = 'text-emerald-600';
+                        } else {
+                            saldoLbl.innerText = 'SALDO A FAVOR DEL CLIENTE:';
+                            saldoEl.innerText = Utils.formatter.format(-saldo);
+                            saldoEl.className = 'text-amber-600';
+                        }
+                        if (docType === 'NOTA DE VENTA') document.getElementById('pdf-total-label').innerText = 'TOTAL:';
+                    } else {
+                        antRow.style.display = 'none';
+                        saldoRow.style.display = 'none';
+                    }
+                }
                 
                 const valdays = document.getElementById('quote-validity').value || 15;
                 if(docType !== 'NOTA DE VENTA') {
@@ -2051,6 +2089,7 @@
                 document.getElementById('quote-auto').value = '';
                 document.getElementById('quote-placas').value = '';
                 document.getElementById('quote-order-loader').value = '';
+                if (document.getElementById('quote-anticipo')) document.getElementById('quote-anticipo').value = 0;
                 if (document.getElementById('quote-fecha')) document.getElementById('quote-fecha').value = Utils.hoyLocal();
                 State.quoteItems = [];
                 this.renderQuoteBuilderItems();
