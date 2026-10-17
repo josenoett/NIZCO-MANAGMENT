@@ -1073,6 +1073,10 @@
                                 <label class="text-[10px] font-bold text-slate-500 uppercase">IVA (%)</label>
                                 <input type="number" id="quote-tax" value="16" oninput="UI_Controller.updateQuotePreview()" class="border text-center rounded-xl px-3 py-1.5 text-xs focus:outline-none">
                             </div>
+                            <div class="flex flex-col gap-1 col-span-3">
+                                <label class="text-[10px] font-bold text-slate-500 uppercase">Anticipo(s) recibido(s) $ <span class="normal-case font-medium text-slate-400">(se llena solo al cargar la orden; editable)</span></label>
+                                <input type="number" id="quote-anticipo" value="0" step="0.01" min="0" oninput="UI_Controller.updateQuotePreview()" class="border text-right rounded-xl px-3 py-1.5 text-xs focus:outline-none">
+                            </div>
                             <div class="flex flex-col gap-1" id="quote-validity-container">
                                 <label class="text-[10px] font-bold text-slate-500 uppercase">Validez (días)</label>
                                 <input type="number" id="quote-validity" value="15" oninput="UI_Controller.updateQuotePreview()" class="border text-center rounded-xl px-3 py-1.5 text-xs focus:outline-none">
@@ -1159,6 +1163,12 @@
                                         </div>
                                         <div class="flex justify-between text-slate-900 font-black text-sm border-t-2 border-slate-200 pt-2.5">
                                             <span id="pdf-total-label">TOTAL ESTIMADO:</span> <span id="pdf-total" class="text-blue-600">$0.00</span>
+                                        </div>
+                                        <div class="flex justify-between text-emerald-600" id="pdf-anticipo-row" style="display:none;">
+                                            <span id="pdf-anticipo-label">Anticipo recibido:</span> <span id="pdf-anticipo">-$0.00</span>
+                                        </div>
+                                        <div class="flex justify-between text-slate-900 font-black text-sm border-t border-slate-200 pt-2" id="pdf-saldo-row" style="display:none;">
+                                            <span id="pdf-saldo-label">SALDO PENDIENTE:</span> <span id="pdf-saldo" class="text-rose-600">$0.00</span>
                                         </div>
                                     </div>
                                 </div>
