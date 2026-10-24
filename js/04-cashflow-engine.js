@@ -11,6 +11,9 @@
 
         const Cashflow_Engine = {
             dailyData: [],
+            movimientos: [],      // lista individual de cada entrada/salida del periodo
+            filtroTipo: 'todos',  // 'todos' | 'ingreso' | 'egreso'
+            filtroDia: null,      // 'YYYY-MM-DD' al hacer clic en un día de la tabla
             currentView: 'efectivo', // 'efectivo' | 'banco' | 'combinado'
             lastSaldoInicialEfectivo: 0,
             lastSaldoInicialBanco: 0,
@@ -130,6 +133,14 @@
                     cursor.setDate(cursor.getDate() + 1);
                 }
 
+                const movs = [];
+                const ordenTxt = (id) => {
+                    if (!id) return '';
+                    const o = (State.orders || []).find(x => String(x.id) === String(id));
+                    if (!o) return `Orden #${id}`;
+                    const auto = [o.auto_marca, o.auto_modelo].filter(Boolean).join(' ');
+                    return `Orden #${id} · ${o.cliente_nombre || 'Sin cliente'}${auto ? ' · ' + auto : ''}`;
+                };
                 const pagosProcesadosIds = new Set();
                 State.pagos.forEach(p => {
                     if (p.id && pagosProcesadosIds.has(p.id)) return;
@@ -139,8 +150,15 @@
                         const key = this.dayKey(pDate);
                         if (!buckets[key]) return;
                         const monto = Math.round(parseFloat(p.monto || 0) * 100) / 100;
-                        if (this.esEfectivo(p.metodo_pago)) buckets[key].ingresoEfectivo += monto;
+                        const cuenta = this.esEfectivo(p.metodo_pago) ? 'efectivo' : 'banco';
+                        if (cuenta === 'efectivo') buckets[key].ingresoEfectivo += monto;
                         else buckets[key].ingresoBanco += monto;
+                        movs.push({
+                            dia: key, fechaObj: pDate, tipo: 'ingreso', cuenta, monto, metodo: p.metodo_pago || '',
+                            origen: 'Cobro de orden',
+                            concepto: ordenTxt(p.orden_id),
+                            detalle: p.tipo === 'anticipo' ? 'Anticipo' : (p.tipo === 'pago_final' ? 'Pago final' : (p.tipo || ''))
+                        });
                     }
                 });
 
@@ -153,8 +171,15 @@
                         const key = this.dayKey(iDate);
                         if (!buckets[key]) return;
                         const monto = Math.round(parseFloat(i.monto || 0) * 100) / 100;
-                        if (this.esEfectivo(i.metodo_pago)) buckets[key].ingresoEfectivo += monto;
+                        const cuenta = this.esEfectivo(i.metodo_pago) ? 'efectivo' : 'banco';
+                        if (cuenta === 'efectivo') buckets[key].ingresoEfectivo += monto;
                         else buckets[key].ingresoBanco += monto;
+                        movs.push({
+                            dia: key, fechaObj: iDate, tipo: 'ingreso', cuenta, monto, metodo: i.metodo_pago || '',
+                            origen: 'Ingreso adicional',
+                            concepto: i.concepto || 'Sin concepto',
+                            detalle: i.categoria || ''
+                        });
                     }
                 });
 
@@ -170,6 +195,12 @@
                         const cuenta = Financial_Engine.cuentaDe(e.metodo_pago);
                         if (cuenta === 'efectivo') buckets[key].egresoEfectivo += monto;
                         else if (cuenta === 'banco') buckets[key].egresoBanco += monto;
+                        if (cuenta) movs.push({
+                            dia: key, fechaObj: eDate, tipo: 'egreso', cuenta, monto, metodo: e.metodo_pago || '',
+                            origen: 'Gasto de tesorería',
+                            concepto: e.concepto || 'Sin concepto',
+                            detalle: e.categoria || ''
+                        });
                     }
                 });
 
@@ -177,7 +208,7 @@
                     try {
                         const { data: compras } = await supabaseClient
                             .from('compras_refacciones')
-                            .select('costo_neto, total_pagado, metodo_pago, fecha_compra')
+                            .select('costo_neto, total_pagado, metodo_pago, fecha_compra, orden_id, descripcion, proveedor')
                             .gte('fecha_compra', start.toISOString())
                             .lte('fecha_compra', end.toISOString());
 
@@ -189,6 +220,12 @@
                             const cuenta = Financial_Engine.cuentaDe(c.metodo_pago);
                             if (cuenta === 'efectivo') buckets[key].egresoEfectivo += monto;
                             else if (cuenta === 'banco') buckets[key].egresoBanco += monto;
+                            if (cuenta) movs.push({
+                                dia: key, fechaObj: cDate, tipo: 'egreso', cuenta, monto, metodo: c.metodo_pago || '',
+                                origen: 'Compra de refacción',
+                                concepto: (c.descripcion || 'Refacción') + (c.orden_id ? ` — ${ordenTxt(c.orden_id)}` : ''),
+                                detalle: c.proveedor || ''
+                            });
                         });
                     } catch (e) {
                         console.error('Error al obtener compras de refacciones para flujo de caja:', e);
@@ -214,6 +251,11 @@
                         saldoTotal: Math.round((saldoEfectivo + saldoBanco) * 100) / 100
                     };
                 });
+
+                // Orden: por día y, dentro del día, primero entradas y luego salidas
+                movs.sort((a, b) => a.dia === b.dia ? (a.tipo === b.tipo ? b.monto - a.monto : (a.tipo === 'ingreso' ? -1 : 1)) : (a.dia < b.dia ? -1 : 1));
+                this.movimientos = movs;
+                if (this.filtroDia && !buckets[this.filtroDia]) this.filtroDia = null;
 
                 this.lastSaldoInicialEfectivo = saldoInicialEfectivo;
                 this.lastSaldoInicialBanco = saldoInicialBanco;
@@ -265,7 +307,7 @@
                             const netoColor = r.neto >= 0 ? 'text-emerald-600' : 'text-rose-600';
                             const saldoColor = r.saldo >= 0 ? 'text-slate-800' : 'text-rose-600';
                             return `
-                                <tr class="hover:bg-slate-50 transition border-b border-slate-100">
+                                <tr onclick="Cashflow_Engine.setFiltroDia('${d.fecha}')" title="Ver movimientos de este día" class="cursor-pointer hover:bg-slate-50 transition border-b border-slate-100 ${this.filtroDia === d.fecha ? 'bg-blue-50' : ''}">
                                     <td class="py-2.5 px-4 font-semibold text-slate-700 capitalize">${fStr}</td>
                                     <td class="py-2.5 px-4 text-right text-emerald-600 font-medium">${r.ingreso > 0 ? Utils.formatter.format(r.ingreso) : '—'}</td>
                                     <td class="py-2.5 px-4 text-right text-rose-600 font-medium">${r.egreso > 0 ? Utils.formatter.format(r.egreso) : '—'}</td>
@@ -278,6 +320,85 @@
                 }
 
                 this.renderChart();
+                this.renderMovimientos();
+            },
+
+            setFiltroTipo(tipo) {
+                this.filtroTipo = tipo;
+                this.renderMovimientos();
+            },
+
+            setFiltroDia(dia) {
+                this.filtroDia = (this.filtroDia === dia) ? null : dia;
+                this.render();
+                if (this.filtroDia) document.getElementById('caja-movs-card')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            },
+
+            renderMovimientos() {
+                const body = document.getElementById('caja-movs-body');
+                if (!body) return;
+                const esc = (v) => Utils.escapeHtml(v == null ? '' : String(v));
+
+                // Pills de tipo
+                ['todos', 'ingreso', 'egreso'].forEach(t => {
+                    const btn = document.getElementById(`caja-movs-btn-${t}`);
+                    if (!btn) return;
+                    btn.className = t === this.filtroTipo
+                        ? 'px-3 py-1.5 rounded-lg text-[11px] font-bold transition bg-white shadow text-slate-900'
+                        : 'px-3 py-1.5 rounded-lg text-[11px] font-bold transition text-slate-500 hover:text-slate-700';
+                });
+
+                const lista = this.movimientos.filter(m =>
+                    (this.currentView === 'combinado' || m.cuenta === this.currentView) &&
+                    (this.filtroTipo === 'todos' || m.tipo === this.filtroTipo) &&
+                    (!this.filtroDia || m.dia === this.filtroDia)
+                );
+
+                const chip = document.getElementById('caja-movs-dia-chip');
+                if (chip) {
+                    if (this.filtroDia) {
+                        const f = Utils.parseFechaLocal(this.filtroDia).toLocaleDateString('es-MX', { weekday: 'long', day: '2-digit', month: 'short' });
+                        chip.innerHTML = `Día: <span class="capitalize">${esc(f)}</span> <button type="button" onclick="Cashflow_Engine.setFiltroDia('${this.filtroDia}')" class="ml-1 font-bold">✕</button>`;
+                        chip.classList.remove('hidden');
+                    } else chip.classList.add('hidden');
+                }
+
+                const totIn = lista.filter(m => m.tipo === 'ingreso').reduce((a, m) => a + m.monto, 0);
+                const totOut = lista.filter(m => m.tipo === 'egreso').reduce((a, m) => a + m.monto, 0);
+                const foot = document.getElementById('caja-movs-foot');
+                if (foot) {
+                    foot.innerHTML = lista.length === 0 ? '' : `
+                        <tr class="border-t-2 border-slate-200 font-bold">
+                            <td colspan="4" class="py-2.5 px-3 text-slate-500 text-[11px] uppercase">${lista.length} movimiento${lista.length === 1 ? '' : 's'}</td>
+                            <td class="py-2.5 px-3 text-right text-emerald-600">${totIn > 0 ? Utils.formatter.format(totIn) : '—'}</td>
+                            <td class="py-2.5 px-3 text-right text-rose-600">${totOut > 0 ? Utils.formatter.format(totOut) : '—'}</td>
+                        </tr>`;
+                }
+
+                if (lista.length === 0) {
+                    body.innerHTML = `<tr><td colspan="6" class="p-4 text-center text-slate-400">Sin movimientos con estos filtros.</td></tr>`;
+                    return;
+                }
+
+                const badge = {
+                    'Cobro de orden': 'bg-emerald-50 text-emerald-700',
+                    'Ingreso adicional': 'bg-teal-50 text-teal-700',
+                    'Gasto de tesorería': 'bg-rose-50 text-rose-700',
+                    'Compra de refacción': 'bg-amber-50 text-amber-700'
+                };
+                body.innerHTML = lista.map(m => {
+                    const f = m.fechaObj.toLocaleDateString('es-MX', { day: '2-digit', month: 'short' });
+                    const ing = m.tipo === 'ingreso';
+                    return `
+                        <tr class="hover:bg-slate-50 border-b border-slate-100 align-top">
+                            <td class="py-2 px-3 whitespace-nowrap font-semibold text-slate-700">${esc(f)}</td>
+                            <td class="py-2 px-3 whitespace-nowrap"><span class="px-2 py-0.5 rounded-md text-[10px] font-bold ${badge[m.origen] || 'bg-slate-100 text-slate-600'}">${esc(m.origen)}</span></td>
+                            <td class="py-2 px-3 text-slate-700">${esc(m.concepto)}${m.detalle ? `<div class="text-[10px] text-slate-400">${esc(m.detalle)}</div>` : ''}</td>
+                            <td class="py-2 px-3 whitespace-nowrap text-slate-500">${m.cuenta === 'efectivo' ? '💵' : '🏦'} ${esc(m.metodo)}</td>
+                            <td class="py-2 px-3 text-right whitespace-nowrap text-emerald-600 font-medium">${ing ? Utils.formatter.format(m.monto) : ''}</td>
+                            <td class="py-2 px-3 text-right whitespace-nowrap text-rose-600 font-medium">${!ing ? Utils.formatter.format(m.monto) : ''}</td>
+                        </tr>`;
+                }).join('');
             },
 
             renderChart() {
