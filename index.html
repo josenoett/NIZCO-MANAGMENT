@@ -992,6 +992,41 @@
                         </table>
                     </div>
                 </div>
+
+                <div id="caja-movs-card" class="bg-white border border-slate-200 rounded-3xl p-5 shadow-sm">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
+                        <div>
+                            <h3 class="font-bold text-slate-800 text-sm uppercase tracking-wider flex items-center gap-2">
+                                <span class="material-icons text-blue-500">receipt_long</span> Movimientos del Periodo
+                            </h3>
+                            <p class="text-[10px] text-slate-400">Órdenes y conceptos que forman las entradas y salidas. Toca un día en la tabla de arriba para ver solo ese día.</p>
+                        </div>
+                        <div class="flex items-center gap-2 flex-wrap">
+                            <span id="caja-movs-dia-chip" class="hidden bg-blue-50 text-blue-700 text-[11px] font-semibold px-3 py-1.5 rounded-lg"></span>
+                            <div class="bg-slate-100 p-1 rounded-xl flex gap-1">
+                                <button type="button" id="caja-movs-btn-todos" onclick="Cashflow_Engine.setFiltroTipo('todos')">Todos</button>
+                                <button type="button" id="caja-movs-btn-ingreso" onclick="Cashflow_Engine.setFiltroTipo('ingreso')">Entradas</button>
+                                <button type="button" id="caja-movs-btn-egreso" onclick="Cashflow_Engine.setFiltroTipo('egreso')">Salidas</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="overflow-x-auto max-h-[32rem] no-scrollbar">
+                        <table class="w-full text-left text-xs border-collapse">
+                            <thead class="sticky top-0 bg-white">
+                                <tr class="text-slate-400 font-bold border-b">
+                                    <th class="pb-2 px-3">Fecha</th>
+                                    <th class="pb-2 px-3">Origen</th>
+                                    <th class="pb-2 px-3">Orden / Concepto</th>
+                                    <th class="pb-2 px-3">Método</th>
+                                    <th class="pb-2 px-3 text-right">Entrada</th>
+                                    <th class="pb-2 px-3 text-right">Salida</th>
+                                </tr>
+                            </thead>
+                            <tbody id="caja-movs-body" class="text-slate-600"></tbody>
+                            <tfoot id="caja-movs-foot"></tfoot>
+                        </table>
+                    </div>
+                </div>
             </section>
 
             <!-- PESTAÑA 4: GENERADOR PDF -->
